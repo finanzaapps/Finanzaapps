@@ -317,10 +317,10 @@ document.addEventListener('DOMContentLoaded', function() {
     <div style="width:100%">
       <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">E-mail</div>
       <input type="email" id="login-user" placeholder="seu@email.com" autocomplete="username"
-        style="margin-bottom:12px;font-size:15px" onkeydown="if(event.key='Enter')document.getElementById('login-pass').focus()">
+        style="margin-bottom:12px;font-size:15px" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
       <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Senha</div>
       <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
-        style="margin-bottom:8px;font-size:15px" onkeydown="if(event.key='Enter')tentarLogin()">
+        style="margin-bottom:8px;font-size:15px" onkeydown="if(event.key==='Enter')tentarLogin()">
       <div id="login-erro" style="display:none;color:var(--danger);font-size:12px;margin-bottom:8px;text-align:center">❌ E-mail ou senha incorretos</div>
       <button id="btn-entrar" class="btn btn-gold" style="width:100%;padding:13px;font-size:15px;margin-bottom:10px" onclick="tentarLogin()">Entrar</button>
       <div style="display:flex;gap:8px">
