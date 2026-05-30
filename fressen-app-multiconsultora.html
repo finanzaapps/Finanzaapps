@@ -174,17 +174,57 @@ var MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby86BJDdtK1_aBw
 var consultora_session = null;  // {nome, email, plano, sheet_id, sheet_url}
 
 function _callMaster(params, cb) {
-  var cbName = 'cb_' + Date.now();
+  // Usa JSONP com parâmetro anti-cache para evitar bloqueio por sessão Google
+  var cbName = 'cb_' + Date.now() + '_' + Math.floor(Math.random()*99999);
   var script = document.createElement('script');
+  params['_t'] = Date.now(); // anti-cache
   var url = MASTER_SCRIPT_URL + '?' + Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&') + '&callback=' + cbName;
+  var done = false;
+  var timeout = setTimeout(function() {
+    if (!done) {
+      done = true;
+      try { delete window[cbName]; document.body.removeChild(script); } catch(e) {}
+      cb({ok:false, msg:'Tempo esgotado. Verifique sua conexão.'});
+    }
+  }, 15000);
   window[cbName] = function(data) {
-    delete window[cbName];
-    document.body.removeChild(script);
+    if (done) return;
+    done = true;
+    clearTimeout(timeout);
+    try { delete window[cbName]; document.body.removeChild(script); } catch(e) {}
     cb(data);
   };
-  script.onerror = function() { cb({ok:false, msg:'Erro de conexão.'}); };
+  script.onerror = function() {
+    if (done) return;
+    done = true;
+    clearTimeout(timeout);
+    try { delete window[cbName]; document.body.removeChild(script); } catch(e) {}
+    // Tenta fetch como fallback
+    _callMasterFetch(params, cb);
+  };
   script.src = url;
   document.body.appendChild(script);
+}
+
+function _callMasterFetch(params, cb) {
+  // Fallback: fetch direto (funciona quando JSONP é bloqueado)
+  delete params['callback'];
+  delete params['_t'];
+  var url = MASTER_SCRIPT_URL + '?' + Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
+  fetch(url, {
+    method: 'GET',
+    mode: 'cors',
+    credentials: 'omit',  // IMPORTANTE: não envia cookies da conta Google
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) { cb(data); })
+  .catch(function() {
+    // Tenta redirect mode como último recurso
+    fetch(url, { method: 'GET', mode: 'no-cors', credentials: 'omit' })
+    .then(function() { cb({ok:false, msg:'Erro de conexão com o servidor.'}); })
+    .catch(function() { cb({ok:false, msg:'Sem conexão. Tente novamente.'}); });
+  });
 }
 
 function tentarLogin() {
