@@ -209,11 +209,14 @@ function tentarLogin() {
       try{ localStorage.setItem('fressen_session', JSON.stringify(res)); }catch(e){}
       // Define sheet_id desta consultora (apiUrl é fixo — script único para todas)
       S.sheetId = res.sheet_id || '';
+      S.plano = res.plano || 'free';
       try{ localStorage.setItem('fressen_sheetId', S.sheetId); }catch(e){}
+      try{ localStorage.setItem('fressen_plano', S.plano); }catch(e){}
       document.getElementById('tela-login').style.display = 'none';
       var hn = document.getElementById('header-consultora-nome');
       if(hn) hn.textContent = res.nome ? res.nome.split(' ')[0] : '';
       carregarDoSheets();
+      renderBannerPlano();
     } else {
       _loginErro(res.msg||'Erro ao entrar.');
     }
@@ -228,7 +231,7 @@ function _loginErro(msg){
 
 function fazerLogout(){
   _session=null;
-  try{ localStorage.removeItem('fressen_session'); localStorage.removeItem('fressen_logado'); localStorage.removeItem('fressen_sheetId'); }catch(e){}
+  try{ localStorage.removeItem('fressen_session'); localStorage.removeItem('fressen_logado'); localStorage.removeItem('fressen_sheetId'); localStorage.removeItem('fressen_plano'); }catch(e){}
   location.reload();
 }
 
@@ -294,7 +297,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if(saved){
       _session = JSON.parse(saved);
       S.sheetId = _session.sheet_id || localStorage.getItem('fressen_sheetId') || '';
+      S.plano = _session.plano || localStorage.getItem('fressen_plano') || 'free';
       try{ localStorage.setItem('fressen_sheetId', S.sheetId); }catch(e){}
+      try{ localStorage.setItem('fressen_plano', S.plano); }catch(e){}
       var t = document.getElementById('tela-login');
       if(t) t.style.display = 'none';
       var hn = document.getElementById('header-consultora-nome');
@@ -326,6 +331,9 @@ document.addEventListener('DOMContentLoaded', function() {
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline btn-sm" style="flex:1;font-size:13px" onclick="mostrarCadastro()">Criar conta</button>
         <button class="btn btn-outline btn-sm" style="flex:1;font-size:13px" onclick="mostrarRecuperarSenha()">Esqueci a senha</button>
+      </div>
+      <div style="margin-top:16px;text-align:center">
+        <button onclick="window.open(KIWIFY_URL,'_blank')" style="background:linear-gradient(135deg,#F1B79C,#C07050);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;width:100%">💎 Assinar Premium — R$19,90/mês</button>
       </div>
     </div>
     <p style="font-size:10px;color:#ccc;margin-top:24px">Fressen Joias · App Consultora</p>
@@ -1732,10 +1740,66 @@ let S = {
   currentModalCliente: null,
   apiUrl: 'https://script.google.com/macros/s/AKfycbzoLfSTCXo533K3O2yjV-UqJxDNVwuIqWEXFjO2cOq24P-V--JJ1ZiGj731zGiYDwcO/exec',
   sheetId: '',
+  plano: 'free',
   maleta: { numero:'', consultora:'', ciclo:'', dataInicio:'', dataAcerto:'' },
 };
 
-// ============ PERSIST LOCAL ============
+// ============ PLANO / LICENÇA ============
+var KIWIFY_URL = 'https://kiwify.com.br/SEU-LINK-AQUI'; // ← substituir quando tiver
+
+function isPremium() {
+  return S.plano === 'premium' || S.plano === 'trial';
+}
+
+function showUpgrade(motivo) {
+  var msg = motivo || 'Este recurso é exclusivo do plano Premium.';
+  if(confirm('💎 ' + msg + '\n\nDeseja assinar o Premium agora?')) {
+    window.open(KIWIFY_URL, '_blank');
+  }
+}
+
+// Verifica limites do plano free antes de ações críticas
+function checkFreeLimit(tipo) {
+  if(isPremium()) return true;
+  if(tipo === 'clientes') {
+    if(S.clientes.length >= 5) {
+      showUpgrade('Plano Free permite até 5 clientes. Faça upgrade para adicionar mais.');
+      return false;
+    }
+  }
+  if(tipo === 'pagamento_avancado') {
+    showUpgrade('Parcelamento, Crédito, Débito e Transferência são recursos Premium.');
+    return false;
+  }
+  if(tipo === 'pdf') {
+    showUpgrade('Geração de PDF é um recurso Premium.');
+    return false;
+  }
+  if(tipo === 'financeiro') {
+    showUpgrade('O módulo Financeiro (contas a receber) é exclusivo Premium.');
+    return false;
+  }
+  if(tipo === 'historico') {
+    showUpgrade('O histórico completo de vendas é exclusivo Premium.');
+    return false;
+  }
+  return true;
+}
+
+function renderBannerPlano() {
+  if(isPremium()) return;
+  var existing = document.getElementById('banner-upgrade');
+  if(existing) return;
+  var banner = document.createElement('div');
+  banner.id = 'banner-upgrade';
+  banner.style.cssText = 'background:linear-gradient(135deg,#F1B79C,#C07050);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px';
+  banner.innerHTML = '<span style="font-size:12px;color:#fff;font-weight:600">💎 Plano Free — recursos limitados</span>' +
+    '<button onclick="window.open(KIWIFY_URL,\'_blank\')" style="background:#fff;color:#C07050;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Assinar Premium</button>';
+  // Insert after nav
+  var nav = document.querySelector('.nav');
+  if(nav && nav.nextSibling) nav.parentNode.insertBefore(banner, nav.nextSibling);
+}
+
 // REGRA: localStorage NÃO guarda produtos/vendas/clientes.
 // Só guarda maleta (número, consultora) que vem do PDF importado.
 
@@ -1781,6 +1845,8 @@ function load() {
   try {
     const savedId = localStorage.getItem('fressen_sheetId');
     if (savedId) S.sheetId = savedId;
+    const savedPlano = localStorage.getItem('fressen_plano');
+    if (savedPlano) S.plano = savedPlano;
   } catch(e) {}
 }
 
@@ -3091,6 +3157,9 @@ async function salvarCliente() {
 
   if (!nome || !tel) { toast('Nome e telefone são obrigatórios'); return; }
 
+  // Limite de clientes no plano free (só bloqueia novo cadastro, não edição)
+  if (!idEdit && !checkFreeLimit('clientes')) return;
+
   // Verificar duplicata — mesmo nome OU mesmo telefone (ignora o próprio em edição)
   const telLimpo = tel.replace(/\D/g,'');
   const dupNome = S.clientes.find(x => x.id !== idEdit && x.nome.toLowerCase() === nome.toLowerCase());
@@ -3132,6 +3201,12 @@ async function salvarCliente() {
 
 // ============ PAGAMENTOS — parcelas ============
 function togglePayOpt(el, metodo) {
+  // Métodos avançados só no Premium
+  const metodosAvancados = ['Crédito','Débito','Carteira','Transferência'];
+  if(metodosAvancados.includes(metodo) && !isPremium()) {
+    checkFreeLimit('pagamento_avancado');
+    return;
+  }
   el.classList.toggle('selected');
   if (el.classList.contains('selected')) S.paySelected[metodo] = 0;
   else delete S.paySelected[metodo];
@@ -3171,6 +3246,11 @@ function relTab(tab) { atualizarFechResumo(); }
 // ══════════════════════════════════════════════════════
 // showPage ============
 function showPage(p) {
+  // Bloqueio de páginas premium no plano free
+  if(!isPremium()) {
+    if(p === 'financeiro') { checkFreeLimit('financeiro'); return; }
+    if(p === 'historico')  { checkFreeLimit('historico');  return; }
+  }
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
@@ -3632,6 +3712,7 @@ async function pushVendaSheets(venda, cliente) {
 // PDF DE FECHAMENTO DE MALETA
 // ═══════════════════════════════════════════════
 function gerarPDFFechamento() {
+  if(!checkFreeLimit('pdf')) return;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const m   = S.maleta;
@@ -4265,6 +4346,7 @@ function limparFiltroHist() {
 // PDF FINANCEIRO — A Receber
 // ═══════════════════════════════════════════════
 function gerarPDFFinanceiro() {
+  if(!checkFreeLimit('pdf')) return;
   const { jsPDF } = window.jspdf;
   if (!jsPDF) { toast('❌ jsPDF não carregou'); return; }
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
