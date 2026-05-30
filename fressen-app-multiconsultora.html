@@ -1993,9 +1993,6 @@ async function carregarDoSheets(silencioso) {
   }
 
   updateStats(); renderMaletaCard(); renderEstoque(); renderClientes(); populateClienteSelect();
-    if (!silencioso) toast('❌ Sem resposta do Sheets. Verifique o Apps Script.');
-    return;
-  }
 
   console.log('[Sheets] estoque:', (res.estoque||[]).length, 'vendas:', (res.vendas||[]).length, 'clientes:', (res.clientes||[]).length);
 
