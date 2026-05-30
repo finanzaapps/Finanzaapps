@@ -167,7 +167,7 @@
 <body>
 <script>
 // ── MULTI-CONSULTORA: Login via Apps Script Mestre ──
-var MASTER_URL = 'https://script.google.com/macros/s/AKfycbx2zeh9YS3gli4s980xIgS7yP7PcYqZuzUu1AxNEKbU9wh3nf_iceViNzc9EDd_P4F7/exec';
+var MASTER_URL = 'https://script.google.com/macros/s/AKfycbySNAvk03K2ECAXt16Lo33anXoPUwNJQplqZK-oQ3KadXx4IugfEoFfrbH2BkR1m4nw/exec';
 var _session = null;
 
 function _masterCall(params, cb) {
@@ -215,6 +215,12 @@ function tentarLogin() {
       document.getElementById('tela-login').style.display = 'none';
       var hn = document.getElementById('header-consultora-nome');
       if(hn) hn.textContent = res.nome ? res.nome.split(' ')[0] : '';
+      // Se senha temporária, exige troca antes de entrar
+      if(res.trocar_senha) {
+        _session._senhaTmp = document.getElementById('login-pass').value.trim();
+        mostrarTrocarSenha();
+        return;
+      }
       carregarDoSheets();
       renderBannerPlano();
     } else {
@@ -235,7 +241,41 @@ function fazerLogout(){
   location.reload();
 }
 
-function mostrarLogin(){
+function mostrarTrocarSenha(){
+  document.getElementById('tela-login').style.display='flex';
+  document.getElementById('painel-login').style.display='none';
+  document.getElementById('painel-cadastro').style.display='none';
+  document.getElementById('painel-recuperar').style.display='none';
+  document.getElementById('painel-trocar-senha').style.display='flex';
+}
+
+function confirmarTrocaSenha(){
+  var s1 = (document.getElementById('nova-senha-1').value||'').trim();
+  var s2 = (document.getElementById('nova-senha-2').value||'').trim();
+  var err = document.getElementById('trocar-senha-erro');
+  err.style.display='none';
+  if(!s1 || s1.length < 6){ err.textContent='Senha deve ter pelo menos 6 caracteres.'; err.style.display='block'; return; }
+  if(s1 !== s2){ err.textContent='As senhas não coincidem.'; err.style.display='block'; return; }
+  var btn = document.getElementById('btn-trocar-senha');
+  btn.disabled=true; btn.textContent='Salvando...';
+  // POST para o Mestre trocar a senha
+  var payload = JSON.stringify({action:'trocarSenha', email:_session.email, senha_temp:_session._senhaTmp||'', senha_nova:s1});
+  fetch(MASTER_URL, {method:'POST', mode:'no-cors', body:payload})
+    .then(function(){
+      // no-cors = opaque, assumimos ok
+      btn.disabled=false;
+      // Entra no app normalmente
+      document.getElementById('tela-login').style.display='none';
+      carregarDoSheets();
+      renderBannerPlano();
+    }).catch(function(){
+      // Mesmo com erro de rede, deixa entrar (senha já foi trocada no server se chegou)
+      btn.disabled=false;
+      document.getElementById('tela-login').style.display='none';
+      carregarDoSheets();
+      renderBannerPlano();
+    });
+}
   document.getElementById('painel-login').style.display='flex';
   document.getElementById('painel-cadastro').style.display='none';
   document.getElementById('painel-recuperar').style.display='none';
@@ -271,6 +311,10 @@ function tentarCadastro(){
     } else {
       err.textContent = res.msg || 'Erro ao cadastrar.';
       err.style.display='block';
+      // Se já tem conta, oferece ir para login
+      if(res.ja_existe){
+        setTimeout(function(){ mostrarLogin(); }, 2000);
+      }
     }
   });
 }
@@ -367,6 +411,22 @@ document.addEventListener('DOMContentLoaded', function() {
       <div id="rec-msg" style="display:none;font-size:12px;margin-bottom:8px;text-align:center"></div>
       <button id="btn-recuperar" class="btn btn-gold" style="width:100%;padding:13px;font-size:15px;margin-bottom:10px" onclick="tentarRecuperarSenha()">Enviar senha por e-mail</button>
       <button class="btn btn-outline btn-sm" style="width:100%;font-size:13px" onclick="mostrarLogin()">← Voltar para login</button>
+    </div>
+  </div>
+
+  <!-- PAINEL TROCAR SENHA (pós recuperação) -->
+  <div id="painel-trocar-senha" style="width:100%;max-width:320px;display:none;flex-direction:column;align-items:center">
+    <div style="font-size:10px;color:#B09080;letter-spacing:2px;margin-bottom:16px;text-align:center">CRIAR NOVA SENHA</div>
+    <div style="width:100%;background:#FDF0EB;border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:#C07050;text-align:center">
+      🔑 Você está usando uma senha temporária.<br>Crie uma nova senha para continuar.
+    </div>
+    <div style="width:100%">
+      <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Nova senha (mín. 6 caracteres)</div>
+      <input type="password" id="nova-senha-1" placeholder="••••••••" style="margin-bottom:10px;font-size:15px">
+      <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Confirmar nova senha</div>
+      <input type="password" id="nova-senha-2" placeholder="••••••••" style="margin-bottom:8px;font-size:15px">
+      <div id="trocar-senha-erro" style="display:none;color:var(--danger);font-size:12px;margin-bottom:8px;text-align:center"></div>
+      <button id="btn-trocar-senha" class="btn btn-gold" style="width:100%;padding:13px;font-size:15px" onclick="confirmarTrocaSenha()">Salvar nova senha e entrar</button>
     </div>
   </div>
 
