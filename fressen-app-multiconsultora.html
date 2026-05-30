@@ -1968,8 +1968,12 @@ async function carregarDoSheets(silencioso) {
   console.log('[Sheets] Resposta recebida:', res ? 'OK' : 'NULL/ERRO');
 
   if (!res) {
-    // Sheets não respondeu — mantém zerado, mostra aviso
-    // Carrega dados da maleta da aba Maleta do Sheets
+    // Sheets não respondeu — planilha vazia ou erro, mantém zerado
+    setSyncStatus('err');
+    renderMaletaCard(); updateStats(); renderEstoque(); renderClientes(); populateClienteSelect();
+    return;
+  }
+  // Carrega dados da maleta da aba Maleta do Sheets
   if (res.maleta && res.maleta.length > 0) {
     const m = res.maleta[0]; // sempre 1 linha
     if (m.numero) {
