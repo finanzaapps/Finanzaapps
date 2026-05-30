@@ -170,46 +170,44 @@
 // SISTEMA MULTI-CONSULTORA — Login / Cadastro
 // ═══════════════════════════════════════════════
 
-var MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby86BJDdtK1_aBwmnLQB0GQ6wwmW5iNy8258zyCFioUvMmLP1l9uPN7iugQr4KjSR61/exec';
+var MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2zeh9YS3gli4s980xIgS7yP7PcYqZuzUu1AxNEKbU9wh3nf_iceViNzc9EDd_P4F7/exec';
 var consultora_session = null;  // {nome, email, plano, sheet_id, sheet_url}
 
 function _callMaster(params, cb) {
-  // Usa fetch com redirect:follow e credentials:omit
-  // Isso resolve ERR_BLOCKED_BY_ORB causado pelo redirect 302 do Apps Script
-  var url = MASTER_SCRIPT_URL + '?' + Object.keys(params)
+  // JSONP puro - única forma confiável com Apps Script
+  var cbName = 'mcb_' + Date.now() + '_' + Math.floor(Math.random()*99999);
+  var script = document.createElement('script');
+  var qstr = Object.keys(params)
     .map(function(k){ return k + '=' + encodeURIComponent(params[k]); })
     .join('&');
+  var url = MASTER_SCRIPT_URL + '?' + qstr + '&callback=' + cbName + '&_t=' + Date.now();
+  var done = false;
 
-  var timeout = setTimeout(function() {
+  var timer = setTimeout(function() {
+    if (done) return;
+    done = true;
+    try { delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); } catch(e){}
     cb({ok:false, msg:'Tempo esgotado. Tente novamente.'});
-  }, 15000);
+  }, 20000);
 
-  fetch(url, {
-    method: 'GET',
-    redirect: 'follow',
-    credentials: 'omit'
-  })
-  .then(function(r) {
-    // Apps Script pode retornar text/plain mesmo sendo JSON
-    return r.text();
-  })
-  .then(function(text) {
-    clearTimeout(timeout);
-    try {
-      // Remove possível wrapper JSONP se vier
-      var clean = text.trim();
-      if (clean.startsWith('callback(') || clean.includes('({"')) {
-        clean = clean.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, '');
-      }
-      cb(JSON.parse(clean));
-    } catch(e) {
-      cb({ok:false, msg:'Erro ao processar resposta.'});
-    }
-  })
-  .catch(function(err) {
-    clearTimeout(timeout);
-    cb({ok:false, msg:'Erro de conexão. Tente novamente.'});
-  });
+  window[cbName] = function(data) {
+    if (done) return;
+    done = true;
+    clearTimeout(timer);
+    try { delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); } catch(e){}
+    cb(data);
+  };
+
+  script.onerror = function() {
+    if (done) return;
+    done = true;
+    clearTimeout(timer);
+    try { delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); } catch(e){}
+    cb({ok:false, msg:'Erro de conexão. Verifique sua internet.'});
+  };
+
+  script.src = url;
+  document.body.appendChild(script);
 }
 
 function tentarLogin() {
@@ -233,6 +231,14 @@ function tentarLogin() {
       // Atualiza nome no header
       var headerNome = document.getElementById('header-consultora-nome');
       if (headerNome) headerNome.textContent = res.nome.split(' ')[0];
+      // Define URL do Sheets da consultora a partir do sheet_id
+      if (res.sheet_id) {
+        var sheetScriptUrl = 'https://script.google.com/macros/s/AKfycbxZJK7nleUWyDneJkiH6TBuOkD5vU9QVMTGqCEvssGAlEFYa2QgFmWdrjLq4pEmsNkx/exec';
+        S.apiUrl = sheetScriptUrl;
+        try { localStorage.setItem('fressen_apiUrl', sheetScriptUrl); } catch(e) {}
+      }
+      renderMaletaCard();
+      updateStats();
       carregarDoSheets();
     } else {
       mostrarErroLogin(res.msg || 'Erro ao fazer login.');
@@ -338,6 +344,10 @@ document.addEventListener('DOMContentLoaded', function() {
       consultora_session = JSON.parse(saved);
       if (consultora_session && consultora_session.sheet_id) {
         window._CONSULTORA_SHEET_ID = consultora_session.sheet_id;
+        // Restaura URL do Sheets
+        var sheetScriptUrl = 'https://script.google.com/macros/s/AKfycbxZJK7nleUWyDneJkiH6TBuOkD5vU9QVMTGqCEvssGAlEFYa2QgFmWdrjLq4pEmsNkx/exec';
+        S.apiUrl = sheetScriptUrl;
+        try { localStorage.setItem('fressen_apiUrl', sheetScriptUrl); } catch(e) {}
         var headerNome = document.getElementById('header-consultora-nome');
         if (headerNome) headerNome.textContent = consultora_session.nome.split(' ')[0];
         document.getElementById('tela-login').style.display = 'none';
@@ -1784,8 +1794,8 @@ function load() {
 // Garante estado limpo antes de qualquer coisa
 S.produtos = []; S.vendas = []; S.clientes = []; S.cart = [];
 load();
-renderMaletaCard();
-updateStats();
+// renderMaletaCard e updateStats só rodam após login
+// pois dependem de elementos do DOM que podem não estar visíveis ainda
 
 // Conecta ao Sheets (só funciona via http://)
 if (window.location.protocol === 'file:') {
@@ -1867,6 +1877,7 @@ function fmt_date(d) {
 
 // ============ STATS ============
 function updateStats() {
+  if (!document.getElementById('stat-disp')) return;
   const disp = S.produtos.filter(p=>!p.vendido);
   const vend = S.produtos.filter(p=>p.vendido);
   const hoje = new Date().toDateString();
@@ -1901,7 +1912,7 @@ function fmt(v){ return 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractio
 
 function setSyncStatus(s) {
   const dot = document.getElementById('sync-dot');
-  dot.className = 'sync-dot' + (s ? ' ' + s : '');
+  if (dot) dot.className = 'sync-dot' + (s ? ' ' + s : '');
 }
 
 // JSONP — para leitura e ping
@@ -4666,7 +4677,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 // INIT renders
-renderEstoque();renderClientes();populateClienteSelect();
+if (consultora_session && consultora_session.sheet_id) { renderEstoque();renderClientes();populateClienteSelect(); }
 </script>
 </body>
 </html>
