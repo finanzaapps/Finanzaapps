@@ -276,6 +276,12 @@ function confirmarTrocaSenha(){
       renderBannerPlano();
     });
 }
+function mostrarLogin(){
+  document.getElementById('painel-login').style.display='flex';
+  document.getElementById('painel-cadastro').style.display='none';
+  document.getElementById('painel-recuperar').style.display='none';
+  document.getElementById('painel-trocar-senha').style.display='none';
+}
 function mostrarCadastro(){
   document.getElementById('painel-login').style.display='none';
   document.getElementById('painel-cadastro').style.display='flex';
