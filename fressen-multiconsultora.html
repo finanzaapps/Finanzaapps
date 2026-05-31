@@ -3579,9 +3579,24 @@ function getVendasFiltradas() {
 async function renderHistorico() {
   const el=document.getElementById('hist-conteudo');
   if(el)el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text2)">🔄 Carregando...</div>';
-  // sheetsGet já resolve com res.data diretamente (array ou null)
-  const data = await sheetsGet('listVendas');
-  _histVendas = Array.isArray(data) ? data : [];
+  // Usa S.vendas já carregados — expande para formato linha-por-item para os filtros/totais
+  _histVendas = [];
+  S.vendas.forEach(function(v) {
+    v.itens.forEach(function(item) {
+      _histVendas.push({
+        id_venda:       v.id,
+        data_venda:     v.data,
+        num_maleta:     v.numMaleta,
+        cliente:        v.cliente ? v.cliente.nome : '',
+        preco:          item.preco,
+        grupo:          item.grupo,
+        ref:            item.ref,
+        descricao:      item.desc,
+        forma_pagamento: v.pagamentoStr,
+        observacao:     v.obs,
+      });
+    });
+  });
   renderHistoricoTotais(); renderHistoricoConteudo();
 }
 
