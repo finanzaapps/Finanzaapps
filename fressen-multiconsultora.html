@@ -2101,54 +2101,52 @@ async function carregarDoSheets(silencioso) {
   if (res.estoque) {
     S.produtos = res.estoque.map(function(item) {
       return {
-        id:           String(item.ID    || item.id    || ''),
-        ref:          item.Ref          || item.ref   || '',
-        grupo:        item.Grupo        || item.grupo || '',
-        desc:         item.Descricao    || item.desc  || '',
-        preco:        Number(item.Preco || item.preco) || 0,
-        barcode:      item.Barcode      || item.barcode || '',
-        vendido:      (item.Status || item.status) === 'Vendido',
-        numMaleta:    String(item.NumMaleta || item.num_maleta || ''),
-        dataVenda:    item.DataVenda    || item.data_venda    || '',
-        clienteVenda: item.ClienteVenda || item.cliente_venda || '',
+        id:           String(item.id          || item.ID          || ''),
+        ref:          item.ref                || item.Ref         || '',
+        grupo:        item.grupo              || item.Grupo       || '',
+        desc:         item.desc               || item.Descricao   || '',
+        preco:        Number(item.preco       || item.Preco)      || 0,
+        barcode:      item.barcode            || item.Barcode     || '',
+        vendido:      (item.status            || item.Status)     === 'Vendido',
+        numMaleta:    String(item.num_maleta  || item.NumMaleta   || ''),
+        dataVenda:    item.data_venda         || item.DataVenda   || '',
+        clienteVenda: item.cliente_venda      || item.ClienteVenda|| '',
       };
     });
   }
   if (res.vendas) {
     const vendaMap = {};
     res.vendas.forEach(function(v) {
-      // SeqVenda pode ser "1778719449636_BR1-4111-12" ou só "1778719449636"
-      // O ID real da venda é a parte antes do "_" (ou o valor inteiro se não tiver "_")
-      var rawId = String(v.SeqVenda || v.id_venda || '');
-      var vid = rawId.indexOf('_') >= 0 ? rawId.split('_')[0] : rawId;
+      // id_venda pode ser "1778719449636_BR1-4111-12" — ID real é a parte numérica antes do _
+      var rawId = String(v.id_venda || v.SeqVenda || '');
+      var vid   = rawId.indexOf('_') >= 0 ? rawId.split('_')[0] : rawId;
       if (!vendaMap[vid]) {
         const pagamentos = {};
-        const pagamentoStr = v.FormaPagamento || v.forma_pagamento || '';
+        const pagamentoStr = v.forma_pagamento || v.FormaPagamento || '';
         pagamentoStr.split(' | ').forEach(function(part) {
           const m = /^(.+):\s*R\$\s*([\d.]+)$/.exec(part.trim());
           if (m) pagamentos[m[1].trim()] = parseFloat(m[2]);
         });
-        const nomeCliente = typeof v.Cliente === 'object' ? (v.Cliente?.nome || '') :
-                            (v.Cliente || v.cliente || '');
-        const clienteObj = nomeCliente ? { nome: nomeCliente, id: '' } : null;
+        const nomeCliente = v.cliente || v.Cliente || '';
+        const clienteObj  = nomeCliente ? { nome: nomeCliente, id: '' } : null;
         vendaMap[vid] = {
           id:           vid,
-          data:         v.DataVenda    || v.data_venda  || '',
-          numMaleta:    String(v.NumMaleta || v.num_maleta || ''),
+          data:         v.data_venda    || v.DataVenda    || '',
+          numMaleta:    String(v.num_maleta || v.NumMaleta || ''),
           cliente:      clienteObj,
           total:        0,
           itens:        [],
           pagamentos:   pagamentos,
           pagamentoStr: pagamentoStr,
-          obs:          v.Observacao   || v.observacao  || '',
+          obs:          v.observacao    || v.Observacao   || '',
           parcelas:     null,
         };
       }
-      const preco = Number(v.Preco || v.preco) || 0;
+      const preco = Number(v.preco || v.Preco) || 0;
       vendaMap[vid].itens.push({
-        ref:   v.Referencia || v.ref       || '',
-        grupo: v.Grupo      || v.grupo     || '',
-        desc:  v.Descricao  || v.descricao || '',
+        ref:   v.ref       || v.Referencia || '',
+        grupo: v.grupo     || v.Grupo      || '',
+        desc:  v.descricao || v.Descricao  || '',
         preco
       });
       vendaMap[vid].total += preco;
@@ -2158,11 +2156,11 @@ async function carregarDoSheets(silencioso) {
   if (res.clientes) {
     S.clientes = res.clientes.map(function(c) {
       return {
-        id:   String(c.ID   || c.id   || ''),
-        nome: String(c.Nome || c.nome || ''),
-        tel:  String(c.Telefone  || c.telefone  || ''),
-        email: c.Email || c.email || '',
-        nasc:  c.DataNascimento || c.nascimento || ''
+        id:    String(c.id   || c.ID        || ''),
+        nome:  String(c.nome || c.Nome      || ''),
+        tel:   String(c.telefone || c.Telefone || ''),
+        email: c.email       || c.Email     || '',
+        nasc:  c.nascimento  || c.DataNascimento || ''
       };
     });
   }
@@ -2170,19 +2168,19 @@ async function carregarDoSheets(silencioso) {
   if (res.areceber) {
     S.areceber = res.areceber.map(function(r) {
       return {
-        vendaId:       String(r.ID            || r.id_venda       || ''),
-        dataVenda:      fmtDataBR(r['Data Venda']  || r.data_venda),
-        cliente:        String(r.Cliente       || r.cliente        || ''),
-        celular:        String(r.Celular       || r.celular        || ''),
-        maleta:         String(r.Maleta        || r.maleta         || ''),
-        valorVenda:     Number(r['Valor Venda']|| r.valor_venda)   || 0,
-        numParcela:     Number(r.Parcela       || r.num_parcela)   || 1,
-        totalParcelas:  Number(r.Parcelas      || r.total_parcelas)|| 1,
-        valorParcela:   Number(r['Valor Parcela'] || r.valor_parcela) || 0,
-        intervalo:      Number(r.Intervalo     || r.intervalo)     || 30,
-        dataVencimento: fmtDataBR(r['Data Vencimento'] || r.data_vencimento || r.data_venda),
-        dataPagamento:  String(r['Data Pagamento'] || r.data_pagamento || ''),
-        status:         String(r['Status Pagamento'] || r.status   || 'Pendente'),
+        vendaId:       String(r.id_venda        || r.ID            || ''),
+        dataVenda:      fmtDataBR(r.data_venda  || r['Data Venda']),
+        cliente:        String(r.cliente        || r.Cliente        || ''),
+        celular:        String(r.celular        || r.Celular        || ''),
+        maleta:         String(r.maleta         || r.Maleta         || ''),
+        valorVenda:     Number(r.valor_venda    || r['Valor Venda']) || 0,
+        numParcela:     Number(r.num_parcela    || r.Parcela)       || 1,
+        totalParcelas:  Number(r.total_parcelas || r.Parcelas)      || 1,
+        valorParcela:   Number(r.valor_parcela  || r['Valor Parcela']) || 0,
+        intervalo:      Number(r.intervalo      || r.Intervalo)     || 30,
+        dataVencimento: fmtDataBR(r.data_vencimento || r['Data Vencimento'] || r.data_venda),
+        dataPagamento:  String(r.data_pagamento || r['Data Pagamento'] || ''),
+        status:         String(r.status         || r['Status Pagamento'] || 'Pendente'),
       };
     });
   } else {
@@ -3731,14 +3729,22 @@ async function finalizarVenda() {
   const formasAvista = ['Pix','Dinheiro','Débito','Transferência'];
   Object.entries(venda.pagamentos||{}).forEach(([metodo, valor]) => {
     if (!formasAvista.includes(metodo) || !valor) return;
-    const dataHoje = new Date(venda.data).toLocaleDateString('pt-BR');
+    const dataHoje  = new Date(venda.data).toLocaleDateString('pt-BR');
     const vidAvista = venda.id + '_' + metodo.replace(/\s/g,'');
     sheetsPost({action:'salvarParcela', parcela:{
-      VendaId:vidAvista, DataVenda:dataHoje,
-      Cliente:cliente?cliente.nome:'', Celular:cliente?cliente.tel||'':'',
-      Maleta:S.maleta.numero||'', ValorVenda:valor,
-      NumParcela:1, TotalParcelas:1, ValorParcela:valor,
-      Intervalo:0, DataVencimento:dataHoje, DataPagamento:dataHoje, Status:'Pago',
+      VendaId:        vidAvista,
+      DataVenda:      dataHoje,
+      Cliente:        cliente ? cliente.nome : '',
+      Celular:        cliente ? (cliente.tel||'') : '',
+      Maleta:         S.maleta.numero||'',
+      ValorVenda:     valor,
+      NumParcela:     1,
+      TotalParcelas:  1,
+      ValorParcela:   valor,
+      Intervalo:      0,
+      DataVencimento: dataHoje,
+      DataPagamento:  dataHoje,
+      Status:         'Pago',
     }});
     S.areceber.push({
       vendaId:vidAvista, dataVenda:dataHoje,
@@ -3751,10 +3757,24 @@ async function finalizarVenda() {
 
   if(parcelasInfo&&parcelasInfo.qtd>0){
     for(let pi=1;pi<=parcelasInfo.qtd;pi++){
-      const dtBase=new Date(venda.data);dtBase.setDate(dtBase.getDate()+parcelasInfo.dias*pi);
-      const _dtBase=new Date(venda.data); _dtBase.setDate(_dtBase.getDate()+parcelasInfo.dias*pi);
-      const _dtVenc=_dtBase.toLocaleDateString('pt-BR');
-      sheetsPost({action:'salvarParcela',parcela:{VendaId:venda.id,DataVenda:new Date(venda.data).toLocaleDateString('pt-BR'),Cliente:cliente?cliente.nome:'',Celular:cliente?cliente.tel||'':'',Maleta:S.maleta.numero||'',ValorVenda:venda.total,NumParcela:pi,TotalParcelas:parcelasInfo.qtd,ValorParcela:parcelasInfo.valorTotal/parcelasInfo.qtd,Intervalo:parcelasInfo.dias,DataVencimento:_dtVenc,DataPagamento:'',Status:'Pendente'}});
+      const dtBase=new Date(venda.data);
+      dtBase.setDate(dtBase.getDate()+parcelasInfo.dias*pi);
+      const dtVenc=dtBase.toLocaleDateString('pt-BR');
+      sheetsPost({action:'salvarParcela', parcela:{
+        VendaId:        venda.id,
+        DataVenda:      new Date(venda.data).toLocaleDateString('pt-BR'),
+        Cliente:        cliente ? cliente.nome : '',
+        Celular:        cliente ? (cliente.tel||'') : '',
+        Maleta:         S.maleta.numero||'',
+        ValorVenda:     venda.total,
+        NumParcela:     pi,
+        TotalParcelas:  parcelasInfo.qtd,
+        ValorParcela:   parcelasInfo.valorTotal/parcelasInfo.qtd,
+        Intervalo:      parcelasInfo.dias,
+        DataVencimento: dtVenc,
+        DataPagamento:  '',
+        Status:         'Pendente',
+      }});
     }
   }
 
@@ -3776,33 +3796,29 @@ async function finalizarVenda() {
 
 async function pushVendaSheets(venda, cliente) {
   if(!S.apiUrl) return;
-  const dataFmt = new Date(venda.data).toLocaleDateString('pt-BR');
-  const pagStr  = Object.entries(venda.pagamentos||{}).map(([k,v])=>k+': R$'+Number(v).toFixed(2)).join(' | ');
+  const dataFmt    = new Date(venda.data).toLocaleString('pt-BR');
+  const pagStr     = Object.entries(venda.pagamentos||{}).map(([k,v])=>k+': R$'+Number(v).toFixed(2)).join(' | ');
   const consultora = _session ? (_session.nome || '') : '';
 
   for(const item of venda.itens){
-    await sheetsPost({
-      action:      'addVenda',
-      id_venda:    venda.id + '_' + item.ref,
-      data:        dataFmt,
-      numMaleta:   S.maleta.numero || '',
-      consultora:  consultora,
-      cliente:     cliente ? cliente.nome : '',
-      pagamentoStr: pagStr,
-      obs:         venda.obs || '',
-      itens: [{
-        ref:   item.ref,
-        grupo: item.grupo || '',
-        desc:  item.desc  || '',
-        preco: item.preco,
-      }]
-    });
+    await sheetsPost({action:'addVenda', venda:{
+      IDVenda:        venda.id+'_'+item.ref,
+      DataVenda:      dataFmt,
+      NumMaleta:      S.maleta.numero    || '',
+      Consultora:     consultora,
+      Cliente:        cliente ? cliente.nome : '',
+      Referencia:     item.ref,
+      Grupo:          item.grupo || '',
+      Descricao:      item.desc  || '',
+      Preco:          item.preco,
+      FormaPagamento: pagStr,
+      Observacao:     venda.obs  || '',
+    }});
     if (!item.proprio) {
-      await sheetsPost({
-        action:      'marcarVendido',
-        id:          item.id || item.ref,
-        data_venda:  dataFmt,
-        cliente:     cliente ? cliente.nome : ''
+      await sheetsPost({action:'marcarVendido',
+        ref:         item.ref,
+        dataVenda:   dataFmt,
+        clienteNome: cliente ? cliente.nome : ''
       });
     }
   }
