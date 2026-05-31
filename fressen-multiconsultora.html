@@ -3776,24 +3776,34 @@ async function finalizarVenda() {
 
 async function pushVendaSheets(venda, cliente) {
   if(!S.apiUrl) return;
-  const dataFmt=new Date(venda.data).toLocaleString('pt-BR');
-  const pagStr=Object.entries(venda.pagamentos||{}).map(([k,v])=>k+': R$'+Number(v).toFixed(2)).join(' | ');
+  const dataFmt = new Date(venda.data).toLocaleDateString('pt-BR');
+  const pagStr  = Object.entries(venda.pagamentos||{}).map(([k,v])=>k+': R$'+Number(v).toFixed(2)).join(' | ');
+  const consultora = _session ? (_session.nome || '') : '';
+
   for(const item of venda.itens){
-    await sheetsPost({action:'addVenda',venda:{
-      IDVenda:       venda.id+'_'+item.ref,
-      NumMaleta:     S.maleta.numero||'',
-      Consultora:    S.maleta.consultora||'',
-      DataVenda:     dataFmt,
-      Cliente:       cliente?cliente.nome:'',
-      Referencia:    item.ref,
-      Grupo:         item.grupo||'',
-      Descricao:     item.desc||'',
-      Preco:         item.preco,
-      FormaPagamento:pagStr,
-      Observacao:    venda.obs||'',
-    }});
+    await sheetsPost({
+      action:      'addVenda',
+      id_venda:    venda.id + '_' + item.ref,
+      data:        dataFmt,
+      numMaleta:   S.maleta.numero || '',
+      consultora:  consultora,
+      cliente:     cliente ? cliente.nome : '',
+      pagamentoStr: pagStr,
+      obs:         venda.obs || '',
+      itens: [{
+        ref:   item.ref,
+        grupo: item.grupo || '',
+        desc:  item.desc  || '',
+        preco: item.preco,
+      }]
+    });
     if (!item.proprio) {
-      await sheetsPost({action:'marcarVendido',ref:item.ref,numMaleta:S.maleta.numero||'',dataVenda:dataFmt,clienteNome:cliente?cliente.nome:''});
+      await sheetsPost({
+        action:      'marcarVendido',
+        id:          item.id || item.ref,
+        data_venda:  dataFmt,
+        cliente:     cliente ? cliente.nome : ''
+      });
     }
   }
 }
