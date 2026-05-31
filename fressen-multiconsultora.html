@@ -1800,7 +1800,7 @@ let S = {
   scannerActive: false,
   currentModalItem: null,
   currentModalCliente: null,
-  apiUrl: 'https://script.google.com/macros/s/AKfycbzoLfSTCXo533K3O2yjV-UqJxDNVwuIqWEXFjO2cOq24P-V--JJ1ZiGj731zGiYDwcO/exec',
+  apiUrl: 'https://script.google.com/macros/s/AKfycbyEQ4GvfKiqkOOajKYUIHSeKIgjHTnWzD7oe6mfUFWuL-QA8lAl2iqK5xV8NWY67npd/exec',
   sheetId: '',
   plano: 'free',
   maleta: { numero:'', consultora:'', ciclo:'', dataInicio:'', dataAcerto:'' },
@@ -2101,75 +2101,88 @@ async function carregarDoSheets(silencioso) {
   if (res.estoque) {
     S.produtos = res.estoque.map(function(item) {
       return {
-        id:           String(item.id),
-        ref:          item.ref,
-        grupo:        item.grupo,
-        desc:         item.desc,
-        preco:        Number(item.preco) || 0,
-        barcode:      item.barcode || '',
-        vendido:      item.status === 'Vendido',
-        dataVenda:    item.data_venda || '',
-        clienteVenda: item.cliente_venda || '',
+        id:           String(item.ID    || item.id    || ''),
+        ref:          item.Ref          || item.ref   || '',
+        grupo:        item.Grupo        || item.grupo || '',
+        desc:         item.Descricao    || item.desc  || '',
+        preco:        Number(item.Preco || item.preco) || 0,
+        barcode:      item.Barcode      || item.barcode || '',
+        vendido:      (item.Status || item.status) === 'Vendido',
+        numMaleta:    String(item.NumMaleta || item.num_maleta || ''),
+        dataVenda:    item.DataVenda    || item.data_venda    || '',
+        clienteVenda: item.ClienteVenda || item.cliente_venda || '',
       };
     });
   }
   if (res.vendas) {
-    // Agrupa por id_venda (cada linha = 1 item da venda)
     const vendaMap = {};
     res.vendas.forEach(function(v) {
-      const vid = String(v.id_venda);
+      // SeqVenda pode ser "1778719449636_BR1-4111-12" ou só "1778719449636"
+      // O ID real da venda é a parte antes do "_" (ou o valor inteiro se não tiver "_")
+      var rawId = String(v.SeqVenda || v.id_venda || '');
+      var vid = rawId.indexOf('_') >= 0 ? rawId.split('_')[0] : rawId;
       if (!vendaMap[vid]) {
-        // Reconstrói pagamentos a partir da string "Pix: R$89.00 | Crédito: R$50.00"
         const pagamentos = {};
-        const pagamentoStr = v.forma_pagamento || '';
+        const pagamentoStr = v.FormaPagamento || v.forma_pagamento || '';
         pagamentoStr.split(' | ').forEach(function(part) {
           const m = /^(.+):\s*R\$\s*([\d.]+)$/.exec(part.trim());
           if (m) pagamentos[m[1].trim()] = parseFloat(m[2]);
         });
-        // cliente pode ser string ou objeto
-        const nomeCliente = typeof v.cliente === 'object' ? (v.cliente?.nome || '') : (v.cliente || '');
+        const nomeCliente = typeof v.Cliente === 'object' ? (v.Cliente?.nome || '') :
+                            (v.Cliente || v.cliente || '');
         const clienteObj = nomeCliente ? { nome: nomeCliente, id: '' } : null;
         vendaMap[vid] = {
           id:           vid,
-          data:         v.data_venda,
-          numMaleta:    String(v.num_maleta || ''),
+          data:         v.DataVenda    || v.data_venda  || '',
+          numMaleta:    String(v.NumMaleta || v.num_maleta || ''),
           cliente:      clienteObj,
           total:        0,
           itens:        [],
           pagamentos:   pagamentos,
           pagamentoStr: pagamentoStr,
-          obs:          v.observacao || '',
+          obs:          v.Observacao   || v.observacao  || '',
           parcelas:     null,
         };
       }
-      const preco = Number(v.preco) || 0;
-      vendaMap[vid].itens.push({ ref: v.ref, grupo: v.grupo, desc: v.descricao, preco });
+      const preco = Number(v.Preco || v.preco) || 0;
+      vendaMap[vid].itens.push({
+        ref:   v.Referencia || v.ref       || '',
+        grupo: v.Grupo      || v.grupo     || '',
+        desc:  v.Descricao  || v.descricao || '',
+        preco
+      });
       vendaMap[vid].total += preco;
     });
     S.vendas = Object.values(vendaMap);
   }
   if (res.clientes) {
     S.clientes = res.clientes.map(function(c) {
-      return { id: String(c.id), nome: String(c.nome||''), tel: String(c.telefone||''), email: c.email || '', nasc: c.nascimento || '' };
+      return {
+        id:   String(c.ID   || c.id   || ''),
+        nome: String(c.Nome || c.nome || ''),
+        tel:  String(c.Telefone  || c.telefone  || ''),
+        email: c.Email || c.email || '',
+        nasc:  c.DataNascimento || c.nascimento || ''
+      };
     });
   }
 
   if (res.areceber) {
     S.areceber = res.areceber.map(function(r) {
       return {
-        vendaId:       String(r.id_venda       || ''),
-        dataVenda:      fmtDataBR(r.data_venda),
-        cliente:        String(r.cliente         || ''),
-        celular:        String(r.celular         || ''),
-        maleta:         String(r.maleta          || ''),
-        valorVenda:     Number(r.valor_venda)    || 0,
-        numParcela:     Number(r.num_parcela)    || 1,
-        totalParcelas:  Number(r.total_parcelas) || 1,
-        valorParcela:   Number(r.valor_parcela)  || 0,
-        intervalo:      Number(r.intervalo)      || 30,
-        dataVencimento: fmtDataBR(r.data_vencimento || r.data_venda),
-        dataPagamento:  String(r.data_pagamento  || ''),
-        status:         String(r.status          || 'Pendente'),
+        vendaId:       String(r.ID            || r.id_venda       || ''),
+        dataVenda:      fmtDataBR(r['Data Venda']  || r.data_venda),
+        cliente:        String(r.Cliente       || r.cliente        || ''),
+        celular:        String(r.Celular       || r.celular        || ''),
+        maleta:         String(r.Maleta        || r.maleta         || ''),
+        valorVenda:     Number(r['Valor Venda']|| r.valor_venda)   || 0,
+        numParcela:     Number(r.Parcela       || r.num_parcela)   || 1,
+        totalParcelas:  Number(r.Parcelas      || r.total_parcelas)|| 1,
+        valorParcela:   Number(r['Valor Parcela'] || r.valor_parcela) || 0,
+        intervalo:      Number(r.Intervalo     || r.intervalo)     || 30,
+        dataVencimento: fmtDataBR(r['Data Vencimento'] || r.data_vencimento || r.data_venda),
+        dataPagamento:  String(r['Data Pagamento'] || r.data_pagamento || ''),
+        status:         String(r['Status Pagamento'] || r.status   || 'Pendente'),
       };
     });
   } else {
