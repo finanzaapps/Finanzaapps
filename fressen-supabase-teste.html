@@ -172,7 +172,7 @@
 // A chave "anon" é pública por natureza: quem protege os dados é o
 // login (Supabase Auth) + as regras RLS criadas na Fase 1.
 // ══════════════════════════════════════════════════════════════
-var APP_VERSAO        = 'v4.1';
+var APP_VERSAO        = 'v4.1b';
 var SUPABASE_URL      = 'https://rcrlugtxuydfuttzwdvg.supabase.co';
 var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcmx1Z3R4dXlkZnV0dHp3ZHZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MjIwNDMsImV4cCI6MjEwNTk5ODA0M30.JcajWfhGoblrJhkVAobyNbl1ZEhXcPhxKCm9S2Vu2ic';
 
@@ -533,7 +533,7 @@ async function fazerLogout(){
 
 <!-- ========== LOGIN ========== -->
 <div id="tela-login" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;overflow-y:auto">
-  <div class="app-versao" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:10px;color:#C8B8B0;letter-spacing:0.5px">App Fressen v4.1 · nuvem</div>
+  <div class="app-versao" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:10px;color:#C8B8B0;letter-spacing:0.5px">App Fressen v4.1b · nuvem</div>
 
   <!-- PAINEL LOGIN -->
   <div id="painel-login" style="width:100%;max-width:320px;display:flex;flex-direction:column;align-items:center">
@@ -699,33 +699,10 @@ async function fazerLogout(){
     <div class="stat-card"><div class="stat-label">Valor Estoque</div><div class="stat-val gold" id="stat-vest">R$ 0</div></div>
   </div>
 
-  <!-- META & COMISSÃO -->
+  <!-- META (sugerida pela Fressen no PDF) -->
   <div class="card" id="card-meta" style="display:none">
-    <div class="card-title">📊 Meta & Comissão</div>
-    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px">
-      <span>Progresso</span><span id="meta-pct-txt">0%</span>
-    </div>
-    <div class="report-bar" style="margin-bottom:10px">
-      <div class="report-fill" id="meta-bar" style="width:0%;transition:width 0.6s ease"></div>
-    </div>
-    <div class="stats-row" style="margin-bottom:8px">
-      <div class="stat-card" style="border-left:3px solid var(--rosa)">
-        <div class="stat-label">Vendido</div>
-        <div class="stat-val gold" id="meta-vendido">R$ 0</div>
-      </div>
-      <div class="stat-card" style="border-left:3px solid #aaa">
-        <div class="stat-label">Meta (20%)</div>
-        <div class="stat-val" style="color:#2D1A10" id="meta-valor">R$ 0</div>
-      </div>
-    </div>
-    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-size:12px;color:var(--text2)">Comissão Projetada</span>
-        <span id="meta-comissao-pct" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--rosa-light);color:var(--rosa-dark)">30%</span>
-      </div>
-      <div style="font-size:22px;font-weight:800;color:var(--rosa-dark)" id="meta-comissao-val">R$ 0</div>
-      <div style="font-size:11px;color:var(--text2);margin-top:2px" id="meta-comissao-msg">Venda acima de <span id="meta-ref"></span> para ganhar 35%</div>
-    </div>
+    <div class="card-title">📊 Meta da Maleta</div>
+    <div id="meta-conteudo"></div>
   </div>
 
   <!-- AÇÕES RÁPIDAS -->
@@ -788,7 +765,7 @@ async function fazerLogout(){
     </div>
   </div>
 
-  <p class="app-versao" style="text-align:center;font-size:10px;color:#C8B8B0;margin:14px 0 4px;letter-spacing:0.5px">App Fressen v4.1 · dados na nuvem</p>
+  <p class="app-versao" style="text-align:center;font-size:10px;color:#C8B8B0;margin:14px 0 4px;letter-spacing:0.5px">App Fressen v4.1b · dados na nuvem</p>
 
   
 </div>
@@ -1096,8 +1073,8 @@ async function fazerLogout(){
       </div>
     </div>
     <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">
-      Encerra a maleta atual. O histórico de vendas e clientes é mantido.
-      O estoque é zerado para importação do arquivo PDF da nova Maleta.
+      Encerra a maleta atual e os eventos vinculados a ela. Vendas, clientes e financeiro são mantidos,
+      e as peças não vendidas ficam registradas como devolvidas.
     </p>
     <!-- Datas da maleta -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="fech-datas-wrap">
@@ -1247,6 +1224,7 @@ let S = {
   sheetId: '',
   plano: 'free',
   maleta: { numero:'', consultora:'', ciclo:'', dataInicio:'', dataAcerto:'' },
+  eventos: [],   // maletas complementares (Evento) vinculadas ao Ciclo aberto
 };
 
 // ============ PLANO / LICENÇA ============
@@ -1385,7 +1363,15 @@ function renderMaletaCard() {
       <div class="cond-item"><div class="cond-label">Total Peças</div><div class="cond-val">${S.produtos.length}</div></div>
       <div class="cond-item"><div class="cond-label">Vendidas</div><div class="cond-val" style="color:var(--success)">${S.produtos.filter(p=>p.vendido).length}</div></div>
       <div class="cond-item"><div class="cond-label">Disponíveis</div><div class="cond-val">${S.produtos.filter(p=>!p.vendido).length}</div></div>
-    </div>`;
+    </div>
+    ${(S.eventos||[]).map(e => {
+      const pe = S.produtos.filter(p => p.maletaId === e.id), v = pe.filter(p => p.vendido).length;
+      return `<div style="margin-top:8px;background:#F3EEFB;border:1px solid #D9CCF2;border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px">
+        <div><div style="font-weight:700;color:#5E35B1">🎁 Evento Nº ${e.numero}</div>
+             <div style="font-size:10px;color:var(--text2)">Complementar · previsão ${e.dataPrevisao ? _isoParaBR(e.dataPrevisao) : '—'}</div></div>
+        <div style="text-align:right"><div style="font-weight:700">${pe.length} peças</div>
+             <div style="font-size:10px;color:var(--text2)">${v} vendidas · ${pe.length - v} disp.</div></div>
+      </div>`; }).join('')}`;
 }
 // Converte "dd/mm/yyyy" ou ISO para objeto Date (para comparações)
 function parseDateBRtoObj(d) {
@@ -1478,6 +1464,7 @@ var _MSG_DB = {
   LIMITE_FREE_CLIENTES:         'O plano Free permite até 5 clientes. Assine o Premium para cadastrar mais.',
   MALETA_ABERTA_DIFERENTE:      'Já existe outra maleta aberta. Feche a maleta atual antes de importar a nova.',
   SEM_MALETA_ABERTA:            'Nenhuma maleta aberta.',
+  SEM_CICLO_ABERTO:             'Importe primeiro o PDF da maleta principal (Ciclo). O Evento é adicionado como complemento dela.',
   TITULO_NAO_ENCONTRADO:        'Parcela não encontrada.',
   TITULO_NAO_PENDENTE:          'Esta parcela não está pendente.',
   VALOR_INVALIDO:               'Informe um valor válido.',
@@ -1533,7 +1520,7 @@ function _mapProduto(e) {
   return {
     id: e.id, ref: e.ref || '', grupo: e.grupo || '', desc: e.descricao || '',
     preco: Number(e.preco) || 0, barcode: e.barcode || '',
-    vendido: e.status === 'Vendido', numMaleta: e.num_maleta || '',
+    vendido: e.status === 'Vendido', numMaleta: e.num_maleta || '', maletaId: e.maleta_id || null,
     dataVenda: e.data_venda || '', clienteVenda: e.cliente_venda || '', vendaId: e.venda_id || null
   };
 }
@@ -1581,9 +1568,12 @@ function _mapTitulo(r) {
   };
 }
 function _mapMaleta(m) {
-  if (!m) return { numero:'', consultora:'', ciclo:'', dataInicio:'', dataAcerto:'', dataPrevisao:'', condicional:'', conferente:'', executiva:'' };
+  if (!m) return { tipo:'ciclo', numero:'', consultora:'', ciclo:'', dataInicio:'', dataAcerto:'', dataPrevisao:'', condicional:'', conferente:'', executiva:'', metaSugerida:0 };
   return {
-    id: m.id, numero: m.numero || '', consultora: m.consultora_nome || '', ciclo: '',
+    id: m.id, tipo: m.tipo || 'ciclo', principalId: m.principal_id || null,
+    metaSugerida: Number(m.meta_sugerida) || 0, comissaoPct: m.comissao_pct == null ? null : Number(m.comissao_pct),
+    pecasPdf: m.pecas_pdf || null, valorPdf: m.valor_pdf == null ? null : Number(m.valor_pdf),
+    numero: m.numero || '', consultora: m.consultora_nome || '', ciclo: '',
     condicional: m.condicional || '', conferente: m.conferente || '', executiva: m.executiva || '',
     dataInicio: m.data_inicio || '', dataPrevisao: m.data_previsao || '', dataAcerto: m.data_acerto || ''
   };
@@ -1603,20 +1593,26 @@ function carregarDados(silencioso) {
     setSyncStatus('loading');
     try {
       var res = await Promise.all([
-        sb.from('fressen_maletas').select('*').eq('consultora_id', uid).eq('status', 'aberta').maybeSingle(),
+        sb.from('fressen_maletas').select('*').eq('consultora_id', uid).eq('status', 'aberta'),
         _buscarTodos(function(){ return sb.from('fressen_clientes').select('*').eq('consultora_id', uid).order('nome').order('id'); }),
         _buscarTodos(function(){ return sb.from('fressen_vendas').select('*, fressen_venda_itens(*)').eq('consultora_id', uid).eq('status', 'ativa').order('data_venda').order('id'); }),
         _buscarTodos(function(){ return sb.from('fressen_areceber').select('*').eq('consultora_id', uid).order('data_vencimento').order('id'); })
       ]);
       if (res[0].error) throw res[0].error;
-      var maleta = res[0].data;
-      var estoque = maleta
-        ? await _buscarTodos(function(){ return sb.from('fressen_estoque').select('*').eq('consultora_id', uid).eq('maleta_id', maleta.id).order('criado_em').order('id'); })
+      var abertas = res[0].data || [];
+      var maleta  = abertas.find(function(m){ return (m.tipo || 'ciclo') === 'ciclo'; }) || null;
+      var eventos = abertas.filter(function(m){ return m.tipo === 'evento'; });
+      var ids     = abertas.map(function(m){ return m.id; });
+      var estoque = ids.length
+        ? await _buscarTodos(function(){ return sb.from('fressen_estoque').select('*').eq('consultora_id', uid).in('maleta_id', ids).order('criado_em').order('id'); })
         : [];
 
       S.maleta   = _mapMaleta(maleta); save();
+      S.eventos  = eventos.map(_mapMaleta);
       S.clientes = res[1].map(_mapCliente);
       S.produtos = estoque.map(_mapProduto);
+      var evNum = {}; S.eventos.forEach(function(e){ evNum[e.id] = e.numero; });
+      S.produtos.forEach(function(p){ p.evento = evNum[p.maletaId] || ''; });
       S.vendas   = res[2].map(_mapVenda);
       S.areceber = res[3].map(_mapTitulo);
       setSyncStatus('ok');
@@ -1667,7 +1663,8 @@ async function atualizar() {
 // FECHAMENTO DE MALETA
 // ═══════════════════════════════════════════════
 async function confirmarFechamento() {
-  if (!confirm('Fechar a Maleta ' + (S.maleta.numero || 'atual') + '?\n\n' +
+  const _evs = (S.eventos || []).map(e => e.numero);
+  if (!confirm('Fechar a Maleta ' + (S.maleta.numero || 'atual') + (_evs.length ? ' e o(s) Evento(s) ' + _evs.join(', ') : '') + '?\n\n' +
     'As peças não vendidas serão marcadas como devolvidas.\n' +
     'Vendas, clientes e financeiro são mantidos, e a maleta fica guardada no histórico.')) return;
   toast('⏳ Fechando maleta...');
@@ -1678,7 +1675,7 @@ async function confirmarFechamento() {
   }
   setSyncStatus('ok');
   S.produtos = []; S.cart = [];
-  S.maleta = _mapMaleta(null); save();
+  S.maleta = _mapMaleta(null); S.eventos = []; save();
   updateStats(); renderMaletaCard(); renderEstoque(); updateCartUI();
   var dev = r.data && r.data.pecas_devolvidas ? r.data.pecas_devolvidas + ' peça(s) marcada(s) como devolvida(s). ' : '';
   toast('✅ Maleta fechada! ' + dev + 'Importe o PDF da nova maleta.');
@@ -1724,6 +1721,8 @@ function setStatus(msg, cor) {
 }
 
 var _conferenciaPDF = '';
+var _importMaleta = {};     // cabeçalho do PDF em importação (Ciclo ou Evento)
+var _tipoImportMsg = '';
 function hashProdutos(prods) {
   return prods.map(p => p.ref + '|' + p.preco).sort().join(',');
 }
@@ -1751,7 +1750,7 @@ function mostrarPreview(prods, tipo) {
   const list = document.getElementById('import-preview-list');
   if (!wrap) return;
   if (!prods.length) { wrap.style.display='none'; return; }
-  lbl.innerHTML = (_conferenciaPDF ? '<div style="margin-bottom:6px;color:' + (_conferenciaPDF[0]==='✅' ? 'var(--success)' : 'var(--danger)') + '">' + _conferenciaPDF + '</div>' : '') +
+  lbl.innerHTML = (_tipoImportMsg ? '<div style="margin-bottom:6px;font-weight:700;color:' + (_tipoImportMsg[0]==='🎁' ? '#5E35B1' : 'var(--rosa-dark)') + '">' + _tipoImportMsg + '</div>' : '') + (_conferenciaPDF ? '<div style="margin-bottom:6px;color:' + (_conferenciaPDF[0]==='✅' ? 'var(--success)' : 'var(--danger)') + '">' + _conferenciaPDF + '</div>' : '') +
     prods.length + ' peça(s) para salvar — revise e toque em "Salvar na nuvem":';
   list.innerHTML = prods.map(p =>
     '<div style="padding:2px 0;border-bottom:1px solid rgba(201,168,76,0.1)">' +
@@ -1822,13 +1821,9 @@ async function importPDF(input) {
 
     // Extrai dados da maleta do cabeçalho e atualiza automaticamente
     setProgress(85, 'Lendo dados da maleta...');
-    const dadosMaleta = parseMaletaFromPDF(textoTotal);
-    if (dadosMaleta.numero || dadosMaleta.consultora) {
-      S.maleta = Object.assign({}, S.maleta, dadosMaleta);
-      save();
-      renderMaletaCard();
-      console.log('[PDF] Maleta detectada:', S.maleta);
-    }
+    _importMaleta = parseMaletaFromPDF(textoTotal);
+    if (prods._totalPDF) { _importMaleta.pecasPdf = prods._totalPDF.qtd; _importMaleta.valorPdf = prods._totalPDF.valor; }
+    console.log('[PDF] Cabeçalho:', _importMaleta);
 
     setProgress(90, 'Verificando duplicatas...');
     finalizarLeitura(prods, 'PDF');
@@ -1924,6 +1919,24 @@ function finalizarLeitura(prods, tipo) {
   }
   _conferenciaPDF = conferencia;
 
+  // Ciclo x Evento
+  if (tipo !== 'PDF') _importMaleta = {};
+  const im = _importMaleta || {};
+  _tipoImportMsg = '';
+  if (tipo === 'PDF' && im.tipo === 'evento') {
+    if (!S.maleta.id) {
+      setStatus('⚠️ Este PDF é de um EVENTO (nº ' + (im.numero || '—') + '). Importe primeiro o PDF da maleta principal (Ciclo).', 'orange');
+      return;
+    }
+    _tipoImportMsg = '🎁 PDF complementar — EVENTO nº ' + (im.numero || '—') + '. Será adicionado à maleta ' + S.maleta.numero + ' sem alterar os dados dela.';
+  } else if (tipo === 'PDF') {
+    if (S.maleta.id && im.numero && S.maleta.numero !== im.numero) {
+      setStatus('⚠️ Este PDF é da maleta ' + im.numero + ', mas a maleta ' + S.maleta.numero + ' ainda está aberta. Feche-a antes de importar a nova.', 'orange');
+      return;
+    }
+    _tipoImportMsg = '💼 Maleta principal — CICLO nº ' + (im.numero || '—');
+  }
+
   // Verifica duplicata
   const duplicadas = checarDuplicata(prods);
   if (duplicadas.length === prods.length) {
@@ -1953,13 +1966,16 @@ async function enviarImportacao() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
   setProgress(30, 'Salvando na nuvem...');
   setSyncStatus('loading');
-  const m = S.maleta || {};
+  const m = (_importMaleta && (_importMaleta.tipo || _importMaleta.numero)) ? _importMaleta : Object.assign({ tipo: 'ciclo' }, S.maleta);
   try {
     const r = await sb.rpc('fressen_importar_maleta', {
       p_maleta: {
+        tipo: m.tipo || 'ciclo',
         numero: m.numero || '', consultora: m.consultora || '', condicional: m.condicional || '',
         conferente: m.conferente || '', executiva: m.executiva || '',
-        data_inicio: m.dataInicio || '', data_previsao: m.dataPrevisao || '', data_acerto: m.dataAcerto || ''
+        data_inicio: m.dataInicio || '', data_previsao: m.dataPrevisao || '', data_acerto: m.dataAcerto || '',
+        meta_sugerida: m.metaSugerida || '', comissao_pct: m.comissaoPct || '',
+        pecas_pdf: m.pecasPdf || '', valor_pdf: m.valorPdf || ''
       },
       p_pecas: _importPendente.map(function(p) {
         return { ref: p.ref, grupo: p.grupo, descricao: p.desc, preco: Number(p.preco) || 0, barcode: p.barcode || '' };
@@ -1970,7 +1986,8 @@ async function enviarImportacao() {
     setProgress(100, 'Concluído!');
     _importPendente = [];
     document.getElementById('import-preview').style.display = 'none';
-    setStatus('✅ ' + n + ' peças salvas na nuvem!', 'green');
+    setStatus('✅ ' + n + ' peças ' + (r.data.tipo === 'evento' ? 'do Evento ' + r.data.numero : 'da maleta ' + r.data.numero) + ' salvas na nuvem!', 'green');
+    _importMaleta = {};
     setSyncStatus('ok');
     await carregarDados(true);
   } catch (e) {
@@ -1989,7 +2006,8 @@ function parseMaletaFromPDF(text) {
   const m = {};
 
   // Consultora = cliente da loja: "01382 - PAMELA BLASCHKE VASCONCELLOS"
-  const mc = /\d{4,6}\s*-\s*([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌ\s]+?)(?:\s+CICLO|\s+CEP|\s*$)/m.exec(text);
+  const mc = /Cliente:?\s*\d{3,6}\s*-\s*([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌ\s]+?)(?:\s+CICLO|\s+EVENTO|\s+CEP|\s+Qt\.|\s*$)/m.exec(text)
+          || /\d{4,6}\s*-\s*([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌ\s]+?)(?:\s+CICLO|\s+EVENTO|\s+CEP)/m.exec(text);
   if (mc) m.consultora = mc[1].trim();
 
   // Número da maleta: "Número: 00013"
@@ -2019,6 +2037,18 @@ function parseMaletaFromPDF(text) {
   // Data acerto: "Data acerto: 05/05/2026"
   const ma = /Data\s+acerto[:\s]+([\d]{2}\/[\d]{2}\/[\d]{2,4})/i.exec(text);
   if (ma) m.dataAcerto = parseDateBR(ma[1]);
+
+  // Tipo do documento: CICLO (maleta principal) ou EVENTO (complementar)
+  const mtipo = /\b(CICLO|EVENTO)\b\s+Qt\.:/.exec(text) || /\b(CICLO|EVENTO)\b/.exec(text.split('\n').slice(0, 40).join('\n'));
+  m.tipo = mtipo && mtipo[1].toUpperCase() === 'EVENTO' ? 'evento' : 'ciclo';
+
+  // Meta sugerida pela Fressen ("Total sugerido: 2.153,60")
+  const mts = /Total sugerido:\s*(\d{1,3}(?:\.\d{3})*,\d{2})/i.exec(text);
+  if (mts) m.metaSugerida = parseFloat(mts[1].replace(/\./g, '').replace(',', '.'));
+
+  // Percentual impresso no documento (ex.: "50%") — guardado só como informação
+  const mpc = /^(\d{1,2})%$/m.exec(text);
+  if (mpc) m.comissaoPct = parseInt(mpc[1], 10);
 
   return m;
 }
@@ -2065,6 +2095,15 @@ function parsePDFText(text) {
     const mt = reTotal.exec(l);
     if (mt) { totalPDF = { qtd: parseInt(mt[1], 10), valor: num(mt[2]) }; continue; }
 
+    // "GRUPO:" separado do nome (o leitor às vezes quebra a linha e inverte a ordem)
+    if (/^GRUPO:?$/i.test(l)) {
+      const viz = [linhas[i - 1] || '', linhas[i + 1] || ''].map(x => /^\d{2,6}\s*-\s*([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s]{1,30})$/i.exec(x)).find(Boolean);
+      if (viz) {
+        const graw = viz[1].trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        grupo = grupoMap[graw] || viz[1].trim().toUpperCase();
+      }
+      continue;
+    }
     const mg = reGrupo.exec(l);
     if (mg && !reLinha.test(l)) {
       const graw = mg[1].trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -2133,6 +2172,7 @@ function renderEstoque() {
           <div style="font-size:12px;font-weight:500;line-height:1.3">${p.desc}</div>
           <div style="display:flex;gap:5px;margin-top:4px">
             <span class="tag tag-gold">${p.grupo}</span>
+            ${p.evento?`<span class="tag" style="background:#EDE7F6;color:#5E35B1">🎁 Evento ${p.evento}</span>`:''}
             ${p.vendido?'<span class="tag tag-danger">Vendido</span>':'<span class="tag tag-success">Disponível</span>'}
           </div>
         </div>
@@ -2230,7 +2270,7 @@ function updateCartUI(){
   if(!S.cart.length){list.innerHTML='<div class="empty"><div class="empty-icon">🛍️</div><p>Nenhuma peça adicionada</p></div>';return;}
   list.innerHTML=S.cart.map(p=>`
     <div class="item-row">
-      <div style="flex:1"><div class="item-code">${p.ref}</div><div class="item-name">${p.desc}</div></div>
+      <div style="flex:1"><div class="item-code">${p.ref}${p.evento?` <span style="color:#5E35B1;font-weight:700">· 🎁 Evento</span>`:''}</div><div class="item-name">${p.desc}</div></div>
       <div style="display:flex;align-items:center;gap:6px">
         <div class="item-price">${fmt(p.preco)}</div>
         <button onclick="removeFromCart('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer;padding:2px 4px">×</button>
@@ -2248,7 +2288,7 @@ function renderVenderBusca(){
   if(!f.length){list.innerHTML='<p style="font-size:13px;color:var(--text2);padding:8px">Nenhuma peça encontrada</p>';return;}
   list.innerHTML=f.map(p=>`
     <div class="item-row" style="cursor:pointer" onclick="addToCartById('${p.id}')">
-      <div style="flex:1"><div class="item-code">${p.ref}</div><div class="item-name">${p.desc}</div></div>
+      <div style="flex:1"><div class="item-code">${p.ref}${p.evento?` <span style="color:#5E35B1;font-weight:700">· 🎁 Evento</span>`:''}</div><div class="item-name">${p.desc}</div></div>
       <div class="item-price">${fmt(p.preco)}</div>
     </div>`).join('');
 }
@@ -2656,6 +2696,15 @@ function atualizarFechResumo() {
   const vlVend=vendasMaleta.reduce((a,v)=>a+v.total,0),vlDisp=S.produtos.filter(p=>!p.vendido).reduce((a,p)=>a+p.preco,0);
   const el=document.getElementById('fech-resumo');if(!el)return;
   el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-size:10px;color:var(--text2)">Peças vendidas</div><div style="font-weight:700;color:var(--success)">${vend} de ${total}</div></div><div><div style="font-size:10px;color:var(--text2)">Total vendido</div><div style="font-weight:700;color:var(--rosa-dark)">${fmt(vlVend)}</div></div><div><div style="font-size:10px;color:var(--text2)">A devolver</div><div style="font-weight:700">${disp} peças</div></div><div><div style="font-size:10px;color:var(--text2)">Valor a devolver</div><div style="font-weight:700">${fmt(vlDisp)}</div></div></div>`;
+  const evs = S.eventos || [];
+  if (evs.length) {
+    el.innerHTML += evs.map(e => {
+      const pe = S.produtos.filter(p => p.maletaId === e.id), v = pe.filter(p => p.vendido);
+      return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px">
+        <strong style="color:#5E35B1">🎁 Evento Nº ${e.numero}</strong> — será fechado junto<br>
+        <span style="color:var(--text2)">${v.length} de ${pe.length} peças vendidas · ${fmt(v.reduce((a,p)=>a+p.preco,0))} · previsão ${e.dataPrevisao ? _isoParaBR(e.dataPrevisao) : '—'}</span></div>`;
+    }).join('');
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -3059,195 +3108,127 @@ async function finalizarVenda() {
 // ═══════════════════════════════════════════════
 // PDF DE FECHAMENTO DE MALETA
 // ═══════════════════════════════════════════════
+var LOGO_FRESSEN = 'data:image/png;base64,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';
+
 function gerarPDFFechamento() {
   if(!checkFreeLimit('pdf')) return;
+  if (!S.maleta || !S.maleta.id) { toast('Nenhuma maleta aberta.'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-  const m   = S.maleta;
-  const W   = 210, mg = 14;
+  const W = 210, mg = 14;
   let y = 14;
-
-  const cor    = [193,112,80];   // rosa escuro
-  const cinza  = [100,100,100];
-  const preto  = [30,30,30];
-
-  // ── Cabeçalho — fundo branco com logo ──
-  // Logo Fressen
-  const logoData = 'data:image/png;base64,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';
-  try { doc.addImage(logoData, 'PNG', mg, 8, 40, 10); } catch(e) {}
-  doc.setDrawColor(220, 180, 160);
-  doc.setLineWidth(0.5);
-  doc.line(mg, 22, W-mg, 22);
-  doc.setTextColor(...preto); doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text('RELATÓRIO DE FECHAMENTO DE MALETA', mg, 27);
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...cinza);
-  doc.text('Emitido em: '+new Date().toLocaleString('pt-BR'), W-mg, 27, {align:'right'});
-  y = 34;
-
-  // ── Dados da Maleta ──
-  doc.setFillColor(253,240,235);
-  doc.roundedRect(mg, y, W-mg*2, 26, 3, 3, 'F');
-  doc.setTextColor(...preto); doc.setFontSize(9);
-  const cols2 = [[
-    ['Maleta Nº',    m.numero||'—'],
-    ['Condicional',  m.condicional||'—'],
-    ['Conferente',   m.conferente||'—'],
-  ],[
-    ['Consultora',   m.consultora||'—'],
-    ['Executiva',    m.executiva||'—'],
-    ['Início / Acerto', (m.dataInicio?new Date(m.dataInicio).toLocaleDateString('pt-BR'):'—')+' / '+(m.dataAcerto?new Date(m.dataAcerto).toLocaleDateString('pt-BR'):'—')],
-  ]];
-  cols2.forEach((col, ci) => {
-    col.forEach((row, ri) => {
-      const x = mg + ci*(W/2-mg) + 4;
-      const yy = y + 6 + ri*7;
-      doc.setFont('helvetica','bold'); doc.setTextColor(...cinza);
-      doc.text(row[0]+':', x, yy);
-      doc.setFont('helvetica','normal'); doc.setTextColor(...preto);
-      doc.text(String(row[1]), x+28, yy);
+  const COR = [193,112,80], ROXO = [94,53,177], CINZA = [100,100,100], PRETO = [30,30,30], VERDE = [30,126,52];
+  const R  = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const DT = d => d ? _isoParaBR(d) : '—';
+  const soma = arr => arr.reduce((a, p) => a + (Number(p.preco) || 0), 0);
+  const espaco = h => { if (y + (h || 10) > 282) { doc.addPage(); y = 14; } };
+  const faixa = (txt, c) => {
+    espaco(14);
+    doc.setFillColor(...c); doc.rect(mg, y, W - mg * 2, 7, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(txt, mg + 3, y + 5); y += 9;
+  };
+  const linhas = itens => itens.forEach((it, i) => {
+    espaco(7);
+    doc.setFillColor(i % 2 === 0 ? 248 : 255, i % 2 === 0 ? 240 : 255, i % 2 === 0 ? 235 : 255);
+    doc.rect(mg, y, W - mg * 2, 6, 'F');
+    doc.setTextColor(...PRETO); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text(String(it[0]), mg + 3, y + 4.5);
+    doc.setFont('helvetica','bold'); doc.text(String(it[1]), W - mg - 3, y + 4.5, { align:'right' });
+    y += 6;
+  });
+  const tabela = (pecas, c) => {
+    espaco(14);
+    doc.setFillColor(...c); doc.setTextColor(255,255,255); doc.rect(mg, y, W - mg * 2, 6, 'F');
+    doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.text('Ref.', mg + 2, y + 4.5); doc.text('Descrição', mg + 32, y + 4.5);
+    doc.text('Grupo', mg + 132, y + 4.5); doc.text('Valor', W - mg - 3, y + 4.5, { align:'right' });
+    y += 6;
+    if (!pecas.length) { doc.setTextColor(...CINZA); doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.text('Nenhuma peça.', mg + 3, y + 4); y += 6; }
+    pecas.forEach((p, i) => {
+      espaco(6);
+      doc.setFillColor(i % 2 === 0 ? 250 : 255, i % 2 === 0 ? 247 : 255, i % 2 === 0 ? 245 : 255);
+      doc.rect(mg, y, W - mg * 2, 5.5, 'F');
+      doc.setTextColor(...PRETO); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+      doc.text(String(p.ref || '').substring(0, 17), mg + 2, y + 4);
+      const dsc = String(p.desc || '');
+      doc.text(dsc.length > 50 ? dsc.substring(0, 49) + '…' : dsc, mg + 32, y + 4);
+      doc.text(String(p.grupo || '').substring(0, 12), mg + 132, y + 4);
+      doc.setFont('helvetica','bold'); doc.text(R(p.preco), W - mg - 3, y + 4, { align:'right' });
+      y += 5.5;
     });
-  });
-  y += 32;
+    y += 4;
+  };
+  const porGrupo = pecas => {
+    const g = {};
+    pecas.forEach(p => { const k = p.grupo || 'Outros'; g[k] = g[k] || { q:0, v:0 }; g[k].q++; g[k].v += p.preco; });
+    return Object.entries(g).sort((a, b) => b[1].v - a[1].v).map(([k, d]) => [k + '  ·  ' + d.q + ' peça(s)', R(d.v)]);
+  };
 
-  // ── Resumo ──
-  const vendidos = S.produtos.filter(p=>p.vendido);
-  const disponiveis = S.produtos.filter(p=>!p.vendido);
-  const totalVendido = vendidos.reduce((a,p)=>a+p.preco,0);
-  const totalDisp    = disponiveis.reduce((a,p)=>a+p.preco,0);
+  // ── Cabeçalho ──
+  try { doc.addImage(LOGO_FRESSEN, 'PNG', mg, 8, 40, 10); } catch(e) {}
+  doc.setDrawColor(220,180,160); doc.setLineWidth(0.5); doc.line(mg, 22, W - mg, 22);
+  doc.setTextColor(...PRETO); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('RELATÓRIO DE FECHAMENTO DE MALETA', mg, 27);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...CINZA);
+  doc.text('Emitido em: ' + new Date().toLocaleString('pt-BR'), W - mg, 27, { align:'right' });
+  doc.text('Consultora: ' + (S.maleta.consultora || (_session && _session.nome) || '—') + (S.maleta.executiva ? '   ·   Executiva: ' + S.maleta.executiva : ''), mg, 31);
+  y = 36;
 
-  doc.setFillColor(...cor); doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.rect(mg, y, W-mg*2, 7, 'F');
-  doc.text('RESUMO', mg+3, y+5);
-  y+=9;
-  const resumoItems = [
-    ['Total de Peças', S.produtos.length],
-    ['Peças Vendidas', vendidos.length],
-    ['Peças a Devolver', disponiveis.length],
-    ['Total Vendido', 'R$ '+totalVendido.toLocaleString('pt-BR',{minimumFractionDigits:2})],
-    ['Valor a Devolver', 'R$ '+totalDisp.toLocaleString('pt-BR',{minimumFractionDigits:2})],
-  ];
-  resumoItems.forEach((item,i)=>{
-    doc.setFillColor(i%2===0?248:255, i%2===0?240:255, i%2===0?235:255);
-    doc.rect(mg, y, W-mg*2, 6, 'F');
-    doc.setTextColor(...preto); doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    doc.text(item[0], mg+3, y+4.5);
-    doc.setFont('helvetica','bold');
-    doc.text(String(item[1]), W-mg-3, y+4.5, {align:'right'});
-    y+=6;
+  // ── Um bloco por documento: Ciclo + Evento(s) ──
+  const docs = [{ m: S.maleta, titulo: 'MALETA PRINCIPAL — CICLO Nº ' + (S.maleta.numero || '—'), c: COR }]
+    .concat((S.eventos || []).map(e => ({ m: e, titulo: 'COMPLEMENTAR — EVENTO Nº ' + e.numero, c: ROXO })));
+  const resumo = [];
+  docs.forEach((d, idx) => {
+    if (idx > 0) { doc.addPage(); y = 14; }
+    const pecas = S.produtos.filter(p => p.maletaId === d.m.id);
+    const vend = pecas.filter(p => p.vendido), disp = pecas.filter(p => !p.vendido);
+    const vlV = soma(vend), vlD = soma(disp);
+    resumo.push({ nome: (d.m.tipo === 'evento' ? 'Evento ' : 'Ciclo ') + d.m.numero, total: pecas.length, vend: vend.length, vlV, disp: disp.length, vlD });
+    faixa(d.titulo, d.c);
+    linhas([
+      ['Condicional', d.m.condicional || '—'],
+      ['Conferente', d.m.conferente || '—'],
+      ['Início  /  Previsão  /  Acerto', DT(d.m.dataInicio) + '  /  ' + DT(d.m.dataPrevisao) + '  /  ' + DT(d.m.dataAcerto)],
+    ]);
+    y += 3;
+    const itens = [
+      ['Total de peças', pecas.length], ['Peças vendidas', vend.length], ['Peças a devolver', disp.length],
+      ['Total vendido', R(vlV)], ['Valor a devolver', R(vlD)],
+    ];
+    if (d.m.metaSugerida) itens.push(['Meta sugerida (PDF)', R(d.m.metaSugerida) + (vlV >= d.m.metaSugerida ? '  (atingida)' : '  (faltam ' + R(d.m.metaSugerida - vlV) + ')')]);
+    faixa('RESUMO', d.c); linhas(itens); y += 4;
+    faixa('PEÇAS VENDIDAS (' + vend.length + ')', d.c); tabela(vend, [80,40,20]);
+    faixa('PEÇAS A DEVOLVER (' + disp.length + ')', [80,80,80]); tabela(disp, [60,60,60]);
+    if (vend.length) { faixa('VENDIDAS POR GRUPO', d.c); linhas(porGrupo(vend)); y += 4; }
+    if (disp.length) { faixa('A DEVOLVER POR GRUPO', [80,80,80]); linhas(porGrupo(disp)); y += 4; }
   });
-  y+=6;
 
-  // ── Peças Vendidas ──
-  if(y>240){doc.addPage();y=14;}
-  doc.setFillColor(...cor); doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.rect(mg, y, W-mg*2, 7, 'F');
-  doc.text('PEÇAS VENDIDAS ('+vendidos.length+')', mg+3, y+5);
-  y+=9;
-  // Header tabela
-  doc.setFillColor(80,40,20); doc.setTextColor(255,255,255);
-  doc.rect(mg, y, W-mg*2, 6, 'F');
-  doc.setFontSize(8); doc.setFont('helvetica','bold');
-  doc.text('Ref.', mg+2, y+4.5);
-  doc.text('Descrição', mg+22, y+4.5);
-  doc.text('Grupo', mg+100, y+4.5);
-  doc.text('Valor', W-mg-3, y+4.5, {align:'right'});
-  y+=6;
-  vendidos.forEach((p,i)=>{
-    if(y>280){doc.addPage();y=14;}
-    doc.setFillColor(i%2===0?253:255,i%2===0?248:255,i%2===0?244:255);
-    doc.rect(mg, y, W-mg*2, 5.5, 'F');
-    doc.setTextColor(...preto); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-    doc.text(p.ref||'', mg+2, y+4);
-    const desc = (p.desc||'').substring(0,38);
-    doc.text(desc, mg+22, y+4);
-    doc.text(p.grupo||'', mg+100, y+4);
-    doc.setFont('helvetica','bold');
-    doc.text('R$ '+p.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}), W-mg-3, y+4, {align:'right'});
-    y+=5.5;
-  });
-  y+=6;
-
-  // ── Peças a Devolver ──
-  if(y>240){doc.addPage();y=14;}
-  doc.setFillColor(80,80,80); doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.rect(mg, y, W-mg*2, 7, 'F');
-  doc.text('PEÇAS A DEVOLVER ('+disponiveis.length+')', mg+3, y+5);
-  y+=9;
-  doc.setFillColor(60,60,60); doc.setTextColor(255,255,255);
-  doc.rect(mg, y, W-mg*2, 6, 'F');
-  doc.setFontSize(8); doc.setFont('helvetica','bold');
-  doc.text('Ref.', mg+2, y+4.5);
-  doc.text('Descrição', mg+22, y+4.5);
-  doc.text('Grupo', mg+100, y+4.5);
-  doc.text('Valor', W-mg-3, y+4.5, {align:'right'});
-  y+=6;
-  disponiveis.forEach((p,i)=>{
-    if(y>280){doc.addPage();y=14;}
-    doc.setFillColor(i%2===0?248:255,i%2===0?248:255,i%2===0?248:255);
-    doc.rect(mg, y, W-mg*2, 5.5, 'F');
-    doc.setTextColor(...preto); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-    doc.text(p.ref||'', mg+2, y+4);
-    doc.text((p.desc||'').substring(0,38), mg+22, y+4);
-    doc.text(p.grupo||'', mg+100, y+4);
-    doc.setFont('helvetica','bold');
-    doc.text('R$ '+p.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}), W-mg-3, y+4, {align:'right'});
-    y+=5.5;
-  });
-  y+=6;
-
-  // ── Resumo por Grupo — Vendidas ──
-  if(y>220){doc.addPage();y=14;}
-  doc.setFillColor(...cor); doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.rect(mg, y, W-mg*2, 7, 'F');
-  doc.text('RESUMO POR GRUPO — VENDIDAS', mg+3, y+5);
-  y+=9;
-  const gvend={};
-  vendidos.forEach(p=>{const g=p.grupo||'Outros';if(!gvend[g])gvend[g]={qtd:0,val:0};gvend[g].qtd++;gvend[g].val+=p.preco;});
-  Object.entries(gvend).sort((a,b)=>b[1].val-a[1].val).forEach(([g,d],i)=>{
-    doc.setFillColor(i%2===0?253:255,i%2===0?240:255,i%2===0?235:255);
-    doc.rect(mg, y, W-mg*2, 6, 'F');
-    doc.setTextColor(...preto); doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    doc.text(g, mg+3, y+4.5);
-    doc.text(d.qtd+' peça(s)', mg+70, y+4.5);
-    doc.setFont('helvetica','bold');
-    doc.text('R$ '+d.val.toLocaleString('pt-BR',{minimumFractionDigits:2}), W-mg-3, y+4.5, {align:'right'});
-    y+=6;
-  });
-  y+=6;
-
-  // ── Resumo por Grupo — A Devolver ──
-  if(y>220){doc.addPage();y=14;}
-  doc.setFillColor(80,80,80); doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.rect(mg, y, W-mg*2, 7, 'F');
-  doc.text('RESUMO POR GRUPO — A DEVOLVER', mg+3, y+5);
-  y+=9;
-  const gdisp={};
-  disponiveis.forEach(p=>{const g=p.grupo||'Outros';if(!gdisp[g])gdisp[g]={qtd:0,val:0};gdisp[g].qtd++;gdisp[g].val+=p.preco;});
-  Object.entries(gdisp).sort((a,b)=>b[1].val-a[1].val).forEach(([g,d],i)=>{
-    doc.setFillColor(i%2===0?248:255,248,248);
-    doc.rect(mg, y, W-mg*2, 6, 'F');
-    doc.setTextColor(...preto); doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    doc.text(g, mg+3, y+4.5);
-    doc.text(d.qtd+' peça(s)', mg+70, y+4.5);
-    doc.setFont('helvetica','bold');
-    doc.text('R$ '+d.val.toLocaleString('pt-BR',{minimumFractionDigits:2}), W-mg-3, y+4.5, {align:'right'});
-    y+=6;
-  });
+  // ── Consolidado + peças próprias ──
+  const proprias = _pecasPropriasVendidas();
+  if (docs.length > 1 || proprias.length) {
+    doc.addPage(); y = 14;
+    faixa('CONSOLIDADO', COR);
+    const tot = resumo.reduce((a, r) => ({ total: a.total + r.total, vend: a.vend + r.vend, vlV: a.vlV + r.vlV, disp: a.disp + r.disp, vlD: a.vlD + r.vlD }), { total:0, vend:0, vlV:0, disp:0, vlD:0 });
+    linhas(resumo.map(r => [r.nome + '  ·  ' + r.total + ' peças', r.vend + ' vend. ' + R(r.vlV) + '   |   ' + r.disp + ' dev. ' + R(r.vlD)])
+      .concat([['TOTAL GERAL  ·  ' + tot.total + ' peças', tot.vend + ' vend. ' + R(tot.vlV) + '   |   ' + tot.disp + ' dev. ' + R(tot.vlD)]]));
+    y += 4;
+    if (proprias.length) {
+      faixa('PEÇAS PRÓPRIAS VENDIDAS (' + proprias.length + ') — 100% DA CONSULTORA', VERDE);
+      tabela(proprias, [20,90,40]);
+      linhas([['Total peças próprias', R(soma(proprias))]]);
+    }
+  }
 
   // ── Rodapé ──
   const totalPages = doc.internal.getNumberOfPages();
-  for(let pg=1;pg<=totalPages;pg++){
+  const nomes = docs.map(d => (d.m.tipo === 'evento' ? 'Evento ' : 'Maleta ') + d.m.numero).join(' + ');
+  for (let pg = 1; pg <= totalPages; pg++) {
     doc.setPage(pg);
     doc.setFontSize(7); doc.setTextColor(180,180,180); doc.setFont('helvetica','normal');
-    doc.text('Fressen Joias · Relatório de Fechamento · Maleta Nº '+(m.numero||'—')+' · Página '+pg+'/'+totalPages, W/2, 295, {align:'center'});
+    doc.text('Fressen Joias · Relatório de Fechamento · ' + nomes + ' · Página ' + pg + '/' + totalPages, W / 2, 292, { align:'center' });
   }
-
-  doc.save('Fechamento_Maleta_'+(m.numero||'S_N')+'_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.pdf');
+  doc.save('Fechamento_Maleta_' + (S.maleta.numero || 'S_N') + ((S.eventos || []).length ? '_Evento_' + S.eventos.map(e => e.numero).join('-') : '') + '_' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-') + '.pdf');
   toast('📄 PDF gerado com sucesso!');
 }
 
@@ -3541,49 +3522,48 @@ ${S.maleta.consultora || 'Consultora'} — Fressen Joias 💛`;
 }
 
 // ═══════════════════════════════════════════════
-// META & COMISSÃO
+// META DA MALETA
 // ═══════════════════════════════════════════════
+function _vendasDoCicloAtual() {
+  if (!S.maleta || !S.maleta.id) return [];
+  return S.vendas.filter(v => v.maletaId ? v.maletaId === S.maleta.id : String(v.numMaleta || '') === String(S.maleta.numero || ''));
+}
+function _pecasPropriasVendidas() {
+  const itens = [];
+  _vendasDoCicloAtual().forEach(v => (v.itens || []).forEach(i => { if (i.proprio) itens.push(i); }));
+  return itens;
+}
 function updateMeta() {
-  const m       = S.maleta;
-  const card    = document.getElementById('card-meta');
+  const card = document.getElementById('card-meta');
   if (!card) return;
-
-  const vlEstoque = S.produtos.reduce((a,p)=>a+p.preco, 0);
-  if (!vlEstoque) { card.style.display='none'; return; }
+  const docs = [S.maleta].concat(S.eventos || []).filter(m => m && m.id);
+  if (!docs.length) { card.style.display = 'none'; return; }
   card.style.display = 'block';
-
-  const numMaletaAtual = m.numero || '';
-  const vendasM = numMaletaAtual
-    ? S.vendas.filter(v=>String(v.numMaleta||'')===String(numMaletaAtual))
-    : S.vendas;
-  const vendido = vendasM.reduce((a,v)=>a+v.total, 0);
-  const meta    = vlEstoque * 0.20;          // 20% do estoque
-  const pct     = meta > 0 ? Math.min(Math.round(vendido/meta*100), 150) : 0;
-  const acimaMeta = vendido >= meta;
-  const pctComis  = acimaMeta ? 0.35 : 0.30;
-  const comissao  = vendido * pctComis;
-
-  const safe = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-  safe('meta-vendido',  fmt(vendido));
-  safe('meta-valor',    fmt(meta));
-  safe('meta-pct-txt',  pct+'%');
-  safe('meta-comissao-pct', (pctComis*100)+'%');
-  safe('meta-comissao-val', fmt(comissao));
-  safe('meta-ref',      fmt(meta));
-  safe('meta-comissao-msg', acimaMeta
-    ? '🎉 Meta atingida! Comissão de 35% aplicada'
-    : `Venda acima de ${fmt(meta)} para ganhar 35%`);
-
-  const bar = document.getElementById('meta-bar');
-  if (bar) {
-    bar.style.width = Math.min(pct,100)+'%';
-    bar.style.background = acimaMeta ? 'var(--success)' : 'var(--rosa)';
+  const blocos = docs.map(m => {
+    const pecas = S.produtos.filter(p => p.maletaId === m.id);
+    const vendido = pecas.filter(p => p.vendido).reduce((a, p) => a + p.preco, 0);
+    const evento = m.tipo === 'evento';
+    const nome = (evento ? '🎁 Evento ' : '💼 Ciclo ') + m.numero;
+    if (!m.metaSugerida) {
+      return `<div style="margin-bottom:12px;font-size:12px"><div style="display:flex;justify-content:space-between"><strong>${nome}</strong><span>Vendido <strong>${fmt(vendido)}</strong></span></div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px">Meta não informada — importe o PDF novamente para ler o "Total sugerido".</div></div>`;
+    }
+    const pct = Math.round(vendido / m.metaSugerida * 100);
+    const ok = vendido >= m.metaSugerida;
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><strong>${nome}</strong><span style="color:var(--text2)">${pct}%</span></div>
+      <div class="report-bar"><div class="report-fill" style="width:${Math.min(pct, 100)}%;transition:width 0.6s ease;background:${ok ? 'var(--success)' : (evento ? '#7E57C2' : 'var(--rosa)')}"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:4px">
+        <span>Vendido <strong style="color:var(--text)">${fmt(vendido)}</strong></span><span>Meta sugerida ${fmt(m.metaSugerida)}</span></div>
+      <div style="font-size:11px;margin-top:2px;font-weight:600;color:${ok ? 'var(--success)' : 'var(--text2)'}">${ok ? '🎉 Meta atingida!' : 'Faltam ' + fmt(m.metaSugerida - vendido)}</div>
+    </div>`;
+  });
+  const vlProp = _pecasPropriasVendidas().reduce((a, i) => a + i.preco, 0);
+  if (vlProp > 0) {
+    blocos.push(`<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px">
+      <span>💎 Peças próprias vendidas<br><span style="font-size:10px;color:var(--text2)">100% seu · não entram na meta</span></span><strong>${fmt(vlProp)}</strong></div>`);
   }
-  const pctEl = document.getElementById('meta-comissao-pct');
-  if (pctEl) {
-    pctEl.style.background = acimaMeta ? 'rgba(30,126,52,0.15)' : 'var(--rosa-light)';
-    pctEl.style.color      = acimaMeta ? 'var(--success)'       : 'var(--rosa-dark)';
-  }
+  document.getElementById('meta-conteudo').innerHTML = blocos.join('');
 }
 
 // ═══════════════════════════════════════════════
