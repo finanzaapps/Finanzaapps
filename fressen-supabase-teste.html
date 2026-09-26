@@ -180,7 +180,9 @@ var _urlHash         = window.location.hash || '';
 var _urlEhRecuperacao = /type=recovery/.test(_urlHash);
 var _urlErroLink      = /error_code=/.test(_urlHash);
 var _urlEhConfirmacao = /type=signup/.test(_urlHash);
-var _URL_RETORNO      = window.location.origin + window.location.pathname;  // links do e-mail voltam para cá
+var _URL_APP_OFICIAL  = 'https://app.finanzaapps.com/fressen-multiconsultora.html';
+var _URL_RETORNO      = window.location.protocol === 'file:' ? _URL_APP_OFICIAL
+                      : window.location.origin + window.location.pathname;  // links do e-mail voltam para cá
 
 var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'sb-fressen-auth' }
@@ -210,6 +212,7 @@ function _traduzErro(err) {
   if (mapa[c]) return mapa[c];
   if (/Invalid login credentials/i.test(m)) return mapa.invalid_credentials;
   if (/already registered/i.test(m))         return mapa.user_already_exists;
+  if (/sending (confirmation|recovery)? ?email|Error sending/i.test(m)) return 'Não conseguimos enviar o e-mail agora. Tente novamente em alguns minutos.';
   if (/SEM_LICENCA/.test(m))   return 'Este login não possui licença Fressen. Fale com o suporte.';
   if (/CONTA_INATIVA/.test(m)) return 'Sua conta está inativa. Fale com o suporte.';
   if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return 'Sem conexão com a internet.';
@@ -785,7 +788,7 @@ async function fazerLogout(){
       <div id="import-preview-list" style="font-size:12px;max-height:160px;overflow-y:auto;background:var(--surface);border-radius:8px;padding:8px 10px;line-height:1.8"></div>
       <button class="btn btn-dark" style="margin-top:10px;width:100%;font-size:14px;font-weight:700" id="btn-enviar" onclick="enviarImportacao()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        Enviar para o Sheets
+        Salvar na nuvem
       </button>
     </div>
   </div>
@@ -812,7 +815,7 @@ async function fazerLogout(){
       </button>
     </div>
   </div>
-  <p style="text-align:center;font-size:12px;color:var(--text2);margin-top:6px;cursor:pointer;padding:6px" onclick="toggleConfig()">⚙️ Admin</p>
+  
 </div>
 
 <!-- ========== ESTOQUE ========== -->
@@ -955,7 +958,7 @@ async function fazerLogout(){
       <label>Observação</label>
       <input type="text" id="venda-obs" placeholder="Ex: entrega em casa, troca de tamanho...">
     </div>
-    <button class="btn btn-gold" onclick="finalizarVenda()">
+    <button class="btn btn-gold" id="btn-finalizar" onclick="finalizarVenda()">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
       Finalizar Venda
     </button>
@@ -2245,149 +2248,199 @@ function sheetsPost(payload) {
 }
 
 // ── Carrega tudo do Sheets (fonte de verdade) ──
-// ── FASE 3 vai substituir esta função pela leitura do Supabase ──
-async function carregarDados(silencioso) {
-  S.produtos = []; S.vendas = []; S.clientes = []; S.areceber = [];
-  updateStats(); renderMaletaCard(); renderEstoque(); renderClientes(); populateClienteSelect();
-  if (!silencioso) toast('ℹ️ Login OK. Dados serão conectados na Fase 3.');
-}
-// Todas as chamadas antigas passam a usar a nova função
-async function carregarDoSheets(silencioso) { return carregarDados(silencioso); }
+// ══════════════════════════════════════════════════════════════
+// SUPABASE — CAMADA DE DADOS (Fase 3)
+// Leitura: busca direto das tabelas (sempre filtrando pela consultora logada).
+// Gravação: operações do banco "tudo ou nada" (RPC) ou update/insert simples.
+// ══════════════════════════════════════════════════════════════
 
-// (versão antiga mantida só como referência até a Fase 3)
-async function _carregarDoSheetsLegado(silencioso) {
-  if (!S.apiUrl) return;
-  if (!silencioso) toast('🔄 Atualizando...');
-  const btn = document.getElementById('btn-atualizar');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Atualizando...'; }
-
-  const res = await sheetsGet('listAll');
-
-  if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Atualizar'; }
-
-  // SEMPRE zera estado — com ou sem resposta do Sheets
-  S.produtos = []; S.vendas = []; S.clientes = [];
-  console.log('[Sheets] Resposta recebida:', res ? 'OK' : 'NULL/ERRO');
-
-  if (!res) {
-    updateStats(); renderMaletaCard(); renderEstoque(); renderClientes(); populateClienteSelect();
-    if (!silencioso) toast('❌ Sem resposta do Sheets. Verifique o Apps Script.');
-    return;
-  }
-
-  console.log('[Sheets] estoque:', (res.estoque||[]).length, 'vendas:', (res.vendas||[]).length, 'clientes:', (res.clientes||[]).length);
-
-  if (res.estoque) {
-    S.produtos = res.estoque.map(function(item) {
-      return {
-        id:           String(item.id          || item.ID          || ''),
-        ref:          item.ref                || item.Ref         || '',
-        grupo:        item.grupo              || item.Grupo       || '',
-        desc:         item.desc               || item.Descricao   || '',
-        preco:        Number(item.preco       || item.Preco)      || 0,
-        barcode:      item.barcode            || item.Barcode     || '',
-        vendido:      (item.status            || item.Status)     === 'Vendido',
-        numMaleta:    String(item.num_maleta  || item.NumMaleta   || ''),
-        dataVenda:    item.data_venda         || item.DataVenda   || '',
-        clienteVenda: item.cliente_venda      || item.ClienteVenda|| '',
-      };
-    });
-  }
-  if (res.vendas) {
-    const vendaMap = {};
-    res.vendas.forEach(function(v) {
-      // id_venda pode ser "1778719449636_BR1-4111-12" — ID real é a parte numérica antes do _
-      var rawId = String(v.id_venda || v.SeqVenda || '');
-      var vid   = rawId.indexOf('_') >= 0 ? rawId.split('_')[0] : rawId;
-      if (!vendaMap[vid]) {
-        const pagamentos = {};
-        const pagamentoStr = v.forma_pagamento || v.FormaPagamento || '';
-        pagamentoStr.split(' | ').forEach(function(part) {
-          const m = /^(.+):\s*R\$\s*([\d.]+)$/.exec(part.trim());
-          if (m) pagamentos[m[1].trim()] = parseFloat(m[2]);
-        });
-        const nomeCliente = v.cliente || v.Cliente || '';
-        const clienteObj  = nomeCliente ? { nome: nomeCliente, id: '' } : null;
-        vendaMap[vid] = {
-          id:           vid,
-          data:         v.data_venda    || v.DataVenda    || '',
-          numMaleta:    String(v.num_maleta || v.NumMaleta || ''),
-          cliente:      clienteObj,
-          total:        0,
-          itens:        [],
-          pagamentos:   pagamentos,
-          pagamentoStr: pagamentoStr,
-          obs:          v.observacao    || v.Observacao   || '',
-          parcelas:     null,
-        };
-      }
-      const preco = Number(v.preco || v.Preco) || 0;
-      vendaMap[vid].itens.push({
-        ref:   v.ref       || v.Referencia || '',
-        grupo: v.grupo     || v.Grupo      || '',
-        desc:  v.descricao || v.Descricao  || '',
-        preco
-      });
-      vendaMap[vid].total += preco;
-    });
-    S.vendas = Object.values(vendaMap);
-  }
-  if (res.clientes) {
-    S.clientes = res.clientes.map(function(c) {
-      return {
-        id:    String(c.id   || c.ID        || ''),
-        nome:  String(c.nome || c.Nome      || ''),
-        tel:   String(c.telefone || c.Telefone || ''),
-        email: c.email       || c.Email     || '',
-        nasc:  c.nascimento  || c.DataNascimento || ''
-      };
-    });
-  }
-
-  if (res.areceber) {
-    S.areceber = res.areceber.map(function(r) {
-      return {
-        vendaId:       String(r.id_venda        || r.ID            || ''),
-        dataVenda:      fmtDataBR(r.data_venda  || r['Data Venda']),
-        cliente:        String(r.cliente        || r.Cliente        || ''),
-        celular:        String(r.celular        || r.Celular        || ''),
-        maleta:         String(r.maleta         || r.Maleta         || ''),
-        valorVenda:     Number(r.valor_venda    || r['Valor Venda']) || 0,
-        numParcela:     Number(r.num_parcela    || r.Parcela)       || 1,
-        totalParcelas:  Number(r.total_parcelas || r.Parcelas)      || 1,
-        valorParcela:   Number(r.valor_parcela  || r['Valor Parcela']) || 0,
-        intervalo:      Number(r.intervalo      || r.Intervalo)     || 30,
-        dataVencimento: fmtDataBR(r.data_vencimento || r['Data Vencimento'] || r.data_venda),
-        dataPagamento:  String(r.data_pagamento || r['Data Pagamento'] || ''),
-        status:         String(r.status         || r['Status Pagamento'] || 'Pendente'),
-      };
-    });
-  } else {
-    S.areceber = [];
-  }
-
-  // Carrega dados da maleta da aba Maleta do Sheets
-  if (res.maleta && res.maleta.length > 0) {
-    const m = res.maleta[0]; // sempre 1 linha
-    if (m.numero) {
-      S.maleta = {
-        numero:      String(m.numero       || ''),
-        consultora:  String(m.consultora   || ''),
-        condicional: String(m.condicional  || ''),
-        conferente:  String(m.conferente   || ''),
-        executiva:   String(m.executiva    || ''),
-        dataInicio:  String(m.data_inicio  || ''),
-        dataPrevisao:String(m.data_previsao|| ''),
-        dataAcerto:  String(m.data_acerto  || ''),
-        ciclo:       '',
-      };
-      save(); // persiste no localStorage
+// ── Mensagens das regras do banco em português ──
+var _MSG_DB = {
+  PECA_INDISPONIVEL:            'Peça já vendida ou não encontrada.',
+  PAGAMENTO_PREMIUM:            'No plano Free só é possível receber em Pix e Dinheiro.',
+  PAGAMENTO_DIFERENTE_DO_TOTAL: 'A soma das formas de pagamento não bate com o total da venda.',
+  VENDA_SEM_ITENS:              'Adicione pelo menos uma peça.',
+  VENDA_NAO_ENCONTRADA:         'Venda não encontrada.',
+  VENDA_JA_CANCELADA:           'Esta venda já foi cancelada.',
+  LIMITE_FREE_CLIENTES:         'O plano Free permite até 5 clientes. Assine o Premium para cadastrar mais.',
+  MALETA_ABERTA_DIFERENTE:      'Já existe outra maleta aberta. Feche a maleta atual antes de importar a nova.',
+  SEM_MALETA_ABERTA:            'Nenhuma maleta aberta.',
+  TITULO_NAO_ENCONTRADO:        'Parcela não encontrada.',
+  TITULO_NAO_PENDENTE:          'Esta parcela não está pendente.',
+  VALOR_INVALIDO:               'Informe um valor válido.',
+  CONTA_INATIVA:                'Sua conta está inativa. Fale com o suporte.',
+  NAO_AUTENTICADO:              'Sua sessão expirou. Entre novamente.'
+};
+function _erroDB(e) {
+  var m = String((e && e.message) || '');
+  for (var k in _MSG_DB) {
+    if (m.indexOf(k) >= 0) {
+      if (e.hint && (k === 'PECA_INDISPONIVEL' || k === 'MALETA_ABERTA_DIFERENTE')) return e.hint;
+      return _MSG_DB[k];
     }
   }
-
-  updateStats(); renderMaletaCard(); renderEstoque(); renderClientes(); populateClienteSelect();
-  if (!silencioso) toast('✅ Dados atualizados! ' + S.produtos.length + ' peças · ' + S.clientes.length + ' clientes.');
+  if (/JWT|expired/i.test(m)) return _MSG_DB.NAO_AUTENTICADO;
+  return _traduzErro(e);
 }
+
+// ── Utilitários de data (sem erro de fuso: "2026-09-26" NÃO vira 25/09) ──
+function _isoParaBR(s) {
+  if (!s) return '';
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : fmtDataBR(s);
+}
+function _hojeISO() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function _novoId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+// ── Busca paginada (o Supabase entrega no máximo 1.000 linhas por vez) ──
+async function _buscarTodos(montarQuery) {
+  var TAM = 1000, de = 0, tudo = [];
+  while (true) {
+    var r = await montarQuery().range(de, de + TAM - 1);
+    if (r.error) throw r.error;
+    tudo = tudo.concat(r.data || []);
+    if (!r.data || r.data.length < TAM) break;
+    de += TAM;
+  }
+  return tudo;
+}
+
+// ── Conversores: linha do banco → formato que as telas já usam ──
+function _mapProduto(e) {
+  return {
+    id: e.id, ref: e.ref || '', grupo: e.grupo || '', desc: e.descricao || '',
+    preco: Number(e.preco) || 0, barcode: e.barcode || '',
+    vendido: e.status === 'Vendido', numMaleta: e.num_maleta || '',
+    dataVenda: e.data_venda || '', clienteVenda: e.cliente_venda || '', vendaId: e.venda_id || null
+  };
+}
+function _mapCliente(c) {
+  return { id: c.id, nome: c.nome || '', tel: c.telefone || '', email: c.email || '', nasc: c.nascimento || '' };
+}
+function _pagStr(pag) {
+  return Object.keys(pag || {}).map(function(k){ return k + ': R$' + Number(pag[k]).toFixed(2); }).join(' | ');
+}
+function _mapVenda(v) {
+  var itens = (v.fressen_venda_itens || []).filter(function(i){ return !i.cancelado; }).map(function(i) {
+    return { id: i.estoque_id || i.id, itemId: i.id, ref: i.ref || '', grupo: i.grupo || '',
+             desc: i.descricao || '', preco: Number(i.preco) || 0, proprio: !!i.proprio };
+  });
+  var cli = null;
+  if (v.cliente_nome || v.cliente_id) {
+    var c = S.clientes.find(function(x){ return x.id === v.cliente_id; });
+    cli = { id: v.cliente_id || '', nome: v.cliente_nome || (c ? c.nome : ''), tel: c ? c.tel : '' };
+  }
+  return {
+    id: v.id, data: v.data_venda, numMaleta: v.num_maleta || '', maletaId: v.maleta_id || null,
+    cliente: cli, total: Number(v.total) || 0, itens: itens,
+    pagamentos: v.pagamentos || {}, pagamentoStr: _pagStr(v.pagamentos), obs: v.observacao || '',
+    parcelas: v.parcelas_qtd ? { qtd: v.parcelas_qtd, dias: v.parcelas_intervalo, valorTotal: 0, pagas: [] } : null
+  };
+}
+function _mapTitulo(r) {
+  var parcial = r.status === 'Parcial';
+  return {
+    id: r.id,
+    vendaId: r.id,                 // chave única do título (as telas localizam por vendaId + numParcela)
+    vendaRef: r.venda_id || null,  // venda de origem
+    dataVenda: _isoParaBR(r.data_venda),
+    cliente: r.cliente_nome || '', clienteId: r.cliente_id || null, celular: r.celular || '',
+    maleta: r.maleta || '', forma: r.forma_pagamento || '',
+    valorVenda: Number(r.valor_venda) || 0,
+    numParcela: Number(r.num_parcela) || 1, totalParcelas: Number(r.total_parcelas) || 1,
+    valorParcela: parcial ? (Number(r.valor_pago) || 0) : (Number(r.valor_parcela) || 0),
+    valorOriginal: Number(r.valor_parcela) || 0,
+    intervalo: r.intervalo == null ? 30 : Number(r.intervalo),
+    dataVencimento: _isoParaBR(r.data_vencimento || r.data_venda),
+    dataPagamento: _isoParaBR(r.data_pagamento),
+    status: parcial ? 'Pago' : (r.status || 'Pendente'),   // valor parcial recebido conta como recebido
+    parcial: parcial
+  };
+}
+function _mapMaleta(m) {
+  if (!m) return { numero:'', consultora:'', ciclo:'', dataInicio:'', dataAcerto:'', dataPrevisao:'', condicional:'', conferente:'', executiva:'' };
+  return {
+    id: m.id, numero: m.numero || '', consultora: m.consultora_nome || '', ciclo: '',
+    condicional: m.condicional || '', conferente: m.conferente || '', executiva: m.executiva || '',
+    dataInicio: m.data_inicio || '', dataPrevisao: m.data_previsao || '', dataAcerto: m.data_acerto || ''
+  };
+}
+
+// ── Carrega tudo da consultora logada ──
+var _carregandoDados = null;
+function carregarDados(silencioso) {
+  if (!_session || !_session.id) return Promise.resolve();
+  if (_carregandoDados) return _carregandoDados;
+  _carregandoDados = (async function() {
+    var uid = _session.id;   // filtro obrigatório: o admin enxerga todas, mas o app mostra só as próprias
+    var btn = document.getElementById('btn-atualizar');
+    var btnHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Atualizando...'; }
+    if (!silencioso) toast('🔄 Atualizando...');
+    setSyncStatus('loading');
+    try {
+      var res = await Promise.all([
+        sb.from('fressen_maletas').select('*').eq('consultora_id', uid).eq('status', 'aberta').maybeSingle(),
+        _buscarTodos(function(){ return sb.from('fressen_clientes').select('*').eq('consultora_id', uid).order('nome').order('id'); }),
+        _buscarTodos(function(){ return sb.from('fressen_vendas').select('*, fressen_venda_itens(*)').eq('consultora_id', uid).eq('status', 'ativa').order('data_venda').order('id'); }),
+        _buscarTodos(function(){ return sb.from('fressen_areceber').select('*').eq('consultora_id', uid).order('data_vencimento').order('id'); })
+      ]);
+      if (res[0].error) throw res[0].error;
+      var maleta = res[0].data;
+      var estoque = maleta
+        ? await _buscarTodos(function(){ return sb.from('fressen_estoque').select('*').eq('consultora_id', uid).eq('maleta_id', maleta.id).order('criado_em').order('id'); })
+        : [];
+
+      S.maleta   = _mapMaleta(maleta); save();
+      S.clientes = res[1].map(_mapCliente);
+      S.produtos = estoque.map(_mapProduto);
+      S.vendas   = res[2].map(_mapVenda);
+      S.areceber = res[3].map(_mapTitulo);
+      setSyncStatus('ok');
+      if (!silencioso) toast('✅ Dados atualizados! ' + S.produtos.length + ' peças · ' + S.clientes.length + ' clientes.');
+    } catch (e) {
+      console.error('[Supabase] carregarDados', e);
+      setSyncStatus('err');
+      toast('❌ ' + _erroDB(e));
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = btnHtml; }
+      updateStats(); renderMaletaCard(); renderEstoque(); renderClientes(); populateClienteSelect();
+      var pgFin = document.getElementById('page-financeiro');
+      if (pgFin && pgFin.classList.contains('active')) renderFinanceiro();
+      _carregandoDados = null;
+    }
+  })();
+  return _carregandoDados;
+}
+
+// ── Recarrega só o financeiro (mais leve) ──
+async function _carregarAReceber() {
+  if (!_session) return;
+  try {
+    var rows = await _buscarTodos(function(){ return sb.from('fressen_areceber').select('*').eq('consultora_id', _session.id).order('data_vencimento').order('id'); });
+    S.areceber = rows.map(_mapTitulo);
+    setSyncStatus('ok');
+  } catch (e) { setSyncStatus('err'); toast('❌ ' + _erroDB(e)); }
+}
+
+// ── Atualiza um título do financeiro no banco ──
+async function _atualizarTitulo(id, campos) {
+  setSyncStatus('loading');
+  var r = await sb.from('fressen_areceber').update(campos).eq('id', id);
+  if (r.error) { setSyncStatus('err'); throw r.error; }
+  setSyncStatus('ok');
+}
+
+// Todas as chamadas antigas passam a usar a nova função
+async function carregarDoSheets(silencioso) { return carregarDados(silencioso); }
 
 // ── Botão Atualizar ──
 async function atualizar() {
@@ -2402,34 +2455,29 @@ async function syncFromSheets() { await carregarDoSheets(false); }
 // FECHAMENTO DE MALETA
 // ═══════════════════════════════════════════════
 async function confirmarFechamento() {
-  if (!confirm('Fechar a Maleta '+(S.maleta.numero||'atual')+'?\n\nEstoque será zerado. Vendas e clientes são mantidos.')) return;
+  if (!confirm('Fechar a Maleta ' + (S.maleta.numero || 'atual') + '?\n\n' +
+    'As peças não vendidas serão marcadas como devolvidas.\n' +
+    'Vendas, clientes e financeiro são mantidos, e a maleta fica guardada no histórico.')) return;
   toast('⏳ Fechando maleta...');
-  // Zera Sheets
-  await sheetsPost({ action: 'resetEstoque' });
-  await sheetsPost({ action: 'resetMaleta' });
-  // Zera estado local
-  S.produtos = [];
-  S.cart = [];
-  S.maleta = { numero:'', consultora:'', ciclo:'', dataInicio:'', dataAcerto:'', dataPrevisao:'', condicional:'', conferente:'', executiva:'' };
-  save();
-  updateStats(); renderMaletaCard(); renderEstoque();
-  toast('✅ Maleta fechada! Importe o PDF da nova maleta.');
+  setSyncStatus('loading');
+  var r = await sb.rpc('fressen_fechar_maleta');
+  if (r.error && !/SEM_MALETA_ABERTA/.test(r.error.message || '')) {
+    setSyncStatus('err'); toast('❌ ' + _erroDB(r.error)); return;
+  }
+  setSyncStatus('ok');
+  S.produtos = []; S.cart = [];
+  S.maleta = _mapMaleta(null); save();
+  updateStats(); renderMaletaCard(); renderEstoque(); updateCartUI();
+  var dev = r.data && r.data.pecas_devolvidas ? r.data.pecas_devolvidas + ' peça(s) marcada(s) como devolvida(s). ' : '';
+  toast('✅ Maleta fechada! ' + dev + 'Importe o PDF da nova maleta.');
   showPage('home');
 }
 
 // ── Limpa aba Estoque do Sheets e zera o app ──
 async function limparSheetsEstoque() {
-  if (!confirm('Isso vai apagar TODAS as peças do Sheets. Tem certeza?')) return;
-  toast('🗑️ Limpando Sheets...');
-  await sheetsPost({ action: 'resetEstoque' });
-  await sheetsPost({ action: 'resetVendas' });
-  await new Promise(function(r){ setTimeout(r, 2000); });
-  S.produtos = []; S.vendas = []; S.clientes = [];
-  updateStats(); renderMaletaCard(); renderEstoque(); renderClientes();
-  toast('✅ Sheets limpo! Importe o PDF para carregar o estoque.');
+  toast('Função removida. Para recomeçar, use "Fechar Maleta".');
 }
 
-// ── Venda → POST no-cors por item ──
 // pushVendaSheets → ver versão nova acima
 
 // ── Cliente → POST no-cors ──
@@ -2671,7 +2719,7 @@ function finalizarLeitura(prods, tipo) {
   }
   if (duplicadas.length > 0) {
     const novas = prods.filter(function(p) { return !S.produtos.find(function(x) { return x.ref === p.ref; }); });
-    setStatus('ℹ️ ' + duplicadas.length + ' peças já existem no Sheets. Serão importadas apenas as ' + novas.length + ' novas.', '#C9A84C');
+    setStatus('ℹ️ ' + duplicadas.length + ' peças já existem nesta maleta. Serão importadas apenas as ' + novas.length + ' novas.', '#C9A84C');
     prods = novas;
   }
 
@@ -2688,44 +2736,39 @@ function finalizarLeitura(prods, tipo) {
 async function enviarImportacao() {
   if (!_importPendente.length) return;
   const btn = document.getElementById('btn-enviar');
-  if (btn) { btn.disabled=true; btn.textContent='⏳ Enviando...'; }
-  setProgress(20, 'Enviando para o Sheets...');
-
-  const rows = _importPendente.map(function(p) {
-    return { ID: p.id, Ref: p.ref, Grupo: p.grupo, Descricao: p.desc, Preco: p.preco, Barcode: p.barcode||'', Status:'Disponível', NumMaleta: S.maleta.numero||'' };
-  });
-
-  await sheetsPost({ action: 'saveEstoque', rows });
-  setProgress(70, 'Aguardando confirmação...');
-  await new Promise(function(r) { setTimeout(r, 2500); });
-  setProgress(100, 'Concluído!');
-
-  // Atualiza estado local
-  S.produtos = [...S.produtos, ..._importPendente];
-  _importPendente = [];
-  document.getElementById('import-preview').style.display='none';
-  setStatus('✅ ' + rows.length + ' peças enviadas para o Sheets!', 'green');
-
-  // Salva dados da maleta na aba Maleta do Sheets
-  if (S.maleta.numero) {
-    sheetsPost({
-      action: 'saveMaleta',
-      maleta: {
-        numero:      S.maleta.numero       || '',
-        consultora:  S.maleta.consultora   || '',
-        condicional: S.maleta.condicional  || '',
-        conferente:  S.maleta.conferente   || '',
-        executiva:   S.maleta.executiva    || '',
-        dataInicio:  S.maleta.dataInicio   ? new Date(S.maleta.dataInicio).toLocaleDateString('pt-BR')   : '',
-        dataPrevisao:S.maleta.dataPrevisao ? new Date(S.maleta.dataPrevisao).toLocaleDateString('pt-BR') : '',
-        dataAcerto:  S.maleta.dataAcerto   ? new Date(S.maleta.dataAcerto).toLocaleDateString('pt-BR')   : '',
-      }
+  const btnHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  setProgress(30, 'Salvando na nuvem...');
+  setSyncStatus('loading');
+  const m = S.maleta || {};
+  try {
+    const r = await sb.rpc('fressen_importar_maleta', {
+      p_maleta: {
+        numero: m.numero || '', consultora: m.consultora || '', condicional: m.condicional || '',
+        conferente: m.conferente || '', executiva: m.executiva || '',
+        data_inicio: m.dataInicio || '', data_previsao: m.dataPrevisao || '', data_acerto: m.dataAcerto || ''
+      },
+      p_pecas: _importPendente.map(function(p) {
+        return { ref: p.ref, grupo: p.grupo, descricao: p.desc, preco: Number(p.preco) || 0, barcode: p.barcode || '' };
+      })
     });
+    if (r.error) throw r.error;
+    const n = (r.data && r.data.pecas) ? r.data.pecas.length : 0;
+    setProgress(100, 'Concluído!');
+    _importPendente = [];
+    document.getElementById('import-preview').style.display = 'none';
+    setStatus('✅ ' + n + ' peças salvas na nuvem!', 'green');
+    setSyncStatus('ok');
+    await carregarDados(true);
+  } catch (e) {
+    setProgress(null);
+    setSyncStatus('err');
+    setStatus('❌ ' + _erroDB(e), 'red');
+    await carregarDados(true);   // volta a maleta da tela para o que está salvo
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btnHtml; }
+    setTimeout(function() { setProgress(null); }, 1500);
   }
-
-  updateStats(); renderMaletaCard(); renderEstoque();
-  if (btn) { btn.disabled=false; btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar para o Sheets'; }
-  setTimeout(function() { setProgress(null); }, 1500);
 }
 
 // ── Extrai dados da maleta do cabeçalho do PDF ──
@@ -3087,6 +3130,7 @@ function addToCart(p){
 }
 function removeFromCart(id){ S.cart=S.cart.filter(c=>c.id!==id); updateCartUI(); updatePaySplit(); }
 function updateCartUI(){
+  if (S.cart.length === 0 || S._cartSig !== S.cart.map(c=>c.id).join(',')) { S._idVenda = null; S._cartSig = S.cart.map(c=>c.id).join(','); }
   const total=S.cart.reduce((a,c)=>a+c.preco,0);
   document.getElementById('cart-total').textContent=fmt(total);
   const badge=document.getElementById('cart-badge');
@@ -3192,10 +3236,14 @@ function openClienteDetalhe(id){
 
 async function excluirClienteModal(){
   if(!S.currentModalCliente)return;
-  const id=S.currentModalCliente.id;
-  S.clientes=S.clientes.filter(c=>c.id!==id);
-  save(); renderClientes(); populateClienteSelect();
-  deleteClienteSheets(id);
+  const c = S.currentModalCliente;
+  if (!confirm('Excluir o cliente ' + c.nome + '?\n\nAs vendas já feitas continuam no histórico.')) return;
+  setSyncStatus('loading');
+  const r = await sb.from('fressen_clientes').delete().eq('id', c.id);
+  if (r.error) { setSyncStatus('err'); toast('❌ ' + _erroDB(r.error)); return; }
+  setSyncStatus('ok');
+  S.clientes = S.clientes.filter(x => x.id !== c.id);
+  renderClientes(); populateClienteSelect();
   closeModal('modal-cliente-detalhe');
   toast('Cliente excluído');
 }
@@ -3207,7 +3255,7 @@ function openItemModal(id){
   const p=S.produtos.find(x=>x.id==id);
   if(!p)return; S.currentModalItem=p;
   // Encontra a venda associada a esta peça
-  const vendaAssoc = S.vendas.find(v=>v.itens&&v.itens.find(i=>i.id===p.id||i.ref===p.ref));
+  const vendaAssoc = S.vendas.find(v=>v.id===p.vendaId) || S.vendas.find(v=>v.itens&&v.itens.find(i=>i.id===p.id));
   document.getElementById('modal-item-content').innerHTML=`
     <div class="modal-title">${p.ref}</div>
     <p style="font-size:14px;margin-bottom:10px">${p.desc}</p>
@@ -3217,7 +3265,7 @@ function openItemModal(id){
     </div>
     ${p.barcode?`<p style="font-size:11px;color:var(--text2);margin-bottom:8px">Cód: ${p.barcode}</p>`:''}
     ${p.vendido?`<div class="tag tag-danger" style="margin-bottom:10px">Vendida${p.clienteVenda?' para '+p.clienteVenda:''} ${p.dataVenda?'em '+new Date(p.dataVenda).toLocaleDateString('pt-BR'):''}</div>`:''}
-    ${vendaAssoc?`<p style="font-size:11px;color:var(--text2)">Venda: ${vendaAssoc.id} · ${fmt(vendaAssoc.total)}</p>`:''}`;
+    ${vendaAssoc?`<p style="font-size:11px;color:var(--text2)">Venda de ${new Date(vendaAssoc.data).toLocaleDateString('pt-BR')} · ${vendaAssoc.itens.length} peça(s) · ${fmt(vendaAssoc.total)}</p>`:''}`;
   // Mostrar botão correto conforme status
   document.getElementById('btn-modal-add').style.display = p.vendido ? 'none' : 'flex';
   document.getElementById('btn-modal-cancelar').style.display = p.vendido ? 'flex' : 'none';
@@ -3231,57 +3279,20 @@ function addToCartFromModal(){
 
 async function cancelarVendaModal(){
   const p = S.currentModalItem;
-  if(!p || !p.vendido) return;
-  if(!confirm('Cancelar a venda de ' + p.ref + '?\n\nA peça voltará para Disponível e o registro será removido.')) return;
-
-  // Remove venda do estado local (pelo id da peça ou ref)
-  const idxVenda = S.vendas.findIndex(v=>v.itens&&v.itens.find(i=>i.id===p.id||i.ref===p.ref));
-  let vendaId = null;
-  if(idxVenda >= 0){
-    // S.vendas[i].id pode ser "1780108548_AN1-1748" (do Sheets) ou "1780108548" (local)
-    // Precisamos do ID BASE sem o sufixo _ref para encontrar os títulos em A receber
-    const rawId = S.vendas[idxVenda].id;
-    // Remove sufixo _REFERENCIA se existir (formato: timestamp_ref ou timestamp_ref-cor)
-    vendaId = rawId.replace(/_[A-Z]{1,4}[0-9].*$/, '').replace(/_[A-Za-z0-9\-]+$/, '') || rawId;
-    // Garante que pegamos o timestamp puro (primeiros 13 dígitos se for timestamp)
-    const tsMatch = rawId.match(/^(\d{10,13})/);
-    if (tsMatch) vendaId = tsMatch[1];
-
-    // Se a venda tem só 1 item, remove a venda inteira
-    if(S.vendas[idxVenda].itens.length === 1){
-      S.vendas.splice(idxVenda, 1);
-    } else {
-      // Venda com múltiplos itens — remove só este item
-      S.vendas[idxVenda].itens = S.vendas[idxVenda].itens.filter(i=>i.id!==p.id&&i.ref!==p.ref);
-      S.vendas[idxVenda].total = S.vendas[idxVenda].itens.reduce((a,i)=>a+i.preco,0);
-    }
-  }
-
-  // Devolve peça para disponível no estado local
-  p.vendido = false;
-  p.dataVenda = '';
-  p.clienteVenda = '';
-
-  // Marca títulos em S.areceber como "Venda Cancelada"
-  if (vendaId) {
-    S.areceber.forEach(t => {
-      // ID em S.areceber pode ser: "1780108548", "1780108548_AN1-1748", "1780108548_Pix", "_p..."
-      const tBase = t.vendaId.replace(/_p\d+$/, '').replace(/_[A-Za-z]+$/, '');
-      const tBaseNum = tBase.match(/^(\d{10,13})/);
-      const tBaseStr = tBaseNum ? tBaseNum[1] : tBase;
-      if (tBaseStr === vendaId || t.vendaId === vendaId || t.vendaId.startsWith(vendaId + '_')) {
-        t.status = 'Venda Cancelada';
-        t.dataPagamento = new Date().toLocaleDateString('pt-BR');
-      }
-    });
-  }
-
-  // Sincroniza com Sheets
-  await sheetsPost({ action: 'cancelarVenda', ref: p.ref, vendaId: vendaId || '' });
-
+  if (!p || !p.vendido) return;
+  const venda = S.vendas.find(v => v.id === p.vendaId) || S.vendas.find(v => v.itens && v.itens.find(i => i.id === p.id));
+  if (!venda) { toast('Venda não encontrada. Toque em Atualizar e tente de novo.'); return; }
+  const lista = venda.itens.map(i => '• ' + i.ref + ' — ' + fmt(i.preco)).join('\n');
+  const quem  = venda.cliente && venda.cliente.nome ? ' de ' + venda.cliente.nome : '';
+  if (!confirm('Cancelar a VENDA INTEIRA' + quem + '?\n\n' + lista + '\n\nTotal: ' + fmt(venda.total) +
+    '\n\nTodas as peças voltam para Disponível e as parcelas do financeiro são canceladas.' +
+    '\nSe precisar corrigir algo, lance a venda novamente.')) return;
+  setSyncStatus('loading');
+  const r = await sb.rpc('fressen_cancelar_venda', { p_venda_id: venda.id });
+  if (r.error) { setSyncStatus('err'); toast('❌ ' + _erroDB(r.error)); return; }
   closeModal('modal-item');
-  save(); updateStats(); renderMaletaCard(); renderEstoque();
-  toast('✅ Venda de ' + p.ref + ' cancelada!');
+  await carregarDados(true);
+  toast('✅ Venda cancelada — ' + (r.data.pecas_devolvidas || 0) + ' peça(s) de volta ao estoque.');
 }
 
 // updateRelatorio → ver nova versão abaixo
@@ -3430,21 +3441,22 @@ async function salvarCliente() {
     return;
   }
 
+  const campos = { nome: nome, telefone: tel, email: email || null, nascimento: nasc || null };
+  setSyncStatus('loading');
   if (idEdit) {
-    // EDIÇÃO
-    const idx = S.clientes.findIndex(x=>x.id===idEdit);
-    if (idx >= 0) {
-      S.clientes[idx] = { ...S.clientes[idx], nome, tel, email, nasc };
-      await sheetsPost({ action: 'updateCliente', id: idEdit, nome, telefone: tel, email, nascimento: nasc });
-      toast(`✅ ${nome} atualizado!`);
-    }
+    const r = await sb.from('fressen_clientes').update(campos).eq('id', idEdit);
+    if (r.error) { setSyncStatus('err'); toast('❌ ' + _erroDB(r.error)); return; }
+    const idx = S.clientes.findIndex(x => x.id === idEdit);
+    if (idx >= 0) S.clientes[idx] = { ...S.clientes[idx], nome, tel, email, nasc };
+    toast(`✅ ${nome} atualizado!`);
   } else {
-    // NOVO
-    const novo = { id: Date.now().toString(), nome, tel, email, nasc };
-    S.clientes.push(novo);
-    await pushClienteSheets(novo);
+    const r = await sb.from('fressen_clientes').insert(campos).select().single();
+    if (r.error) { setSyncStatus('err'); toast('❌ ' + _erroDB(r.error)); return; }
+    S.clientes.push(_mapCliente(r.data));
+    S.clientes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     toast(`✅ ${nome} cadastrado!`);
   }
+  setSyncStatus('ok');
 
   document.getElementById('cli-duplicata-aviso').style.display = 'none';
   closeModal('modal-cliente');
@@ -3511,7 +3523,7 @@ function showPage(p) {
   if (p==='relatorio')  { setTimeout(atualizarFechResumo, 100); }
   if (p!=='ajuda') { if(typeof pararTodosAudios==='function') pararTodosAudios(); }
   if (p==='ajuda') { document.getElementById('ajuda-home').style.display=''; document.querySelectorAll('.modulo-tela').forEach(t=>t.classList.remove('ativo')); if(typeof carregarProgressoTreinamento==='function') carregarProgressoTreinamento(); }
-  if (p==='financeiro') { carregarDoSheets(true).then(()=>renderFinanceiro()); }
+  if (p==='financeiro') { renderFinanceiro(); _carregarAReceber().then(()=>renderFinanceiro()); }
   if (p==='historico')  { renderHistorico(); }
   if (p==='estoque')    renderEstoque();
   if (p==='clientes')   { renderClientes(); renderAniversariantes(); populateClienteSelect(); }
@@ -3605,7 +3617,7 @@ function renderFinanceiro() {
   if(_finTab==='baixado')   lista=lista.filter(p=>p.status==='Baixado'&&(p.cliente||'').trim()!=='');
   if(_finTab==='cancelado') lista=lista.filter(p=>isCancelado(p.status));
   // Tab "Todos" mostra tudo incluindo sem cliente, com aviso para exclusão
-  lista.sort((a,b)=>new Date(a.dataVenda)-new Date(b.dataVenda));
+  lista.sort((a,b)=>parseDateBRtoObj(a.dataVencimento||a.dataVenda)-parseDateBRtoObj(b.dataVencimento||b.dataVenda));
   // Cards respeitam filtro de data quando ativo
   const base = (finDe||finAte) ? lista : todas; // se tem filtro, usa lista filtrada; senão usa tudo
   const aRec   = base.filter(p=>p.status!=='Pago'&&p.status!=='Baixado'&&p.status!=='Venda Cancelada').reduce((a,p)=>a+p.valorParcela,0);
@@ -3701,12 +3713,18 @@ function renderFinanceiro() {
   }).join('');
 }
 
-function toggleParcela(vendaId,num) {
-  const idx=S.areceber.findIndex(p=>p.vendaId===String(vendaId)&&p.numParcela===num);if(idx<0)return;
-  const p=S.areceber[idx],pago=p.status!=='Pago',dataPagamento=pago?new Date().toLocaleString('pt-BR'):'';
-  S.areceber[idx].status=pago?'Pago':'Pendente';S.areceber[idx].dataPagamento=dataPagamento;
-  sheetsPost({action:'salvarParcela',parcela:{VendaId:vendaId,DataVenda:p.dataVenda,Cliente:p.cliente,Celular:p.celular,Maleta:p.maleta,ValorVenda:p.valorVenda,NumParcela:num,TotalParcelas:p.totalParcelas,ValorParcela:p.valorParcela,Intervalo:p.intervalo||30,DataVencimento:p.dataVencimento||p.dataVenda,DataPagamento:dataPagamento,Status:pago?'Pago':'Pendente'}});
-  renderFinanceiro();toast(pago?'✅ Parcela marcada como paga!':'Marcado como pendente');
+async function toggleParcela(vendaId,num) {
+  const p = S.areceber.find(x => x.vendaId === String(vendaId) && x.numParcela === num); if (!p) return;
+  if (p.parcial) { toast('Pagamento parcial não pode ser desfeito por aqui.'); return; }
+  const pagar = p.status !== 'Pago';
+  try {
+    await _atualizarTitulo(p.id, pagar
+      ? { status: 'Pago', data_pagamento: _hojeISO(), valor_pago: p.valorParcela }
+      : { status: 'Pendente', data_pagamento: null, valor_pago: null });
+    p.status = pagar ? 'Pago' : 'Pendente';
+    p.dataPagamento = pagar ? _isoParaBR(_hojeISO()) : '';
+    renderFinanceiro(); toast(pagar ? '✅ Parcela marcada como paga!' : 'Marcado como pendente');
+  } catch (e) { toast('❌ ' + _erroDB(e)); }
 }
 
 // ═══════════════════════════════════════════════
@@ -3872,9 +3890,7 @@ async function finalizarVenda() {
   const clienteId=document.getElementById('select-cliente').value;
   const cliente=S.clientes.find(c=>c.id===clienteId)||null;
   const obs=(document.getElementById('venda-obs')||{}).value||'';
-  const pagStr=Object.entries(S.paySelected).map(([k,v])=>`${k}: R$${Number(v).toFixed(2)}`).join(' | ');
 
-  // Parcelas
   const precisaParcela=metodos.some(m=>m==='Crédito'||m==='Carteira');
   let parcelasInfo=null;
   if(precisaParcela){
@@ -3884,78 +3900,57 @@ async function finalizarVenda() {
     parcelasInfo={qtd,dias,valorTotal:vlParc,pagas:[]};
   }
 
+  // Mesmo ID se a consultora tocar de novo após falha de internet → o banco não duplica a venda
+  if (!S._idVenda) S._idVenda = _novoId();
+  const pagamentos = {};
+  Object.keys(S.paySelected).forEach(k => { pagamentos[k] = Math.round(Number(S.paySelected[k]) * 100) / 100; });
+
+  const btn = document.getElementById('btn-finalizar');
+  const btnHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Registrando venda...'; }
+  setSyncStatus('loading');
+  let r;
+  try {
+    r = await sb.rpc('fressen_registrar_venda', { p: {
+      id: S._idVenda,
+      cliente_id: cliente ? cliente.id : null,
+      itens: S.cart.map(i => ({ estoque_id: i.proprio ? null : i.id, ref: i.ref, grupo: i.grupo || '',
+                               descricao: i.desc || '', preco: i.preco, proprio: !!i.proprio })),
+      pagamentos: pagamentos,
+      parcelas: parcelasInfo ? { qtd: parcelasInfo.qtd, dias: parcelasInfo.dias } : null,
+      observacao: obs
+    }});
+  } catch (e) { r = { error: e }; }
+  if (btn) { btn.disabled = false; btn.innerHTML = btnHtml; }
+  if (r.error) {
+    setSyncStatus('err');
+    toast('❌ Venda NÃO registrada: ' + _erroDB(r.error));
+    if (/PECA_INDISPONIVEL/.test(r.error.message || '')) carregarDados(true);
+    return;
+  }
+  setSyncStatus('ok');
+
+  const pagStr = _pagStr(pagamentos);
   const venda={
-    id:Date.now().toString(), data:new Date().toISOString(),
-    numMaleta: S.maleta.numero || '',
-    itens:[...S.cart], total, pagamentos:{...S.paySelected},
+    id: r.data.venda_id, data:new Date().toISOString(),
+    numMaleta: S.maleta.numero || '', maletaId: S.maleta.id || null,
+    itens:[...S.cart], total, pagamentos:{...pagamentos},
     pagamentoStr:pagStr, cliente, obs, parcelas:parcelasInfo,
   };
-
-  venda.itens.forEach(item=>{
-    if (item.proprio) return; // peça própria — não está no estoque
-    const p=S.produtos.find(x=>x.id===item.id);
-    if(p){p.vendido=true;p.dataVenda=new Date().toISOString();p.clienteVenda=cliente?cliente.nome:'';}
-  });
-  S.vendas.push(venda);
-  S.cart=[];S.paySelected={};
+  if (!r.data.ja_existia) {
+    venda.itens.forEach(item=>{
+      if (item.proprio) return;
+      const p=S.produtos.find(x=>x.id===item.id);
+      if(p){p.vendido=true;p.dataVenda=venda.data;p.clienteVenda=cliente?cliente.nome:'';p.vendaId=venda.id;}
+    });
+    S.vendas.push(venda);
+  }
+  S.cart=[];S.paySelected={};S._idVenda=null;
   document.querySelectorAll('.pay-opt').forEach(e=>e.classList.remove('selected'));
   const pw=document.getElementById('parcelas-wrap');if(pw)pw.style.display='none';
-  save();updateStats();updateCartUI();renderMaletaCard();
-
-  pushVendaSheets(venda, cliente);
-
-  // Lança entradas à vista (Pix/Dinheiro/Débito/Transferência) como Pago em "A receber"
-  const formasAvista = ['Pix','Dinheiro','Débito','Transferência'];
-  Object.entries(venda.pagamentos||{}).forEach(([metodo, valor]) => {
-    if (!formasAvista.includes(metodo) || !valor) return;
-    const dataHoje  = new Date(venda.data).toLocaleDateString('pt-BR');
-    const vidAvista = venda.id + '_' + metodo.replace(/\s/g,'');
-    sheetsPost({action:'salvarParcela', parcela:{
-      VendaId:        vidAvista,
-      DataVenda:      dataHoje,
-      Cliente:        cliente ? cliente.nome : '',
-      Celular:        cliente ? (cliente.tel||'') : '',
-      Maleta:         S.maleta.numero||'',
-      ValorVenda:     valor,
-      NumParcela:     1,
-      TotalParcelas:  1,
-      ValorParcela:   valor,
-      Intervalo:      0,
-      DataVencimento: dataHoje,
-      DataPagamento:  dataHoje,
-      Status:         'Pago',
-    }});
-    S.areceber.push({
-      vendaId:vidAvista, dataVenda:dataHoje,
-      cliente:cliente?cliente.nome:'', celular:cliente?cliente.tel||'':'',
-      maleta:S.maleta.numero||'', valorVenda:valor,
-      numParcela:1, totalParcelas:1, valorParcela:valor,
-      intervalo:0, dataVencimento:dataHoje, dataPagamento:dataHoje, status:'Pago',
-    });
-  });
-
-  if(parcelasInfo&&parcelasInfo.qtd>0){
-    for(let pi=1;pi<=parcelasInfo.qtd;pi++){
-      const dtBase=new Date(venda.data);
-      dtBase.setDate(dtBase.getDate()+parcelasInfo.dias*pi);
-      const dtVenc=dtBase.toLocaleDateString('pt-BR');
-      sheetsPost({action:'salvarParcela', parcela:{
-        VendaId:        venda.id,
-        DataVenda:      new Date(venda.data).toLocaleDateString('pt-BR'),
-        Cliente:        cliente ? cliente.nome : '',
-        Celular:        cliente ? (cliente.tel||'') : '',
-        Maleta:         S.maleta.numero||'',
-        ValorVenda:     venda.total,
-        NumParcela:     pi,
-        TotalParcelas:  parcelasInfo.qtd,
-        ValorParcela:   parcelasInfo.valorTotal/parcelasInfo.qtd,
-        Intervalo:      parcelasInfo.dias,
-        DataVencimento: dtVenc,
-        DataPagamento:  '',
-        Status:         'Pendente',
-      }});
-    }
-  }
+  const ob=document.getElementById('venda-obs'); if(ob) ob.value='';
+  updateStats();updateCartUI();renderMaletaCard();renderEstoque();
+  _carregarAReceber();   // parcelas criadas pelo banco
 
   const det=document.getElementById('modal-venda-detalhes');
   if(det){
@@ -3970,37 +3965,7 @@ async function finalizarVenda() {
       ${parcelasInfo&&parcelasInfo.qtd>1?`<div style="margin-top:6px;font-size:12px;background:rgba(241,183,156,0.1);padding:6px;border-radius:4px">📆 ${parcelasInfo.qtd}x de ${fmt(parcelasInfo.valorTotal/parcelasInfo.qtd)}</div>`:''}`;
   }
   openModal('modal-confirmacao');
-  toast('🎉 Venda registrada!');
-}
-
-async function pushVendaSheets(venda, cliente) {
-  if(!S.apiUrl) return;
-  const dataFmt    = new Date(venda.data).toLocaleString('pt-BR');
-  const pagStr     = Object.entries(venda.pagamentos||{}).map(([k,v])=>k+': R$'+Number(v).toFixed(2)).join(' | ');
-  const consultora = _session ? (_session.nome || '') : '';
-
-  for(const item of venda.itens){
-    await sheetsPost({action:'addVenda', venda:{
-      IDVenda:        venda.id+'_'+item.ref,
-      DataVenda:      dataFmt,
-      NumMaleta:      S.maleta.numero    || '',
-      Consultora:     consultora,
-      Cliente:        cliente ? cliente.nome : '',
-      Referencia:     item.ref,
-      Grupo:          item.grupo || '',
-      Descricao:      item.desc  || '',
-      Preco:          item.preco,
-      FormaPagamento: pagStr,
-      Observacao:     venda.obs  || '',
-    }});
-    if (!item.proprio) {
-      await sheetsPost({action:'marcarVendido',
-        ref:         item.ref,
-        dataVenda:   dataFmt,
-        clienteNome: cliente ? cliente.nome : ''
-      });
-    }
-  }
+  toast(r.data.ja_existia ? '✅ Esta venda já estava registrada.' : '🎉 Venda registrada!');
 }
 
 // ═══════════════════════════════════════════════
@@ -4351,81 +4316,46 @@ function reprogramarParcela(vendaId, num) {
   openModal('modal-reprogramar');
 }
 
-function confirmarReprogramacao() {
+async function confirmarReprogramacao() {
   const novaData = document.getElementById('reprog-data').value;
   if (!novaData) { toast('Selecione a nova data'); return; }
-
-  const idx = S.areceber.findIndex(p => p.vendaId === String(_reprogVendaId) && p.numParcela === _reprogNum);
-  if (idx < 0) return;
-
-  const p = S.areceber[idx];
-  // Converter para pt-BR para exibição
-  const [ano, mes, dia] = novaData.split('-');
-  const novaDataBR = dia + '/' + mes + '/' + ano;
-
-  S.areceber[idx].dataVencimento = novaDataBR; // atualiza dataVencimento, não dataVenda
-
-  // Salvar no Sheets com nova data de vencimento
-  sheetsPost({
-    action: 'salvarParcela',
-    parcela: {
-      VendaId:        p.vendaId,
-      DataVenda:      p.dataVenda,      // data original do lançamento
-      DataVencimento: novaDataBR,       // nova data de vencimento
-      Cliente:        p.cliente,
-      Celular:        p.celular,
-      Maleta:         p.maleta,
-      ValorVenda:     p.valorVenda,
-      NumParcela:     p.numParcela,
-      TotalParcelas:  p.totalParcelas,
-      ValorParcela:   p.valorParcela,
-      Intervalo:      p.intervalo || 30,
-      DataPagamento:  p.dataPagamento || '',
-      Status:         p.status,
-    }
-  });
-
-  closeModal('modal-reprogramar');
-  renderFinanceiro();
-  toast('📅 Vencimento alterado para ' + novaDataBR);
+  const p = S.areceber.find(x => x.vendaId === String(_reprogVendaId) && x.numParcela === _reprogNum);
+  if (!p) return;
+  try {
+    await _atualizarTitulo(p.id, { data_vencimento: novaData });
+    p.dataVencimento = _isoParaBR(novaData);
+    closeModal('modal-reprogramar');
+    renderFinanceiro();
+    toast('📅 Vencimento alterado para ' + p.dataVencimento);
+  } catch (e) { toast('❌ ' + _erroDB(e)); }
 }
 
-function excluirParcelaSemCliente(vendaId, num) {
+async function excluirParcelaSemCliente(vendaId, num) {
   if (!confirm('Excluir este registro inválido (sem cliente)?')) return;
-  const idx = S.areceber.findIndex(p=>p.vendaId===String(vendaId)&&p.numParcela===num);
-  if (idx >= 0) {
-    S.areceber.splice(idx, 1);
-    // Marca como Baixado no Sheets para sumir da listagem
-    sheetsPost({action:'salvarParcela', parcela:{
-      VendaId:vendaId, DataVenda:'', Cliente:'_excluido_', Celular:'',
-      Maleta:'', ValorVenda:0, NumParcela:num, TotalParcelas:num,
-      ValorParcela:0, Intervalo:30, DataVencimento:'',
-      DataPagamento:new Date().toLocaleDateString('pt-BR'), Status:'Baixado'
-    }});
-  }
+  const p = S.areceber.find(x => x.vendaId === String(vendaId) && x.numParcela === num);
+  if (!p) return;
+  setSyncStatus('loading');
+  const r = await sb.from('fressen_areceber').delete().eq('id', p.id);
+  if (r.error) { setSyncStatus('err'); toast('❌ ' + _erroDB(r.error)); return; }
+  setSyncStatus('ok');
+  S.areceber = S.areceber.filter(x => x.id !== p.id);
   renderFinanceiro();
   toast('Registro excluído.');
 }
 
-function baixarParcela(vendaId, num) {
-  const idx = S.areceber.findIndex(p=>p.vendaId===String(vendaId)&&p.numParcela===num);
-  if (idx<0) return;
-  const p = S.areceber[idx];
+async function baixarParcela(vendaId, num) {
+  const p = S.areceber.find(x => x.vendaId === String(vendaId) && x.numParcela === num);
+  if (!p) return;
   if (!confirm(`Baixar a parcela ${p.numParcela}/${p.totalParcelas} de ${p.cliente||'cliente'} (${fmt(p.valorParcela)})?
 
 Isso indica que o valor NÃO será recebido.
 O registro ficará como "Baixado" no histórico.`)) return;
-  S.areceber[idx].status = 'Baixado';
-  S.areceber[idx].dataPagamento = new Date().toLocaleDateString('pt-BR');
-  sheetsPost({action:'salvarParcela',parcela:{
-    VendaId:p.vendaId, DataVenda:p.dataVenda, Cliente:p.cliente, Celular:p.celular,
-    Maleta:p.maleta, ValorVenda:p.valorVenda, NumParcela:p.numParcela,
-    TotalParcelas:p.totalParcelas, ValorParcela:p.valorParcela,
-    Intervalo:p.intervalo||30, DataVencimento:p.dataVencimento||p.dataVenda,
-    DataPagamento:S.areceber[idx].dataPagamento, Status:'Baixado'
-  }});
-  renderFinanceiro();
-  toast('⬇️ Parcela baixada — valor não será cobrado.');
+  try {
+    await _atualizarTitulo(p.id, { status: 'Baixado', data_pagamento: _hojeISO() });
+    p.status = 'Baixado'; p.dataPagamento = _isoParaBR(_hojeISO());
+    renderFinanceiro();
+    toast('⬇️ Parcela baixada — valor não será cobrado.');
+  } catch (e) { toast('❌ ' + _erroDB(e)); }
 }
 
 // ── Modal Parcial ──────────────────────────────────────────────
@@ -4434,6 +4364,7 @@ function pagarParcial(vendaId, num) {
   if (idx<0) return;
   const p = S.areceber[idx];
   S._parcialIdx = idx; // guarda referência
+  S._parcialId  = p.id; // referência estável (a lista pode ser recarregada)
 
   document.getElementById('parcial-info').textContent =
     p.cliente+' · Parcela '+p.numParcela+'/'+p.totalParcelas+' · Total: '+fmt(p.valorParcela);
@@ -4461,79 +4392,24 @@ function calcularSaldoParcial() {
   }
 }
 
-function confirmarParcial() {
-  const idx = S._parcialIdx;
-  if (idx==null||idx<0) return;
-  const p = S.areceber[idx];
+async function confirmarParcial() {
+  const p = S.areceber.find(x => x.id === S._parcialId);
+  if (!p) return;
   const raw = document.getElementById('parcial-valor').value.replace(',','.');
   const valorPago = parseFloat(raw)||0;
   if (!valorPago || valorPago <= 0) { toast('Informe o valor pago'); return; }
-
-  const dataPag = new Date().toLocaleDateString('pt-BR');
-  const restante = parseFloat((p.valorParcela - valorPago).toFixed(2));
-
-  if (valorPago >= p.valorParcela) {
-    // Pagamento integral — marcar como pago normalmente
-    S.areceber[idx].status = 'Pago';
-    S.areceber[idx].dataPagamento = dataPag;
-    sheetsPost({action:'salvarParcela',parcela:{
-      VendaId:p.vendaId,DataVenda:p.dataVenda,Cliente:p.cliente,Celular:p.celular,
-      Maleta:p.maleta,ValorVenda:p.valorVenda,NumParcela:p.numParcela,
-      TotalParcelas:p.totalParcelas,ValorParcela:p.valorParcela,
-      Intervalo:p.intervalo||30,DataVencimento:p.dataVencimento||p.dataVenda,
-      DataPagamento:dataPag,Status:'Pago'
-    }});
-    toast('✅ Parcela paga integralmente!');
-  } else {
-    // Pagamento parcial CORRETO:
-    // Título original: mantém valorParcela original, marca Pago com dataPagamento
-    // Novo título: somente o saldo residual, Pendente
-    // Assim: valorPago (Pago) + restante (Pendente) = valorParcela original ✓
-    // Atualiza localmente: mostra o valor que FOI PAGO (não o original)
-    S.areceber[idx].status        = 'Parcial';
-    S.areceber[idx].dataPagamento = dataPag;
-    S.areceber[idx].valorParcela  = valorPago; // ← exibe o valor pago (10, não 23)
-    sheetsPost({action:'salvarParcela',parcela:{
-      VendaId:p.vendaId, DataVenda:p.dataVenda, Cliente:p.cliente, Celular:p.celular,
-      Maleta:p.maleta, ValorVenda:p.valorVenda, NumParcela:p.numParcela,
-      TotalParcelas:p.totalParcelas, ValorParcela:valorPago, // grava o que foi pago
-      Intervalo:p.intervalo||30, DataVencimento:p.dataVencimento||p.dataVenda,
-      DataPagamento:dataPag, Status:'Parcial',
-    }});
-
-    // Cria novo título somente com o saldo residual
-    const dtBase = parseDateBRtoObj(p.dataVencimento||p.dataVenda);
-    dtBase.setDate(dtBase.getDate() + (p.intervalo||30));
-    const novaData = dtBase.toLocaleDateString('pt-BR');
-    const novaVendaId = p.vendaId + '_p' + Date.now();
-    const novaParc = {
-      vendaId:        novaVendaId,
-      dataVenda:      p.dataVenda,
-      cliente:        p.cliente,
-      celular:        p.celular,
-      maleta:         p.maleta,
-      valorVenda:     restante,
-      numParcela:     1,
-      totalParcelas:  1,
-      valorParcela:   restante,
-      intervalo:      p.intervalo||30,
-      dataVencimento: novaData,
-      dataPagamento:  '',
-      status:         'Pendente',
-    };
-    S.areceber.push(novaParc);
-    sheetsPost({action:'salvarParcela',parcela:{
-      VendaId:novaVendaId, DataVenda:p.dataVenda, Cliente:p.cliente,
-      Celular:p.celular, Maleta:p.maleta, ValorVenda:restante,
-      NumParcela:1, TotalParcelas:1, ValorParcela:restante,
-      Intervalo:p.intervalo||30, DataVencimento:novaData,
-      DataPagamento:'', Status:'Pendente'
-    }});
-    toast('✅ ' + fmt(valorPago) + ' registrado. Saldo de ' + fmt(restante) + ' agendado para ' + novaData);
-  }
-
+  setSyncStatus('loading');
+  const r = await sb.rpc('fressen_pagar_parcial', { p_id: p.id, p_valor: Math.round(valorPago * 100) / 100 });
+  if (r.error) { setSyncStatus('err'); toast('❌ ' + _erroDB(r.error)); return; }
+  setSyncStatus('ok');
   closeModal('modal-parcial');
+  await _carregarAReceber();
   renderFinanceiro();
+  if (r.data.status === 'Pago') toast('✅ Parcela paga integralmente!');
+  else {
+    const novo = S.areceber.find(x => x.id === r.data.novo_titulo_id);
+    toast('✅ ' + fmt(valorPago) + ' registrado. Saldo de ' + fmt(r.data.restante) + (novo ? ' agendado para ' + novo.dataVencimento : ' agendado'));
+  }
 }
 
 function cobrarCliente(vendaId, num) {
