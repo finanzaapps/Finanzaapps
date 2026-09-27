@@ -41,7 +41,9 @@ body::before{content:'';position:fixed;top:-100px;left:50%;transform:translateX(
 .auth-recup a{color:var(--text2);font-size:12px;cursor:pointer;text-decoration:underline}
 
 /* HEADER */
-.header{background:rgba(10,14,26,0.88);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:10px 16px 8px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between}
+.header{background:rgba(10,14,26,0.88);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:10px 16px 8px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.header .btn-voltar{display:none;align-items:center;background:none;border:none;color:var(--text2);font-size:26px;cursor:pointer;padding:0 6px 0 0;line-height:1;flex-shrink:0;font-weight:300}
+.header .btn-voltar.visible{display:flex}
 .header-brand{display:flex;align-items:center;gap:10px}
 .header-mark{width:30px;height:30px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center}
 .header-title{font-size:16px;font-weight:700;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -209,8 +211,10 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 .prod-card-cost{font-size:10px;color:var(--text3)}
 
 /* PAY */
-.pay-opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px}
-.pay-opt{padding:9px 4px;border:1px solid var(--border);border-radius:var(--radius-sm);text-align:center;font-size:11px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text2);transition:all 0.15s}
+.pay-opts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.pay-opt{padding:13px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);text-align:center;font-size:13px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text2);transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:5px}
+.pay-opt .pay-ic{font-size:22px;line-height:1}
+.pay-opt:active{transform:scale(0.97)}
 .pay-opt.selected{border-color:var(--green);background:rgba(16,217,160,0.12);color:var(--green)}
 .pay-split-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;background:var(--surface);padding:7px;border-radius:var(--radius-sm);border:1px solid var(--border)}
 .pay-split-row label{margin:0;flex:1;color:var(--text);font-size:12px;text-transform:none;letter-spacing:0;font-weight:600}
@@ -240,6 +244,26 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 .menu-body{flex:1}
 .menu-title{font-size:14px;font-weight:600}
 .menu-sub{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* INÍCIO — grid de atalhos */
+.inicio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.inicio-tile{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 6px 14px;display:flex;flex-direction:column;align-items:center;gap:10px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;transition:transform .08s,background .15s;letter-spacing:0.2px;text-align:center;position:relative}
+.inicio-tile:active{transform:scale(0.95);background:var(--surface2)}
+.inicio-tile:hover{border-color:var(--border2);background:var(--surface2)}
+.inicio-ic{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;position:relative;flex-shrink:0}
+.inicio-ic.green{background:rgba(16,217,160,0.15)}
+.inicio-ic.blue{background:rgba(45,127,249,0.15)}
+.inicio-ic.purple{background:rgba(123,63,242,0.15)}
+.inicio-ic.warning{background:rgba(255,181,71,0.15)}
+.inicio-ic.danger{background:rgba(255,71,87,0.15)}
+.inicio-badge{position:absolute;top:-5px;right:-7px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center}
+.inicio-saudacao{font-size:21px;font-weight:700;margin-bottom:4px;letter-spacing:-0.3px}
+.inicio-sub{font-size:13px;color:var(--text2);margin-bottom:18px}
+/* Nav oculta por padrão — aparece só dentro das páginas */
+.nav{display:none}
+.nav.visible{display:flex}
+.header .btn-voltar{display:none;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:4px 8px;line-height:1}
+.header .btn-voltar.visible{display:flex;align-items:center}
 
 /* IMPORT */
 .import-preview{max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin:8px 0}
@@ -345,6 +369,7 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 
 <!-- ═══ APP ═══ -->
 <header class="header">
+  <button class="btn-voltar" id="btn-voltar" onclick="irInicio()" title="Voltar ao início">‹</button>
   <div class="header-brand">
     <div class="header-mark">
       <svg width="18" height="18" viewBox="0 0 64 64" fill="none">
@@ -362,8 +387,48 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
   </div>
 </header>
 
+<!-- INÍCIO -->
+<section id="page-inicio" class="page active">
+  <div class="inicio-saudacao" id="inicio-saudacao">Olá 👋</div>
+  <div class="inicio-sub" id="inicio-sub">O que vamos fazer hoje?</div>
+  <div class="inicio-grid">
+    <button class="inicio-tile" onclick="irPara('home')">
+      <div class="inicio-ic green">📊</div>Resumo
+    </button>
+    <button class="inicio-tile" onclick="irPara('vender')">
+      <div class="inicio-ic blue" style="position:relative">🛒<span id="inicio-cart-badge" class="inicio-badge" style="display:none">0</span></div>Vender
+    </button>
+    <button class="inicio-tile" onclick="irPara('catalogo')">
+      <div class="inicio-ic purple">📦</div>Catálogo
+    </button>
+    <button class="inicio-tile" onclick="irPara('clientes')">
+      <div class="inicio-ic green">👥</div>Clientes
+    </button>
+    <button class="inicio-tile" onclick="irPara('financeiro')">
+      <div class="inicio-ic warning">💰<span id="inicio-fin-badge" class="inicio-badge" style="display:none">0</span></div>A receber
+    </button>
+    <button class="inicio-tile" onclick="irPara('historico')">
+      <div class="inicio-ic blue">📈</div>Histórico
+    </button>
+    <button class="inicio-tile" onclick="irPara('promocoes')">
+      <div class="inicio-ic purple">🎯</div>Promoções
+    </button>
+    <button class="inicio-tile" onclick="irPara('metas')">
+      <div class="inicio-ic green">🚀</div>Metas
+    </button>
+    <button class="inicio-tile" onclick="irPara('lembretes')">
+      <div class="inicio-ic warning">🔔<span id="inicio-lemb-badge" class="inicio-badge" style="display:none">0</span></div>Lembretes
+    </button>
+  </div>
+
+  <div style="margin-top:18px;display:flex;gap:8px">
+    <button class="btn btn-ghost btn-sm" style="flex:1" onclick="carregarTudo().then(()=>{renderInicio();toast('Dados atualizados','success')})">🔄 Atualizar</button>
+    <button class="btn btn-ghost btn-sm" style="flex:1" onclick="irPara('mais')">⚙️ Configurações</button>
+  </div>
+</section>
+
 <!-- HOME -->
-<section id="page-home" class="page active">
+<section id="page-home" class="page">
   <div class="home-greet" id="home-greet">Olá <span class="wave">👋</span></div>
   <div class="hero-vendas">
     <div class="hero-label">Vendas hoje</div>
@@ -425,9 +490,35 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
     </div>
   </div>
   <div class="card">
-    <div class="card-title">Pagamento</div>
+    <div class="card-title">Forma de pagamento</div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:10px">Selecione uma ou mais formas e informe o valor de cada.</p>
     <div class="pay-opts" id="pay-opts"></div>
     <div id="pay-splits"></div>
+    <div id="pay-check" style="font-size:12px;text-align:right;margin-top:4px"></div>
+
+    <!-- Parcelamento — aparece só para Crédito/Fiado/Boleto -->
+    <div id="parcelas-wrap" style="display:none;background:rgba(45,127,249,0.08);border:1px solid rgba(45,127,249,0.2);border-radius:var(--radius-sm);padding:12px;margin-top:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:10px">📆 Configurar parcelamento</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Nº de parcelas</label>
+          <input type="number" id="parc-qtd" min="1" max="24" value="1" style="font-size:16px;text-align:center;font-weight:700" oninput="calcParcelas()">
+        </div>
+        <div class="field">
+          <label>Intervalo</label>
+          <select id="parc-intervalo" onchange="calcParcelas()">
+            <option value="7">Semanal (7 dias)</option>
+            <option value="15">Quinzenal (15 dias)</option>
+            <option value="30" selected>Mensal (30 dias)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Vencimento da 1ª parcela</label>
+        <input type="date" id="parc-primeira" onchange="calcParcelas()">
+      </div>
+      <div id="parc-preview" style="margin-top:8px;font-size:12px;color:var(--text2)"></div>
+    </div>
   </div>
   <div class="card">
     <div class="card-title">Resumo</div>
@@ -832,7 +923,49 @@ function iniciarUI() {
   badge.textContent = isPremium ? 'PREMIUM' : 'FREE';
   badge.className = 'plano-badge ' + (isPremium ? 'premium' : 'free');
   badge.style.display = isPremium ? 'none' : '';
-  showPage('home');
+  irInicio();
+}
+
+function irInicio() {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  const t = document.getElementById('page-inicio');
+  if (t) t.classList.add('active');
+  window.scrollTo(0,0);
+  // Esconde nav e botão voltar
+  document.querySelector('.nav')?.classList.remove('visible');
+  document.getElementById('btn-voltar')?.classList.remove('visible');
+  renderInicio();
+}
+
+function irPara(p) {
+  showPage(p);
+  // Mostra nav e botão voltar
+  document.querySelector('.nav')?.classList.add('visible');
+  document.getElementById('btn-voltar')?.classList.add('visible');
+}
+
+function renderInicio() {
+  const hora = new Date().getHours();
+  const sauda = hora<12 ? 'Bom dia' : hora<18 ? 'Boa tarde' : 'Boa noite';
+  const nome = (S.user?.nome || '').split(' ')[0] || '';
+  document.getElementById('inicio-saudacao').innerHTML = sauda + (nome ? ', <strong>' + esc(nome) + '</strong>' : '') + ' 👋';
+  document.getElementById('inicio-sub').textContent = 'O que vamos fazer hoje?';
+  // Badge carrinho
+  const cartBadge = document.getElementById('inicio-cart-badge');
+  if (cartBadge) { const n = S.cart.length; cartBadge.textContent = n; cartBadge.style.display = n ? 'inline-block' : 'none'; }
+  // Badge A receber
+  const finBadge = document.getElementById('inicio-fin-badge');
+  if (finBadge) {
+    const atrasados = S.areceber.filter(p => p.status === 'Pendente' && new Date(p.data_vencimento+'T12:00:00') < hoje0()).length;
+    finBadge.textContent = atrasados; finBadge.style.display = atrasados ? 'inline-block' : 'none';
+  }
+  // Badge Lembretes
+  const lembBadge = document.getElementById('inicio-lemb-badge');
+  if (lembBadge) {
+    const hoje = today();
+    const urgentes = S.lembretes.filter(l => l.status !== 'Concluido' && l.data <= hoje).length;
+    lembBadge.textContent = urgentes; lembBadge.style.display = urgentes ? 'inline-block' : 'none';
+  }
 }
 
 function showPage(p) {
@@ -1484,33 +1617,110 @@ function atualizarResumoVenda(){
   document.getElementById('vd-lucro').textContent=fmtBRL(total-custo);
   renderPaySplits();
 }
-function renderPayOpts(){
-  document.getElementById('pay-opts').innerHTML=FORMAS.map(f=>`<div class="pay-opt ${S.paySelected[f.id]?'selected':''}" onclick="togglePay('${f.id}')">${f.nome}</div>`).join('');
-  renderPaySplits();
-}
-function togglePay(id){
-  if(S.paySelected[id])delete S.paySelected[id];
-  else{const f=FORMAS.find(x=>x.id===id);S.paySelected[id]={valor:0,qtd:f.qtd||1,dias:f.dias||30};}
-  renderPayOpts();atualizarBotaoVender();
-}
-function renderPaySplits(){
-  const ids=Object.keys(S.paySelected);
-  const total=S.cart.reduce((a,it)=>a+it.preco*it.qtd,0);
-  if(!ids.length){document.getElementById('pay-splits').innerHTML='';return;}
-  if(ids.length===1)S.paySelected[ids[0]].valor=total;
-  document.getElementById('pay-splits').innerHTML=ids.map(id=>{
-    const f=FORMAS.find(x=>x.id===id); const sel=S.paySelected[id];
-    return `<div class="pay-split-row">
-      <label>${f.nome}</label>
-      <input type="number" step="0.01" value="${sel.valor.toFixed(2)}" onchange="S.paySelected['${id}'].valor=Number(this.value)" style="width:90px">
-      ${f.parc?`<input type="number" min="1" max="24" value="${sel.qtd}" onchange="S.paySelected['${id}'].qtd=parseInt(this.value)" style="width:42px" title="Parcelas">
-        <select onchange="S.paySelected['${id}'].dias=parseInt(this.value)" style="width:82px">
-          <option value="7" ${sel.dias==7?'selected':''}>7 dias</option>
-          <option value="15" ${sel.dias==15?'selected':''}>15 dias</option>
-          <option value="30" ${sel.dias==30?'selected':''}>30 dias</option>
-        </select>`:''}
+// ── Ícones e nomes das formas de pagamento ──
+const FORMAS_UI = {
+  dinheiro: { ic:'💵', nome:'Dinheiro' },
+  pix:      { ic:'⚡', nome:'PIX' },
+  debito:   { ic:'🏧', nome:'Débito' },
+  credito:  { ic:'💳', nome:'Crédito' },
+  fiado:    { ic:'📒', nome:'Fiado' },
+  boleto:   { ic:'📄', nome:'Boleto' },
+};
+
+function renderPayOpts() {
+  document.getElementById('pay-opts').innerHTML = FORMAS.map(f => {
+    const ui = FORMAS_UI[f.id] || { ic:'💰', nome: f.nome };
+    const sel = S.paySelected[f.id] ? 'selected' : '';
+    return `<div class="pay-opt ${sel}" onclick="togglePay('${f.id}')">
+      <span class="pay-ic">${ui.ic}</span>${ui.nome}
     </div>`;
   }).join('');
+  renderPaySplits();
+  checkPayTotal();
+}
+
+function togglePay(id) {
+  if (S.paySelected[id]) delete S.paySelected[id];
+  else {
+    const f = FORMAS.find(x => x.id === id);
+    const total = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+    const outros = Object.values(S.paySelected).reduce((a,v) => a + (v.valor||0), 0);
+    S.paySelected[id] = { valor: Math.max(0, total - outros), qtd: 1, dias: 30 };
+  }
+  renderPayOpts();
+  atualizarBotaoVender();
+  // Mostra parcelamento se tiver forma que parcela
+  const temParcela = Object.keys(S.paySelected).some(id => FORMAS.find(f=>f.id===id)?.parc);
+  const wrap = document.getElementById('parcelas-wrap');
+  if (wrap) { wrap.style.display = temParcela ? 'block' : 'none'; if (temParcela) calcParcelas(); }
+}
+
+function renderPaySplits() {
+  const ids = Object.keys(S.paySelected);
+  const total = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  if (!ids.length) { document.getElementById('pay-splits').innerHTML = ''; return; }
+  // Se só 1 forma, auto-preenche com total
+  if (ids.length === 1) S.paySelected[ids[0]].valor = total;
+  document.getElementById('pay-splits').innerHTML = ids.map(id => {
+    const ui = FORMAS_UI[id] || { ic:'💰', nome: id };
+    const sel = S.paySelected[id];
+    return `<div class="pay-split-row">
+      <label style="font-size:13px">${ui.ic} ${ui.nome}</label>
+      <input type="number" step="0.01" value="${(sel.valor||0).toFixed(2)}"
+        onchange="S.paySelected['${id}'].valor=Number(this.value);checkPayTotal()" style="width:95px;font-size:14px;font-weight:700">
+      <button onclick="togglePay('${id}')" style="background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer;padding:2px 4px">×</button>
+    </div>`;
+  }).join('');
+}
+
+function checkPayTotal() {
+  const total = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  const pago  = Object.values(S.paySelected).reduce((a,v) => a + (Number(v.valor)||0), 0);
+  const el = document.getElementById('pay-check');
+  if (!el) return;
+  const diff = total - pago;
+  if (Math.abs(diff) < 0.01) { el.innerHTML = '<span style="color:var(--green)">✅ Valores conferem</span>'; }
+  else if (pago > 0) { el.innerHTML = `<span style="color:var(--danger)">Faltam ${fmtBRL(Math.max(0,diff))} | Excesso ${fmtBRL(Math.max(0,-diff))}</span>`; }
+  else el.innerHTML = '';
+}
+
+// ── Cálculo de datas de parcelas (igual ao Fressen) ──
+function _isoLocal(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _somarMeses(iso, n) {
+  const [a,m,d] = iso.split('-').map(Number);
+  const alvo = new Date(a, m-1+n, 1);
+  const ultimo = new Date(alvo.getFullYear(), alvo.getMonth()+1, 0).getDate();
+  alvo.setDate(Math.min(d, ultimo));
+  return _isoLocal(alvo);
+}
+function _somarDias(iso, n) { const [a,m,d]=iso.split('-').map(Number); return _isoLocal(new Date(a,m-1,d+n)); }
+function _vencParcela(primeira, dias, i) { return dias===30 ? _somarMeses(primeira, i-1) : _somarDias(primeira, dias*(i-1)); }
+function _isoBR(iso) { if (!iso) return ''; const [a,m,d]=iso.split('-'); return d+'/'+m+'/'+a; }
+
+function calcParcelas() {
+  const qtd  = parseInt(document.getElementById('parc-qtd')?.value) || 1;
+  const dias  = parseInt(document.getElementById('parc-intervalo')?.value) || 30;
+  const campo = document.getElementById('parc-primeira');
+  if (!campo) return;
+  if (!campo.value) {
+    campo.value = dias === 30 ? _somarMeses(_isoLocal(new Date()), 1) : _somarDias(_isoLocal(new Date()), dias);
+  }
+  const primeira = campo.value;
+  const total    = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  const valParc  = Object.entries(S.paySelected)
+    .filter(([id]) => FORMAS.find(f=>f.id===id)?.parc)
+    .reduce((a,[,v]) => a + (v.valor||0), 0) || total;
+  const base  = Math.round(valParc / qtd * 100) / 100;
+  const linhas = [];
+  for (let i = 1; i <= Math.min(qtd, 6); i++) {
+    const v = i === qtd ? valParc - base * (qtd-1) : base;
+    linhas.push(`<div style="padding:4px 0;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between">
+      <span>${i}/${qtd}</span><span style="font-weight:700;color:var(--blue)">${fmtBRL(v)}</span><span style="color:var(--text2)">${_isoBR(_vencParcela(primeira,dias,i))}</span>
+    </div>`);
+  }
+  if (qtd > 6) linhas.push(`<div style="padding:4px 0;color:var(--text3);font-size:11px">... + ${qtd-6} parcelas (última em ${_isoBR(_vencParcela(primeira,dias,qtd))})</div>`);
+  const prev = document.getElementById('parc-preview');
+  if (prev) prev.innerHTML = linhas.join('');
 }
 function atualizarBotaoVender(){
   const btn=document.getElementById('btn-vender');
@@ -1590,16 +1800,29 @@ async function finalizarVenda(){
       }
     }
   }
-  // 3. Parcelas A receber
-  for(const id of Object.keys(S.paySelected)){
-    const f=FORMAS.find(x=>x.id===id); if(!f.parc) continue;
-    const sel=S.paySelected[id]; const qtd=Math.max(1,sel.qtd);
-    const vParcela=+(sel.valor/qtd).toFixed(2);
-    for(let pi=1;pi<=qtd;pi++){
-      const dt=new Date(); dt.setDate(dt.getDate()+sel.dias*pi);
-      const par={user_id:S.user.id,venda_id:venda.id,cliente_nome:cli?cli.nome:'',cliente_tel:cli?cli.telefone||'':'',valor_total:total,num_parcela:pi,total_parcelas:qtd,valor_parcela:vParcela,data_vencimento:dt.toISOString().split('T')[0],status:'Pendente'};
-      const res=await dbInsert('finanza_autonomo_areceber',par);
-      if(res)S.areceber.push(res);
+  // 3. Parcelas A receber — usa datas calculadas pelo calcParcelas
+  const qtdParc  = parseInt(document.getElementById('parc-qtd')?.value) || 1;
+  const diasParc = parseInt(document.getElementById('parc-intervalo')?.value) || 30;
+  const primeiraParc = document.getElementById('parc-primeira')?.value ||
+    (diasParc===30 ? _somarMeses(_isoLocal(new Date()),1) : _somarDias(_isoLocal(new Date()), diasParc));
+
+  for (const id of Object.keys(S.paySelected)) {
+    const f = FORMAS.find(x=>x.id===id); if (!f?.parc) continue;
+    const sel = S.paySelected[id];
+    const qtd = qtdParc;
+    const vTotal = sel.valor || total;
+    const base = Math.round(vTotal / qtd * 100) / 100;
+    for (let pi = 1; pi <= qtd; pi++) {
+      const vParcela = pi === qtd ? vTotal - base*(qtd-1) : base;
+      const dtVenc   = _vencParcela(primeiraParc, diasParc, pi);
+      const par = {
+        user_id: S.user.id, venda_id: venda.id,
+        cliente_nome: cli ? cli.nome : '', cliente_tel: cli ? cli.telefone||'' : '',
+        valor_total: total, num_parcela: pi, total_parcelas: qtd,
+        valor_parcela: vParcela, data_vencimento: dtVenc, status: 'Pendente'
+      };
+      const res = await dbInsert('finanza_autonomo_areceber', par);
+      if (res) S.areceber.push(res);
     }
   }
   setSyncStatus('ok');
