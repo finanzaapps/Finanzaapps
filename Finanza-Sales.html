@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0A0E1A">
-<title>Finanza</title>
+<title>Autonomo-Finanza</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1247,18 +1247,80 @@ async function processarImport(ev) {
 }
 async function confirmarImport() {
   const items = S._importBuf||[]; if (!items.length) return;
-  document.getElementById('imp-status').innerHTML = `<div class="text-muted">⏳ Salvando ${items.length} produtos...</div>`;
-  // Insere em lotes de 100 (limite REST do Supabase)
+  const statusEl = document.getElementById('imp-status');
+  statusEl.innerHTML = `<div class="text-muted">⏳ Processando ${items.length} produtos...</div>`;
+
   const uid = S.user.id;
-  const rows = items.map(it => ({ user_id:uid, nome:it.nome, depto:it.depto||'', familia:it.familia||'', ref:it.ref||'', preco:it.preco||0, custo:it.custo||0, status:'Ativo', usa_estoque:false, estoque_qtd:0 }));
-  for (let i=0; i<rows.length; i+=100) {
-    const r = await sbReq('POST', '/rest/v1/finanza_autonomo_produtos', rows.slice(i,i+100), tok());
-    if (r.ok && Array.isArray(r.data)) S.produtos.push(...r.data);
+  let criados = 0, atualizados = 0, erros = 0;
+
+  for (const it of items) {
+    const row = {
+      user_id: uid,
+      nome:    it.nome,
+      depto:   it.depto   || '',
+      familia: it.familia || '',
+      ref:     it.ref     || '',
+      preco:   it.preco   || 0,
+      custo:   it.custo   || 0,
+      status:  'Ativo',
+      updated_at: new Date().toISOString()
+    };
+
+    // ── Busca produto existente: 1º por ref, 2º por nome ──
+    let existente = null;
+
+    if (it.ref && it.ref.trim()) {
+      // Busca por ref (case-insensitive no Supabase usando ilike)
+      const r = await sbReq('GET',
+        `/rest/v1/finanza_autonomo_produtos?user_id=eq.${uid}&ref=ilike.${encodeURIComponent(it.ref.trim())}&status=eq.Ativo&limit=1`,
+        null, tok()
+      );
+      if (r.ok && r.data?.length) existente = r.data[0];
+    }
+
+    if (!existente) {
+      // Busca por nome exato
+      const r = await sbReq('GET',
+        `/rest/v1/finanza_autonomo_produtos?user_id=eq.${uid}&nome=ilike.${encodeURIComponent(it.nome.trim())}&status=eq.Ativo&limit=1`,
+        null, tok()
+      );
+      if (r.ok && r.data?.length) existente = r.data[0];
+    }
+
+    if (existente) {
+      // ── ATUALIZA — mantém campos que não vieram na planilha ──
+      const update = { updated_at: row.updated_at };
+      if (row.preco > 0)  update.preco  = row.preco;
+      if (row.custo > 0)  update.custo  = row.custo;
+      if (row.depto)      update.depto  = row.depto;
+      if (row.familia)    update.familia = row.familia;
+      if (row.ref)        update.ref    = row.ref;
+      const r = await dbUpdate('finanza_autonomo_produtos', existente.id, update);
+      if (r) {
+        const idx = S.produtos.findIndex(p => p.id === existente.id);
+        if (idx >= 0) S.produtos[idx] = { ...S.produtos[idx], ...update };
+        atualizados++;
+      } else erros++;
+    } else {
+      // ── CRIA NOVO ──
+      const novo = await dbInsert('finanza_autonomo_produtos', { ...row, usa_estoque: false, estoque_qtd: 0 });
+      if (novo) { S.produtos.push(novo); criados++; }
+      else erros++;
+    }
+
+    // Atualiza status a cada 10 itens
+    if ((criados + atualizados + erros) % 10 === 0) {
+      statusEl.innerHTML = `<div class="text-muted">⏳ ${criados + atualizados} de ${items.length} processados...</div>`;
+    }
   }
-  S.produtos.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR'));
+
+  S.produtos.sort((a,b) => (a.nome||'').localeCompare(b.nome||'','pt-BR'));
   S._importBuf = null;
-  toast(items.length + ' produtos importados','success');
-  fecharModal(); renderCatalogo();
+
+  const msg = `✓ ${criados} criados · ${atualizados} atualizados${erros ? ' · ⚠️ ' + erros + ' erros' : ''}`;
+  statusEl.innerHTML = `<div class="${erros ? 'text-warning' : 'text-green'}">${msg}</div>`;
+  toast(msg, erros ? 'warning' : 'success');
+  setTimeout(() => { fecharModal(); renderCatalogo(); }, 1500);
 }
 async function parseExcel(file) {
   return new Promise((res,rej) => {
