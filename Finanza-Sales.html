@@ -1420,7 +1420,9 @@ function mapRows(rows) {
   if (!rows.length) return [];
   const keys = Object.keys(rows[0]);
   const find = (...pats) => { for(const p of pats) { const k=keys.find(x=>x.toLowerCase().replace(/[\s_-]/g,'').includes(p)); if(k) return k; } return null; };
-  const kNome=find('nome','descricao','produto','desc','name'), kRef=find('ref','codigo','sku','barcode');
+  const kNome=find('nome','descricao','produto','desc','name','produto');
+  // ref: aceita ref, codigo, código, cod, code, sku, barcode, id_produto
+  const kRef=find('ref','codigo','c\u00f3digo','cod','code','sku','barcode','idproduto','id');
   const kPreco=find('preco','venda','valor','price'), kCusto=find('custo','cost');
   const kDepto=find('depto','departamento','category','categoria','grupo'), kFam=find('familia','subcategoria','tipo','linha');
   return rows.map(r => {
@@ -1432,9 +1434,52 @@ function mapRows(rows) {
   }).filter(Boolean);
 }
 function numBR(v) {
-  if (v==null||v==='') return 0;
-  const s = String(v).replace(/[R$\s.]/g,'').replace(',','.');
-  const n = Number(s); return isNaN(n)?0:n;
+  if (v == null || v === '') return 0;
+  let s = String(v).trim();
+
+  // Remove símbolos de moeda e espaços
+  s = s.replace(/[R$\s]/g, '');
+
+  // Detecta formato BR vs EN
+  // Casos BR: 1.234,56 / 22,90 / 6.500 (milhar sem decimal)
+  // Casos EN: 1,234.56 / 22.90 / 6500
+  const temVirgula = s.includes(',');
+  const temPonto   = s.includes('.');
+
+  if (temVirgula && temPonto) {
+    // Tem os dois: verifica qual vem por último (é o separador decimal)
+    const ultimaVirgula = s.lastIndexOf(',');
+    const ultimoPonto   = s.lastIndexOf('.');
+    if (ultimaVirgula > ultimoPonto) {
+      // BR: 1.234,56 → remove pontos, troca vírgula por ponto
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // EN: 1,234.56 → remove vírgulas
+      s = s.replace(/,/g, '');
+    }
+  } else if (temVirgula && !temPonto) {
+    // Só vírgula: pode ser decimal BR (22,90) ou milhar (1,500)
+    const partes = s.split(',');
+    if (partes.length === 2 && partes[1].length <= 2) {
+      // Decimal BR: 22,90
+      s = s.replace(',', '.');
+    } else {
+      // Milhar EN: 1,500 → remove vírgula
+      s = s.replace(/,/g, '');
+    }
+  } else if (temPonto && !temVirgula) {
+    // Só ponto: pode ser decimal EN (22.90) ou milhar BR (6.500)
+    const partes = s.split('.');
+    if (partes.length === 2 && partes[1].length <= 2) {
+      // Decimal EN: 22.90 → já ok
+    } else {
+      // Milhar BR: 6.500 → remove ponto
+      s = s.replace(/\./g, '');
+    }
+  }
+
+  const n = Number(s);
+  return isNaN(n) ? 0 : Math.round(n * 100) / 100; // arredonda para 2 casas
 }
 
 // Compartilhar catálogo
