@@ -315,12 +315,25 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('tela-login').style.display = 'none';  // sem "piscar" a tela de login
     _ativarSessao();
   }
-  else { mostrarTelaLogin(); }
+  else { mostrarTelaLogin(); _preencherCadastroDaPagina(); }
 });
 
 // ══════════════════════════════════════════════════════════════
 // TELAS
 // ══════════════════════════════════════════════════════════════
+// Veio da página de vendas (?cadastro=1&nome=...&email=...): abre "Criar conta" já preenchido
+function _preencherCadastroDaPagina() {
+  var q = new URLSearchParams(window.location.search);
+  if (!q.get('cadastro')) return;
+  mostrarCadastro();
+  if (q.get('nome'))  document.getElementById('cad-nome').value  = q.get('nome');
+  if (q.get('email')) document.getElementById('cad-email').value = q.get('email');
+  var ok = document.getElementById('cad-ok');
+  if (ok) { ok.textContent = 'Quase lá! Agora é só criar sua senha para acessar o app. 💎'; ok.style.display = 'block'; }
+  setTimeout(function(){ var sn = document.getElementById('cad-senha'); if (sn) sn.focus(); }, 150);
+  try { history.replaceState(null, '', window.location.pathname); } catch (e) {}   // limpa o endereço
+}
+
 function mostrarTelaLogin() {
   document.getElementById('tela-login').style.display = 'flex';
   mostrarLogin();
