@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ajuda · App Fressen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --rosa:#F1B79C; --rosa-claro:#FDE8DE; --rosa-escuro:#A8583A; --creme:#FFFAF7; --branco:#FFFFFF;
+    --tinta:#2A1F1B; --texto2:#76625A; --linha:#F0DFD6; --verde:#1E7E34; --verde-claro:#E6F4EA;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%;scroll-padding-top:120px}
+  body{font-family:'Nunito Sans',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--creme);color:var(--tinta);
+       font-size:16px;line-height:1.6;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  :focus-visible{outline:2px solid var(--rosa-escuro);outline-offset:2px}
+  a{color:var(--rosa-escuro)}
+
+  .topo{background:var(--branco);border-bottom:1px solid var(--linha);position:sticky;top:0;z-index:5;padding-top:env(safe-area-inset-top,0px)}
+  .topo-in{max-width:720px;margin:0 auto;padding:14px 18px 12px}
+  .marca{font-size:13px;letter-spacing:.42em;font-weight:600;color:var(--tinta)}
+  h1{font-size:24px;font-weight:800;line-height:1.2;margin:2px 0 10px}
+  .busca{width:100%;padding:12px 14px;border:1.5px solid var(--linha);border-radius:12px;font:inherit;font-size:16px;background:var(--creme)}
+  .busca:focus{border-color:var(--rosa);outline:none;background:#fff}
+
+  main{max-width:720px;margin:0 auto;padding:18px 18px 0}
+  .indice{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+  .indice a{text-decoration:none;background:var(--branco);border:1.5px solid var(--linha);color:var(--tinta);border-radius:20px;padding:7px 13px;font-size:14px;font-weight:700}
+  .indice a:active{background:var(--rosa-claro)}
+
+  section{margin-bottom:26px}
+  h2{font-size:19px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+  h2 .ic{width:34px;height:34px;border-radius:10px;background:var(--rosa-claro);display:inline-flex;align-items:center;justify-content:center;font-size:18px}
+  .premium{font-size:11px;font-weight:800;color:var(--rosa-escuro);background:var(--rosa-claro);border-radius:10px;padding:2px 8px;letter-spacing:.02em}
+
+  details{background:var(--branco);border:1px solid var(--linha);border-radius:14px;margin-bottom:8px}
+  summary{list-style:none;cursor:pointer;padding:14px 44px 14px 16px;font-weight:700;position:relative;line-height:1.4}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:'+';position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:22px;font-weight:400;color:var(--rosa-escuro)}
+  details[open] summary::after{content:'–'}
+  details[open]{border-color:var(--rosa)}
+  .resp{padding:0 16px 16px;color:#3E302B}
+  .resp p{margin-bottom:10px}
+  .resp p:last-child{margin-bottom:0}
+  .resp ol,.resp ul{padding-left:22px;margin-bottom:10px}
+  .resp li{margin-bottom:6px}
+  .resp b{color:var(--tinta)}
+  .dica{background:var(--rosa-claro);border-radius:10px;padding:10px 12px;font-size:15px;margin-top:10px}
+  table{width:100%;border-collapse:collapse;font-size:15px;margin:6px 0 4px}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--linha);vertical-align:top}
+  th{font-size:13px;color:var(--texto2)}
+  .sim{color:var(--verde);font-weight:800}
+  .nao{color:var(--texto2)}
+  .vazio{display:none;text-align:center;color:var(--texto2);padding:30px 0}
+
+  .rodape{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--creme) 70%,rgba(255,250,247,0));
+          padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));z-index:5}
+  .voltar{display:block;max-width:720px;margin:0 auto;text-align:center;text-decoration:none;background:var(--rosa-escuro);color:#fff;
+          font-weight:800;padding:14px;border-radius:14px;font-size:16px}
+  mark{background:#FFE3A3;color:inherit;border-radius:3px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="topo-in">
+    <div class="marca">FRESSEN</div>
+    <h1>Guia do app da consultora</h1>
+    <input class="busca" id="busca" type="search" placeholder="Digite sua dúvida: parcela, conserto, PDF…" aria-label="Buscar no guia">
+  </div>
+</header>
+
+<main>
+  <nav class="indice" id="indice" aria-label="Assuntos">
+    <a href="#comecar">Primeiros passos</a>
+    <a href="#maleta">Maleta e estoque</a>
+    <a href="#vender">Vendas</a>
+    <a href="#clientes">Clientes</a>
+    <a href="#financeiro">Financeiro</a>
+    <a href="#historico">Histórico</a>
+    <a href="#fechar">Fechar a maleta</a>
+    <a href="#consertos">Consertos</a>
+    <a href="#planos">Planos</a>
+    <a href="#problemas">Algo deu errado</a>
+  </nav>
+
+  <!-- ═════ PRIMEIROS PASSOS ═════ -->
+  <section id="comecar">
+    <h2><span class="ic">👋</span>Primeiros passos</h2>
+    <details><summary>Como criar minha conta?</summary><div class="resp">
+      <ol>
+        <li>Na tela de entrada, toque em <b>Criar conta</b>.</li>
+        <li>Preencha seu nome, e-mail e uma senha com pelo menos 6 caracteres.</li>
+        <li>Abra o e-mail que chegou e toque em <b>Confirmar meu e-mail</b>.</li>
+      </ol>
+      <p>O app abre sozinho, já com você dentro, e mostra a tela de boas-vindas.</p>
+    </div></details>
+    <details><summary>Não recebi o e-mail de confirmação</summary><div class="resp">
+      <p>Procure na caixa de <b>spam</b> e na aba <b>Promoções</b>. O remetente é <b>App Fressen</b>.</p>
+      <p>Se não estiver lá, toque em <b>Reenviar e-mail</b> na tela "Quase lá!". Dá para reenviar a cada 60 segundos.</p>
+    </div></details>
+    <details><summary>Esqueci minha senha</summary><div class="resp">
+      <ol>
+        <li>Na tela de entrada, toque em <b>Esqueci a senha</b> e informe seu e-mail.</li>
+        <li>Abra o e-mail e toque em <b>Criar nova senha</b>.</li>
+        <li>O app abre pedindo a senha nova. Digite duas vezes e salve.</li>
+      </ol>
+      <p>O link vale por 1 hora. Se passar do prazo, peça outro.</p>
+    </div></details>
+    <details><summary>Como deixar o app com ícone no celular?</summary><div class="resp">
+      <p><b>iPhone:</b> abra o app no Safari, toque em <b>Compartilhar</b> (quadrado com seta) e depois em <b>Adicionar à Tela de Início</b>.</p>
+      <p><b>Android:</b> abra o app no Chrome, toque nos <b>três pontinhos</b> e depois em <b>Adicionar à tela inicial</b>.</p>
+      <p>Pronto: o app fica ao lado dos outros, sem precisar digitar o endereço.</p>
+    </div></details>
+    <details><summary>Como funciona a tela Início?</summary><div class="resp">
+      <p>A tela <b>Início</b> é o menu do app: cada quadrado leva para uma parte (Resumo, Vender, Estoque, Clientes, Financeiro, Histórico, Maleta, Consertos, Atualizar e Ajuda).</p>
+      <p>Em qualquer tela, toque na seta <b>‹</b> no alto, ou no botão voltar do celular, para retornar ao Início.</p>
+      <p>A tela <b>Resumo</b> mostra os números da maleta, a meta e o botão de importar o PDF.</p>
+    </div></details>
+    <details><summary>Posso usar o app em mais de um celular?</summary><div class="resp">
+      <p>Sim. Entre com o mesmo e-mail e senha. Seus dados ficam guardados na nuvem, não no celular.</p>
+      <p>Se lançou algo em outro aparelho, toque em <b>Atualizar</b> no Início para ver.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ MALETA E ESTOQUE ═════ -->
+  <section id="maleta">
+    <h2><span class="ic">💼</span>Maleta e estoque</h2>
+    <details><summary>Como importar minha maleta (PDF)?</summary><div class="resp">
+      <ol>
+        <li>Vá em <b>Resumo</b> e toque em <b>Importar PDF</b>.</li>
+        <li>Escolha o arquivo do <b>espelho condicional</b> que a Fressen enviou.</li>
+        <li>Confira a mensagem verde <b>"Conferido com o PDF"</b>: ela mostra quantas peças foram lidas e o valor total.</li>
+        <li>Toque em <b>Salvar na nuvem</b>. Só depois disso as peças ficam gravadas.</li>
+      </ol>
+      <div class="dica">Se aparecer um aviso <b>vermelho</b> dizendo que o número de peças não bate com o PDF, não salve. Use <b>Ajuda → Relatar um problema</b> e envie o PDF.</div>
+    </div></details>
+    <details><summary>Recebi também um PDF de Evento. Como faço?</summary><div class="resp">
+      <p>Use o mesmo botão <b>Importar PDF</b>. O app reconhece sozinho que é um <b>Evento</b> e o adiciona como complemento da sua maleta, sem mudar os dados dela.</p>
+      <p>Importe primeiro a maleta principal (Ciclo) e depois o Evento. As peças do Evento aparecem com a etiqueta <b>🎁 Evento</b>.</p>
+    </div></details>
+    <details><summary>Chegou uma peça que não está no PDF (ou uma cliente devolveu uma peça)</summary><div class="resp">
+      <ol>
+        <li>Vá em <b>Estoque</b> e toque em <b>＋ Adicionar peça manual</b> (também existe o atalho no Resumo).</li>
+        <li>Escolha a maleta (Ciclo ou Evento), a referência, a descrição, o grupo e o preço.</li>
+        <li>Toque em <b>Adicionar à maleta</b>.</li>
+      </ol>
+      <p>A peça entra na contagem da maleta com a etiqueta <b>✍️ Manual</b> e pode ser vendida normalmente. Se cadastrou errado, abra a peça e toque em <b>Excluir peça</b> (só antes de vendê-la).</p>
+    </div></details>
+    <details><summary>Como encontrar uma peça no estoque?</summary><div class="resp">
+      <p>Em <b>Estoque</b>, digite a referência ou o nome, ou use os filtros de situação (disponíveis ou vendidas) e de grupo (anel, brinco…). Toque na peça para ver os detalhes.</p>
+    </div></details>
+    <details><summary>Como funciona a meta?</summary><div class="resp">
+      <p>A meta é o <b>"Total sugerido"</b> que vem impresso no PDF da Fressen. No <b>Resumo</b>, a barra mostra quanto você já vendeu em relação a ela.</p>
+      <p>Maleta e Evento têm metas separadas. Peças próprias não entram na meta, porque o valor delas é todo seu.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ VENDAS ═════ -->
+  <section id="vender">
+    <h2><span class="ic">🛒</span>Vendas</h2>
+    <details><summary>Como faço uma venda?</summary><div class="resp">
+      <ol>
+        <li>No Início, toque em <b>Vender</b>.</li>
+        <li>Em <b>Buscar Peça</b>, digite a referência ou o nome e toque na peça para colocar no carrinho.</li>
+        <li>Em <b>Cliente</b>, escolha quem está comprando.</li>
+        <li>Em <b>Formas de Pagamento</b>, toque na forma usada.</li>
+        <li>Toque em <b>Finalizar Venda</b>.</li>
+      </ol>
+      <p>A peça sai do estoque e, se for parcelado, as parcelas já aparecem no Financeiro.</p>
+    </div></details>
+    <details><summary>A cliente ainda não tem cadastro</summary><div class="resp">
+      <p>Na área <b>Cliente</b> da venda, toque em <b>+ Novo</b>, preencha e salve. A cliente nova já fica <b>selecionada</b> para esta venda. Confira o nome antes de finalizar.</p>
+    </div></details>
+    <details><summary>A cliente pagou com mais de uma forma</summary><div class="resp">
+      <p>Toque em todas as formas usadas (por exemplo, Pix e Dinheiro) e informe quanto foi em cada uma. A soma precisa ser igual ao total da venda.</p>
+    </div></details>
+    <details><summary>Como parcelar?</summary><div class="resp">
+      <ol>
+        <li>Escolha <b>Crédito</b> ou <b>Carteira</b> como forma de pagamento.</li>
+        <li>Informe o número de parcelas e o intervalo: semanal, quinzenal ou mensal.</li>
+        <li>Em <b>Vencimento da 1ª parcela</b>, escolha a data em que a cobrança começa.</li>
+      </ol>
+      <p>O app mostra a lista de parcelas com as datas antes de você finalizar. No mensal, as parcelas vencem sempre no mesmo dia de cada mês.</p>
+      <div class="dica"><b>Exemplo:</b> venda de R$ 300 com entrada de R$ 50 no Pix e o resto em 5x. Marque <b>Pix = 50</b> e <b>Carteira = 250</b>, 5 parcelas mensais, 1ª em 01/10. Ficam 5 parcelas de R$ 50: 01/10, 01/11, 01/12, 01/01 e 01/02.</div>
+    </div></details>
+    <details><summary>Vendi uma peça que é minha (não é da maleta)</summary><div class="resp">
+      <p>Na tela de venda, use <b>💎 Adicionar Peça Própria</b>, com o nome e o preço. Ela entra na venda normalmente, não sai do estoque da maleta e não conta na meta: o valor é 100% seu.</p>
+    </div></details>
+    <details><summary>Errei uma venda. Como corrijo?</summary><div class="resp">
+      <p>O app cancela sempre a <b>venda inteira</b>. Depois, é só lançar de novo, do jeito certo.</p>
+      <ul>
+        <li><b>Pelo estoque:</b> abra uma das peças vendidas e toque em <b>🔄 Cancelar esta Venda</b>.</li>
+        <li><b>Pelo histórico:</b> em Histórico → <b>Lista</b>, toque em <b>Cancelar venda</b>. Serve também para vendas só de peças próprias.</li>
+      </ul>
+      <p>As peças voltam para disponível e as parcelas daquela venda são canceladas.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ CLIENTES ═════ -->
+  <section id="clientes">
+    <h2><span class="ic">👥</span>Clientes</h2>
+    <details><summary>Como cadastrar, editar ou excluir uma cliente?</summary><div class="resp">
+      <p>Em <b>Clientes</b>, toque no botão redondo <b>+</b>, no canto da tela, para cadastrar. Para editar ou excluir, toque no nome da cliente.</p>
+      <p>Excluir uma cliente não apaga as vendas que ela já fez.</p>
+    </div></details>
+    <details><summary>O que aparece na ficha da cliente?</summary><div class="resp">
+      <p>Telefone, data de nascimento e o <b>total de compras</b>, com a quantidade de vendas. Pela ficha dá para chamar a cliente no WhatsApp com um toque.</p>
+    </div></details>
+    <details><summary>Onde vejo as aniversariantes?</summary><div class="resp">
+      <p>Em <b>Clientes</b>, no quadro <b>Aniversariantes do Mês</b>. Cadastre a data de nascimento para a cliente aparecer ali.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ FINANCEIRO ═════ -->
+  <section id="financeiro">
+    <h2><span class="ic">💳</span>Financeiro <span class="premium">Premium</span></h2>
+    <details><summary>Como registro que a cliente pagou uma parcela?</summary><div class="resp">
+      <ol>
+        <li>Em <b>Financeiro</b>, encontre a parcela.</li>
+        <li>Toque em <b>✅ Marcar como pago</b>.</li>
+        <li>Informe a <b>data em que a cliente pagou</b> e confirme.</li>
+      </ol>
+      <p>Use a data real do pagamento, mesmo que esteja registrando dias depois. É ela que conta nos filtros por período.</p>
+    </div></details>
+    <details><summary>A cliente pagou só uma parte</summary><div class="resp">
+      <p>Toque em <b>$ Parcial</b>, informe o valor recebido e a data. O app registra o que entrou e cria uma nova parcela com o saldo restante.</p>
+    </div></details>
+    <details><summary>O que fazem os botões Prazo, Cobrar e Baixar?</summary><div class="resp">
+      <ul>
+        <li><b>📅 Prazo:</b> muda a data de vencimento da parcela.</li>
+        <li><b>💬 Cobrar:</b> abre o WhatsApp da cliente com uma mensagem de cobrança pronta.</li>
+        <li><b>⬇️ Baixar:</b> use quando o valor <b>não</b> vai ser recebido. A parcela sai da cobrança e fica registrada como baixada.</li>
+      </ul>
+    </div></details>
+    <details><summary>Marquei errado. Como desfaço?</summary><div class="resp">
+      <p>Nas parcelas pagas ou baixadas aparece o botão <b>↩ Desfazer</b> (ou <b>↩ Desfazer baixa</b>). A parcela volta a ficar pendente.</p>
+    </div></details>
+    <details><summary>Para que servem as abas e o filtro de período?</summary><div class="resp">
+      <p>As abas separam as parcelas: <b>Pendentes</b>, <b>Vencidos</b>, <b>Pagos</b>, <b>Baixados</b>, <b>Canceladas</b> e <b>Todos</b>.</p>
+      <p>No filtro de período, as parcelas pagas entram pela <b>data do pagamento</b>; as demais, pelo vencimento. Assim, filtrar "setembro" em Pagos mostra o dinheiro que entrou em setembro.</p>
+      <p>O botão <b>📄 Relatório</b> gera um PDF do que está na tela.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ HISTÓRICO ═════ -->
+  <section id="historico">
+    <h2><span class="ic">📈</span>Histórico <span class="premium">Premium</span></h2>
+    <details><summary>Como ver as vendas de uma maleta ou de um período?</summary><div class="resp">
+      <p>No topo do Histórico, preencha a <b>maleta</b> (pode digitar só "16"), o período ou a cliente. Todos os números e abas passam a mostrar só o que foi filtrado.</p>
+    </div></details>
+    <details><summary>O que mostra cada aba?</summary><div class="resp">
+      <ul>
+        <li><b>Dashboard:</b> gráficos gerais das vendas.</li>
+        <li><b>Por Mês:</b> toque no mês para ver quanto cada cliente comprou.</li>
+        <li><b>Por Grupo:</b> toque no grupo (ex.: brinco) para ver quem comprou e quanto.</li>
+        <li><b>Top Produtos:</b> toque na peça para ver quem comprou e quando.</li>
+        <li><b>Top Clientes:</b> toque na cliente para ver cada compra, com data, itens e valor.</li>
+        <li><b>Lista:</b> todas as vendas, com o botão <b>Cancelar venda</b>.</li>
+      </ul>
+      <p>Toque de novo no cartão para fechar o detalhe. O botão <b>📄 Relatório</b> gera o PDF.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ FECHAR A MALETA ═════ -->
+  <section id="fechar">
+    <h2><span class="ic">📦</span>Fechar a maleta</h2>
+    <details><summary>Como gero o relatório de fechamento?</summary><div class="resp">
+      <p>Na tela <b>Maleta</b>, toque em <b>📄 Gerar PDF de Fechamento</b>. Ele traz a maleta principal, o Evento (se houver) e um consolidado, cada um com peças vendidas, peças a devolver, totais por grupo e a meta. As peças próprias vendidas aparecem numa lista separada.</p>
+      <p>Gerar o PDF não fecha a maleta. Pode gerar quantas vezes quiser.</p>
+    </div></details>
+    <details><summary>Como fecho a maleta no acerto?</summary><div class="resp">
+      <ol>
+        <li>Gere e guarde o PDF de fechamento.</li>
+        <li>Na tela <b>Maleta</b>, toque em <b>Fechar Maleta</b> e confirme.</li>
+        <li>Importe o PDF da maleta nova.</li>
+      </ol>
+      <p>O Evento fecha junto. As peças não vendidas ficam registradas como devolvidas, e vendas, clientes e financeiro continuam guardados.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ CONSERTOS ═════ -->
+  <section id="consertos">
+    <h2><span class="ic">🔧</span>Consertos <span class="premium">Premium</span></h2>
+    <details><summary>Como registro peças para conserto?</summary><div class="resp">
+      <ol>
+        <li>Em <b>Consertos</b>, toque em <b>＋ Nova remessa de conserto</b>.</li>
+        <li>Busque a cliente. O app mostra as últimas compras dela: toque na peça que vai para conserto.</li>
+        <li>Se a peça não estiver na lista, use <b>"Não está na lista? Digite a peça"</b>.</li>
+        <li>Escreva o <b>defeito</b> de cada peça (ex.: fecho quebrado).</li>
+        <li>Repita para as outras clientes da mesma remessa.</li>
+        <li>Se quiser, tire uma <b>foto do lote</b> e toque em <b>Salvar remessa</b>.</li>
+      </ol>
+      <p>A cliente precisa estar cadastrada. Uma peça que já está em conserto aparece bloqueada, para não ser enviada duas vezes.</p>
+    </div></details>
+    <details><summary>Como acompanho o prazo das remessas?</summary><div class="resp">
+      <p>Cada remessa mostra há quantos dias foi enviada: <b>verde</b> até 15 dias, <b>amarelo</b> até 30 e <b>vermelho</b> acima disso. No Início, um aviso lembra quantas remessas estão na fábrica.</p>
+    </div></details>
+    <details><summary>A peça voltou do conserto. E agora?</summary><div class="resp">
+      <ul>
+        <li><b>📦 Voltou:</b> registra que a peça chegou da fábrica (ou use <b>Todas voltaram</b>).</li>
+        <li><b>💬 Avisar:</b> abre o WhatsApp da cliente com a mensagem pronta.</li>
+        <li><b>✅ Entregue:</b> registra que a peça foi entregue à cliente.</li>
+        <li><b>↩:</b> desfaz, se marcou errado.</li>
+      </ul>
+      <p>Quando todas as peças forem entregues, a remessa vai para <b>Concluídas</b>.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ PLANOS ═════ -->
+  <section id="planos">
+    <h2><span class="ic">💎</span>Planos</h2>
+    <details><summary>Qual a diferença entre o Free e o Premium?</summary><div class="resp">
+      <table>
+        <tr><th>Recurso</th><th>Free</th><th>Premium</th></tr>
+        <tr><td>Maleta, estoque e vendas</td><td class="sim">Sim</td><td class="sim">Sim</td></tr>
+        <tr><td>Formas de pagamento</td><td>Pix e Dinheiro</td><td class="sim">Todas</td></tr>
+        <tr><td>Clientes</td><td>Até 5</td><td class="sim">Sem limite</td></tr>
+        <tr><td>Parcelamento</td><td class="nao">Não</td><td class="sim">Sim</td></tr>
+        <tr><td>Financeiro</td><td class="nao">Não</td><td class="sim">Sim</td></tr>
+        <tr><td>Histórico e relatórios em PDF</td><td class="nao">Não</td><td class="sim">Sim</td></tr>
+        <tr><td>Consertos</td><td class="nao">Não</td><td class="sim">Sim</td></tr>
+      </table>
+    </div></details>
+    <details><summary>Como assino o Premium?</summary><div class="resp">
+      <p>Toque em <b>Assinar Premium</b> (na tela de entrada ou em qualquer recurso com cadeado 🔒). O valor é <b>R$ 24,90 por mês</b>.</p>
+      <p>Use no pagamento o <b>mesmo e-mail</b> da sua conta no app. Depois de pagar, volte para o app: o Premium é liberado sozinho e aparece a mensagem "Premium ativado!".</p>
+    </div></details>
+    <details><summary>E se eu cancelar a assinatura?</summary><div class="resp">
+      <p>Você continua Premium até o fim do período que já pagou. Depois, a conta volta para o Free, e seus dados continuam guardados.</p>
+    </div></details>
+  </section>
+
+  <!-- ═════ PROBLEMAS ═════ -->
+  <section id="problemas">
+    <h2><span class="ic">🛟</span>Algo deu errado</h2>
+    <details><summary>Apareceu "Venda NÃO registrada"</summary><div class="resp">
+      <p>Nada foi gravado, então não há venda pela metade. Confira a internet e toque em <b>Finalizar Venda</b> de novo. O app não duplica a venda se você tentar mais de uma vez.</p>
+    </div></details>
+    <details><summary>O app diz que a peça já foi vendida</summary><div class="resp">
+      <p>Essa peça já está numa venda (talvez lançada em outro celular). Toque em <b>Atualizar</b> no Início para ver a situação real do estoque.</p>
+    </div></details>
+    <details><summary>O ponto ao lado de "Nuvem" ficou vermelho</summary><div class="resp">
+      <p>O app não conseguiu falar com a nuvem, geralmente por falta de internet. Confira a conexão e toque em <b>Atualizar</b> no Início. Verde significa que está tudo salvo.</p>
+    </div></details>
+    <details><summary>Meus dados não aparecem</summary><div class="resp">
+      <p>Toque em <b>Atualizar</b> no Início. Confira também se entrou com o e-mail certo: cada conta só vê os próprios dados.</p>
+    </div></details>
+    <details><summary>Meus dados estão seguros?</summary><div class="resp">
+      <p>Sim. Suas vendas, clientes e parcelas ficam guardados na nuvem, e só você acessa com o seu login. Trocar de celular não apaga nada.</p>
+    </div></details>
+    <details><summary>Não achei minha resposta</summary><div class="resp">
+      <p>No app, toque em <b>Ajuda → Relatar um problema</b> ou <b>Sugerir uma melhoria</b>. Conte o que aconteceu e, se puder, mande um print da tela.</p>
+    </div></details>
+  </section>
+
+  <p class="vazio" id="vazio">Nada encontrado para essa busca. Tente outra palavra, como "parcela", "PDF" ou "senha".</p>
+</main>
+
+<div class="rodape"><a class="voltar" href="https://app.finanzaapps.com/fressen-multiconsultora.html">Voltar para o app</a></div>
+
+<script>
+// Busca: mostra só as perguntas com a palavra digitada e abre as respostas
+(function () {
+  var campo = document.getElementById('busca');
+  var itens = Array.prototype.slice.call(document.querySelectorAll('main details'));
+  var secoes = Array.prototype.slice.call(document.querySelectorAll('main section'));
+  var norm = function (s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+  var textos = itens.map(function (d) { return norm(d.textContent); });
+  campo.addEventListener('input', function () {
+    var q = norm(campo.value.trim()), achou = 0;
+    itens.forEach(function (d, i) {
+      var ok = !q || q.split(/\s+/).every(function (p) { return textos[i].indexOf(p) >= 0; });
+      d.style.display = ok ? '' : 'none';
+      d.open = !!q && ok;
+      if (ok) achou++;
+    });
+    secoes.forEach(function (s) {
+      var vis = s.querySelectorAll('details:not([style*="none"])').length;
+      s.style.display = vis ? '' : 'none';
+    });
+    document.getElementById('indice').style.display = q ? 'none' : '';
+    document.getElementById('vazio').style.display = achou ? 'none' : 'block';
+  });
+})();
+</script>
+</body>
+</html>
