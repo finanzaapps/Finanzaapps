@@ -40,6 +40,13 @@
   .cart-badge{position:absolute;top:-3px;right:-5px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;display:none}
 
   /* PAGES */
+  .fin-acoes{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+  .fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .fin-btn{border:none;border-radius:10px;padding:9px 6px;min-height:38px;font-family:inherit;font-size:12px;font-weight:700;line-height:1.2;cursor:pointer;width:100%;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:4px;-webkit-appearance:none;appearance:none}
+  .fin-btn:active{transform:scale(0.97)}
+  .fin-btn-pago{background:var(--success);color:#fff;min-height:44px;font-size:13px}
+  .fin-rodape{margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .fin-rodape .fin-btn{width:auto;min-height:30px;padding:5px 12px;font-size:11px}
   .inicio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .inicio-tile{background:#fff;border:1.5px solid #F0E0D8;border-radius:16px;padding:16px 6px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;box-shadow:0 2px 8px rgba(200,130,100,0.08);transition:transform .08s}
   .inicio-tile:active{transform:scale(0.96);background:var(--rosa-light)}
@@ -179,7 +186,7 @@
 // A chave "anon" é pública por natureza: quem protege os dados é o
 // login (Supabase Auth) + as regras RLS criadas na Fase 1.
 // ══════════════════════════════════════════════════════════════
-var APP_VERSAO        = 'v4.3';
+var APP_VERSAO        = 'v4.3b';
 var SUPABASE_URL      = 'https://rcrlugtxuydfuttzwdvg.supabase.co';
 var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcmx1Z3R4dXlkZnV0dHp3ZHZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MjIwNDMsImV4cCI6MjEwNTk5ODA0M30.JcajWfhGoblrJhkVAobyNbl1ZEhXcPhxKCm9S2Vu2ic';
 
@@ -540,7 +547,7 @@ async function fazerLogout(){
 
 <!-- ========== LOGIN ========== -->
 <div id="tela-login" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;overflow-y:auto">
-  <div class="app-versao" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:10px;color:#C8B8B0;letter-spacing:0.5px">App Fressen v4.3 · nuvem</div>
+  <div class="app-versao" style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:10px;color:#C8B8B0;letter-spacing:0.5px">App Fressen v4.3b · nuvem</div>
 
   <!-- PAINEL LOGIN -->
   <div id="painel-login" style="width:100%;max-width:320px;display:flex;flex-direction:column;align-items:center">
@@ -712,7 +719,7 @@ async function fazerLogout(){
     <button class="inicio-tile" onclick="atualizar()"><span class="inicio-ic">🔄</span>Atualizar</button>
     <button class="inicio-tile" onclick="abrirAjuda()"><span class="inicio-ic">❓</span>Ajuda</button>
   </div>
-  <p class="app-versao" style="text-align:center;font-size:10px;color:#C8B8B0;margin:18px 0 4px;letter-spacing:0.5px">App Fressen v4.3 · dados na nuvem</p>
+  <p class="app-versao" style="text-align:center;font-size:10px;color:#C8B8B0;margin:18px 0 4px;letter-spacing:0.5px">App Fressen v4.3b · dados na nuvem</p>
 </div>
 
 <!-- ========== CONSERTOS ========== -->
@@ -813,7 +820,7 @@ async function fazerLogout(){
     </div>
   </div>
 
-  <p class="app-versao" style="text-align:center;font-size:10px;color:#C8B8B0;margin:14px 0 4px;letter-spacing:0.5px">App Fressen v4.3 · dados na nuvem</p>
+  <p class="app-versao" style="text-align:center;font-size:10px;color:#C8B8B0;margin:14px 0 4px;letter-spacing:0.5px">App Fressen v4.3b · dados na nuvem</p>
 
   
 </div>
@@ -3016,34 +3023,46 @@ function renderFinanceiro() {
         </div>
       </div>`;
     }
-    return `<div class="card" style="margin-bottom:7px;border-left:3px solid ${cor}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    // Situação da parcela (etiqueta)
+    const etq = cancelado ? ['🚫 Cancelada', '#999', '#F2F2F2']
+              : baixado   ? ['⬇️ Baixada', '#777', '#F2F2F2']
+              : pago      ? [p.parcial ? '✅ Pago parcial' : '✅ Paga', 'var(--success)', 'rgba(30,126,52,0.10)']
+              : atras     ? ['⚠️ Vencida', 'var(--danger)', 'rgba(192,57,43,0.10)']
+              :             ['⏳ A vencer', 'var(--rosa-dark)', 'rgba(241,183,156,0.22)'];
+    const bt = (txt, fn, bg, cor) => `<button onclick="${fn}" class="fin-btn" style="background:${bg};color:${cor}">${txt}</button>`;
+    const args = `'${p.vendaId}',${p.numParcela}`;
+    let acoes = '';
+    if (!pago && !baixado && !cancelado) {
+      acoes = `<div class="fin-acoes">
+        <button onclick="toggleParcela(${args})" class="fin-btn fin-btn-pago">✅ Marcar como pago</button>
+        <div class="fin-grid">
+          ${bt('📅 Prazo',   `reprogramarParcela(${args})`, 'rgba(241,183,156,0.22)', 'var(--rosa-dark)')}
+          ${bt('💬 Cobrar',  `cobrarCliente(${args})`,      'rgba(37,211,102,0.12)',  '#128C7E')}
+          ${bt('$ Parcial',  `pagarParcial(${args})`,       'rgba(241,183,156,0.22)', 'var(--rosa-dark)')}
+          ${bt('⬇️ Baixar',  `baixarParcela(${args})`,      'rgba(150,150,150,0.14)', '#666')}
+        </div></div>`;
+    } else if (pago || baixado) {
+      acoes = `<div class="fin-rodape">
+        <span style="font-size:11px;color:${pago ? 'var(--success)' : '#888'};font-weight:600">${pago ? (p.parcial ? 'Recebido ' + fmt(p.valorParcela) + ' em ' : 'Pago em ') + (p.dataPagamento || '—') : 'Baixada em ' + (p.dataPagamento || '—')}</span>
+        ${bt(baixado ? '↩ Desfazer baixa' : '↩ Desfazer', baixado ? `desfazerBaixa(${args})` : `toggleParcela(${args})`, 'var(--surface2)', 'var(--text2)')}
+      </div>`;
+    }
+    return `<div class="card" style="margin-bottom:8px;border-left:3px solid ${cor};${cancelado || baixado ? 'opacity:.75' : ''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600">${p.cliente||'Sem cliente'}</div>
-          <div style="font-size:11px;color:var(--text2)">${p.celular?p.celular+' · ':''}Maleta ${p.maleta||'—'}</div>
-          <div style="font-size:11px;color:var(--text2)">Parcela ${p.numParcela}/${p.totalParcelas} · Vencimento: <strong>${fmtDataBR(p.dataVencimento||p.dataVenda)}</strong></div>
-          ${cancelado?'<div style="font-size:10px;color:#999;font-weight:600">🚫 VENDA CANCELADA</div>':baixado?'<div style="font-size:10px;color:#999;font-weight:600">⬇️ BAIXADO</div>':atras?'<div style="font-size:10px;color:var(--danger);font-weight:600">⚠️ VENCIDA</div>':''}
-          ${pago&&p.dataPagamento?`<div style="font-size:10px;color:var(--success);font-weight:600">✅ Pago em ${p.dataPagamento}</div>`:''}
+          <div style="font-size:14px;font-weight:700;line-height:1.25">${p.cliente || 'Sem cliente'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${p.celular ? _fmtTel(p.celular) + ' · ' : ''}Maleta ${p.maleta || '—'}</div>
         </div>
-        <div style="text-align:right;margin-left:8px;min-width:80px">
-          <div style="font-size:14px;font-weight:700;color:var(--rosa-dark)">${fmt(p.valorParcela)}</div>
-          ${!pago && !cancelado?`
-          <button onclick="toggleParcela('${p.vendaId}',${p.numParcela})"
-            style="${btnStyle}background:rgba(30,126,52,0.12);color:var(--success)">✅ Pago</button>
-          <button onclick="reprogramarParcela('${p.vendaId}',${p.numParcela})"
-            style="${btnStyle}background:rgba(241,183,156,0.2);color:var(--rosa-dark)">📅 Prazo</button>
-          <button onclick="cobrarCliente('${p.vendaId}',${p.numParcela})"
-            style="${btnStyle}background:rgba(37,211,102,0.12);color:#128C7E">💬 Cobrar</button>
-          <button onclick="baixarParcela('${p.vendaId}',${p.numParcela})"
-            style="${btnStyle}background:rgba(150,150,150,0.12);color:#777">⬇️ Baixar</button>
-          <button onclick="pagarParcial('${p.vendaId}',${p.numParcela})"
-            style="${btnStyle}background:rgba(241,183,156,0.2);color:var(--rosa-dark)">$ Parcial</button>
-          `:`<div style="display:flex;flex-direction:column;gap:2px">
-            <button onclick="toggleParcela('${p.vendaId}',${p.numParcela})"
-              style="${btnStyle}background:rgba(201,168,76,0.1);color:var(--text2)">↩ Desfazer</button>
-            ${p.status==='Baixado'?`<span style="font-size:9px;color:#999;text-align:center">⬇️ Baixado</span>`:''}</div>`}
+        <div style="text-align:right;white-space:nowrap">
+          <div style="font-size:16px;font-weight:800;color:var(--rosa-dark)">${fmt(p.valorParcela)}</div>
+          <div style="font-size:10px;color:var(--text2)">Parcela ${p.numParcela}/${p.totalParcelas}</div>
         </div>
       </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--text2)">
+        <span>Vencimento: <strong style="color:var(--text)">${fmtDataBR(p.dataVencimento || p.dataVenda)}</strong></span>
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;color:${etq[1]};background:${etq[2]}">${etq[0]}</span>
+      </div>
+      ${acoes}
     </div>`;
   }).join('');
 }
@@ -3074,6 +3093,23 @@ async function toggleParcela(vendaId,num) {
     await _atualizarTitulo(p.id, { status: 'Pendente', data_pagamento: null, valor_pago: null });
     p.status = 'Pendente'; p.dataPagamento = '';
     renderFinanceiro(); toast('Marcado como pendente');
+  } catch (e) { toast('❌ ' + _erroDB(e)); }
+}
+
+// Telefone legível: (51) 99230-3828
+function _fmtTel(t) {
+  const d = String(t || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+  return t;
+}
+async function desfazerBaixa(vendaId, num) {
+  const p = S.areceber.find(x => x.vendaId === String(vendaId) && x.numParcela === num); if (!p) return;
+  if (!confirm('Desfazer a baixa desta parcela (' + fmt(p.valorParcela) + ')?\n\nEla volta a ficar pendente para cobrança.')) return;
+  try {
+    await _atualizarTitulo(p.id, { status: 'Pendente', data_pagamento: null });
+    p.status = 'Pendente'; p.dataPagamento = '';
+    renderFinanceiro(); toast('↩ Baixa desfeita — parcela pendente de novo');
   } catch (e) { toast('❌ ' + _erroDB(e)); }
 }
 
