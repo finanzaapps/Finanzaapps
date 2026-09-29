@@ -59,7 +59,8 @@ body::before{content:'';position:fixed;top:-100px;left:50%;transform:translateX(
 .plano-badge.premium{background:var(--grad);color:#fff}
 
 /* NAV */
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;background:rgba(10,14,26,0.97);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:99;padding-bottom:env(safe-area-inset-bottom)}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;background:rgba(10,14,26,0.97);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:none;z-index:99;padding-bottom:env(safe-area-inset-bottom)}
+.nav.visible{display:flex}
 .nav-btn{flex:1;padding:10px 2px 8px;background:none;border:none;color:var(--text3);font-size:9px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:color 0.2s;position:relative}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2}
 .nav-btn.active{color:var(--green)}
@@ -269,8 +270,6 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 .inicio-saudacao{font-size:21px;font-weight:700;margin-bottom:4px;letter-spacing:-0.3px}
 .inicio-sub{font-size:13px;color:var(--text2);margin-bottom:18px}
 /* Nav oculta por padrão — aparece só dentro das páginas */
-.nav{display:none}
-.nav.visible{display:flex}
 
 
 /* IMPORT */
@@ -1768,12 +1767,57 @@ function renderCart() {
     </div>`).join('');
   atualizarResumoVenda();
 }
-function atualizarResumoVenda(){
-  const total=S.cart.reduce((a,it)=>a+it.preco*it.qtd,0);
-  const custo=S.cart.reduce((a,it)=>a+it.custo*it.qtd,0);
-  document.getElementById('vd-total').textContent=fmtBRL(total);
-  document.getElementById('vd-custo').textContent=fmtBRL(custo);
-  document.getElementById('vd-lucro').textContent=fmtBRL(total-custo);
+function getDesconto() {
+  const sub = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  const valEl = document.getElementById('vd-desc-val');
+  if (!valEl) return 0;
+  return Math.min(sub, Math.max(0, Number(valEl.value) || 0));
+}
+
+function aplicarDesconto(origem) {
+  const sub = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  if (sub <= 0) return;
+  const pctEl = document.getElementById('vd-desc-pct');
+  const valEl = document.getElementById('vd-desc-val');
+  if (!pctEl || !valEl) return;
+  if (origem === 'pct') {
+    const pct = Math.min(100, Math.max(0, Number(pctEl.value) || 0));
+    valEl.value = pct > 0 ? (sub * pct / 100).toFixed(2) : '';
+  } else {
+    const val = Math.min(sub, Math.max(0, Number(valEl.value) || 0));
+    pctEl.value = sub > 0 && val > 0 ? (val / sub * 100).toFixed(1) : '';
+  }
+  atualizarResumoVenda();
+  atualizarBotaoVender();
+}
+
+function atualizarResumoVenda() {
+  const sub     = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  const custo   = S.cart.reduce((a,it) => a + (it.custo||0) * it.qtd, 0);
+  const desc    = getDesconto();
+  const total   = sub - desc;
+  const lucro   = total - custo;
+
+  const elSub  = document.getElementById('vd-subtotal');
+  const elDesc = document.getElementById('vd-desconto');
+  const elInfo = document.getElementById('vd-desc-info');
+  const elTot  = document.getElementById('vd-total');
+  const elCus  = document.getElementById('vd-custo');
+  const elLuc  = document.getElementById('vd-lucro');
+
+  if (elSub)  elSub.textContent  = fmtBRL(sub);
+  if (elDesc) elDesc.textContent = desc > 0 ? '- ' + fmtBRL(desc) : 'R$ 0,00';
+  if (elTot)  elTot.textContent  = fmtBRL(total);
+  if (elCus)  elCus.textContent  = fmtBRL(custo);
+  if (elLuc) {
+    elLuc.textContent = fmtBRL(lucro);
+    elLuc.style.color = lucro < 0 ? 'var(--danger)' : 'var(--green)';
+  }
+  if (elInfo) {
+    elInfo.textContent = desc > 0
+      ? sub > 0 ? (desc/sub*100).toFixed(1) + '% de desconto aplicado' : ''
+      : '';
+  }
   renderPaySplits();
 }
 // ── Ícones e nomes das formas de pagamento ──
@@ -2088,9 +2132,14 @@ let _finTab = 'pendente';
 
 function finTab(tab, el) {
   _finTab = tab;
-  document.querySelectorAll('#page-financeiro .filter-chip').forEach(t => t.classList.remove('active'));
-  if (el) el.classList.add('active');
-  else document.getElementById('fin-tab-'+tab)?.classList.add('active');
+  // Remove active de todos os chips do financeiro
+  ['pendente','atrasado','pago','baixado','todos'].forEach(t => {
+    const btn = document.getElementById('fin-tab-' + t);
+    if (btn) btn.classList.remove('active');
+  });
+  // Ativa o clicado
+  const ativo = document.getElementById('fin-tab-' + tab);
+  if (ativo) ativo.classList.add('active');
   renderFinanceiro();
 }
 
