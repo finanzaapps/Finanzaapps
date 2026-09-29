@@ -59,7 +59,8 @@ body::before{content:'';position:fixed;top:-100px;left:50%;transform:translateX(
 .plano-badge.premium{background:var(--grad);color:#fff}
 
 /* NAV */
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;background:rgba(10,14,26,0.97);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:99;padding-bottom:env(safe-area-inset-bottom)}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;background:rgba(10,14,26,0.97);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:none;z-index:99;padding-bottom:env(safe-area-inset-bottom)}
+.nav.visible{display:flex}
 .nav-btn{flex:1;padding:10px 2px 8px;background:none;border:none;color:var(--text3);font-size:9px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:color 0.2s;position:relative}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2}
 .nav-btn.active{color:var(--green)}
@@ -269,8 +270,6 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 .inicio-saudacao{font-size:21px;font-weight:700;margin-bottom:4px;letter-spacing:-0.3px}
 .inicio-sub{font-size:13px;color:var(--text2);margin-bottom:18px}
 /* Nav oculta por padrão — aparece só dentro das páginas */
-.nav{display:none}
-.nav.visible{display:flex}
 
 
 /* IMPORT */
@@ -530,9 +529,28 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
   </div>
   <div class="card">
     <div class="card-title">Resumo</div>
-    <div class="flex-between mb-8"><span class="text-muted">Total</span><span class="fw-700" id="vd-total">R$ 0,00</span></div>
+    <div class="flex-between mb-8"><span class="text-muted">Subtotal</span><span class="fw-700" id="vd-subtotal">R$ 0,00</span></div>
+
+    <!-- Desconto -->
+    <div style="background:rgba(255,181,71,0.08);border:1px solid rgba(255,181,71,0.2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--warning);margin-bottom:8px">🏷️ Desconto (opcional)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label style="font-size:10px">Em %</label>
+          <input id="vd-desc-pct" type="number" min="0" max="100" step="1" placeholder="0" oninput="aplicarDesconto('pct')" style="font-size:15px;text-align:center;font-weight:700">
+        </div>
+        <div>
+          <label style="font-size:10px">Em R$</label>
+          <input id="vd-desc-val" type="number" min="0" step="0.01" placeholder="0,00" oninput="aplicarDesconto('val')" style="font-size:15px;text-align:center;font-weight:700">
+        </div>
+      </div>
+      <div id="vd-desc-info" style="font-size:11px;color:var(--warning);text-align:center;margin-top:6px"></div>
+    </div>
+
+    <div class="flex-between mb-8"><span class="text-muted">Desconto</span><span style="color:var(--warning);font-weight:700" id="vd-desconto">R$ 0,00</span></div>
+    <div class="flex-between mb-8" style="border-top:1px solid var(--border);padding-top:8px"><span class="fw-700">Total</span><span class="fw-700" id="vd-total" style="font-size:18px">R$ 0,00</span></div>
     <div class="flex-between mb-8"><span class="text-muted">Custo</span><span class="text-muted" id="vd-custo">R$ 0,00</span></div>
-    <div class="flex-between mb-12"><span class="text-muted">Lucro</span><span class="fw-700 text-green" id="vd-lucro">R$ 0,00</span></div>
+    <div class="flex-between mb-12"><span class="text-muted">Lucro estimado</span><span class="fw-700 text-green" id="vd-lucro">R$ 0,00</span></div>
     <div class="field"><label>Observação</label><textarea id="vd-obs" rows="2" placeholder="Detalhes..."></textarea></div>
     <button id="btn-vender" class="btn btn-grad" onclick="finalizarVenda()" disabled>Finalizar venda</button>
   </div>
@@ -580,12 +598,37 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
     <div><div class="page-title">A receber</div><div class="page-sub" id="fin-resumo">—</div></div>
     
   </div>
-  <div class="tabs">
-    <div class="tab active" onclick="trocarTabFin('pendente',this)">Pendentes</div>
-    <div class="tab" onclick="trocarTabFin('atrasado',this)">Atrasados</div>
-    <div class="tab" onclick="trocarTabFin('pago',this)">Pagos</div>
-    <div class="tab" onclick="trocarTabFin('todos',this)">Todos</div>
+  <!-- Stats -->
+  <div class="stat-row mb-8">
+    <div class="stat-cell"><div class="stat-label">A receber</div><div class="stat-val green" id="fin-a-receber">R$ 0,00</div></div>
+    <div class="stat-cell"><div class="stat-label">Vencidos</div><div class="stat-val danger" id="fin-vencidos">0</div></div>
   </div>
+  <div class="stat-row mb-12">
+    <div class="stat-cell"><div class="stat-label">Recebido</div><div class="stat-val blue" id="fin-recebido">R$ 0,00</div></div>
+    <div class="stat-cell"><div class="stat-label">Baixados</div><div class="stat-val" id="fin-baixado">R$ 0,00</div></div>
+  </div>
+
+  <!-- Filtros data/cliente -->
+  <div class="card mb-8" style="padding:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+      <div><label>De</label><input type="date" id="fin-de" onchange="renderFinanceiro()"></div>
+      <div><label>Até</label><input type="date" id="fin-ate" onchange="renderFinanceiro()"></div>
+    </div>
+    <div><label>Cliente</label><input id="fin-cli-filtro" placeholder="Buscar cliente..." oninput="renderFinanceiro()"></div>
+  </div>
+
+  <!-- Previsão por mês -->
+  <div id="fin-fluxo"></div>
+
+  <!-- Tabs como filter-chips (mobile friendly) -->
+  <div class="filter-row" style="margin-bottom:12px">
+    <button class="filter-chip active" id="fin-tab-pendente" onclick="finTab('pendente',this)">⏳ Pendentes</button>
+    <button class="filter-chip" id="fin-tab-atrasado" onclick="finTab('atrasado',this)">⚠️ Vencidos</button>
+    <button class="filter-chip" id="fin-tab-pago" onclick="finTab('pago',this)">✅ Pagos</button>
+    <button class="filter-chip" id="fin-tab-baixado" onclick="finTab('baixado',this)">⬇️ Baixados</button>
+    <button class="filter-chip" id="fin-tab-todos" onclick="finTab('todos',this)">Todos</button>
+  </div>
+
   <div id="fin-lista"></div>
 </section>
 
@@ -1592,16 +1635,15 @@ function renderAddCat() {
     });
     const precoFinal = promo ? +(p.preco*(1-Number(promo.desconto_pct)/100)).toFixed(2) : p.preco;
     const semEstoque = p.usa_estoque && p.estoque_qtd <= 0;
-    return `<div class="prod-card ${semEstoque?'':''}">
+    return `<div class="prod-card" onclick="${semEstoque?'':"addAoCart('"+p.id+"')"}" style="${semEstoque?'opacity:.5;cursor:not-allowed':'cursor:pointer'}">
       <div class="list-avatar blue">📦</div>
       <div class="prod-card-body">
         <div class="prod-card-name">${esc(p.nome)} ${promo?'<span class="tag tag-purple">PROMO</span>':''}</div>
-        <div class="prod-card-meta">${esc(p.depto||'—')}${p.usa_estoque?' · Estoque: '+p.estoque_qtd+' un':''}</div>
+        <div class="prod-card-meta">${esc(p.depto||'—')} · ${esc(p.familia||'—')}${p.usa_estoque?' · Estoque: '+p.estoque_qtd+' un':''}</div>
       </div>
       <div class="prod-card-right">
         <div class="prod-card-price">${fmtBRL(precoFinal)}</div>
-        ${semEstoque?'<div style="color:var(--danger);font-size:10px">Sem estoque</div>':''}
-        <button class="btn btn-xs btn-grad mt-8" onclick="addAoCart('${p.id}')" ${semEstoque?'disabled':''}>+ Adicionar</button>
+        ${semEstoque?'<div style="color:var(--danger);font-size:10px">Sem estoque</div>':'<div style="font-size:10px;color:var(--text3);margin-top:2px">toque para adicionar</div>'}
       </div>
     </div>`;
   }).join('') || '<div class="empty"><p>Nenhum produto</p></div>';
@@ -1623,6 +1665,7 @@ function addAoCart(idProduto) {
     S.cart.push({ _id: Date.now().toString(), produtoId:p.id, ref:p.ref||'', nome:p.nome, depto:p.depto||'', familia:p.familia||'', preco:precoFinal, precoOrig:p.preco, custo:Number(p.custo)||0, promo:!!promo, qtd:1 });
   }
   toast('+ ' + p.nome, 'success');
+  fecharModal();
   renderCart(); atualizarBotaoVender();
 }
 
@@ -1724,12 +1767,57 @@ function renderCart() {
     </div>`).join('');
   atualizarResumoVenda();
 }
-function atualizarResumoVenda(){
-  const total=S.cart.reduce((a,it)=>a+it.preco*it.qtd,0);
-  const custo=S.cart.reduce((a,it)=>a+it.custo*it.qtd,0);
-  document.getElementById('vd-total').textContent=fmtBRL(total);
-  document.getElementById('vd-custo').textContent=fmtBRL(custo);
-  document.getElementById('vd-lucro').textContent=fmtBRL(total-custo);
+function getDesconto() {
+  const sub = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  const valEl = document.getElementById('vd-desc-val');
+  if (!valEl) return 0;
+  return Math.min(sub, Math.max(0, Number(valEl.value) || 0));
+}
+
+function aplicarDesconto(origem) {
+  const sub = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  if (sub <= 0) return;
+  const pctEl = document.getElementById('vd-desc-pct');
+  const valEl = document.getElementById('vd-desc-val');
+  if (!pctEl || !valEl) return;
+  if (origem === 'pct') {
+    const pct = Math.min(100, Math.max(0, Number(pctEl.value) || 0));
+    valEl.value = pct > 0 ? (sub * pct / 100).toFixed(2) : '';
+  } else {
+    const val = Math.min(sub, Math.max(0, Number(valEl.value) || 0));
+    pctEl.value = sub > 0 && val > 0 ? (val / sub * 100).toFixed(1) : '';
+  }
+  atualizarResumoVenda();
+  atualizarBotaoVender();
+}
+
+function atualizarResumoVenda() {
+  const sub     = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  const custo   = S.cart.reduce((a,it) => a + (it.custo||0) * it.qtd, 0);
+  const desc    = getDesconto();
+  const total   = sub - desc;
+  const lucro   = total - custo;
+
+  const elSub  = document.getElementById('vd-subtotal');
+  const elDesc = document.getElementById('vd-desconto');
+  const elInfo = document.getElementById('vd-desc-info');
+  const elTot  = document.getElementById('vd-total');
+  const elCus  = document.getElementById('vd-custo');
+  const elLuc  = document.getElementById('vd-lucro');
+
+  if (elSub)  elSub.textContent  = fmtBRL(sub);
+  if (elDesc) elDesc.textContent = desc > 0 ? '- ' + fmtBRL(desc) : 'R$ 0,00';
+  if (elTot)  elTot.textContent  = fmtBRL(total);
+  if (elCus)  elCus.textContent  = fmtBRL(custo);
+  if (elLuc) {
+    elLuc.textContent = fmtBRL(lucro);
+    elLuc.style.color = lucro < 0 ? 'var(--danger)' : 'var(--green)';
+  }
+  if (elInfo) {
+    elInfo.textContent = desc > 0
+      ? sub > 0 ? (desc/sub*100).toFixed(1) + '% de desconto aplicado' : ''
+      : '';
+  }
   renderPaySplits();
 }
 // ── Ícones e nomes das formas de pagamento ──
@@ -1772,7 +1860,8 @@ function togglePay(id) {
 
 function renderPaySplits() {
   const ids = Object.keys(S.paySelected);
-  const total = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  const sub = S.cart.reduce((a,it) => a + it.preco * it.qtd, 0);
+  const total = sub - getDesconto();
   if (!ids.length) { document.getElementById('pay-splits').innerHTML = ''; return; }
   // Se só 1 forma, auto-preenche com total
   if (ids.length === 1) S.paySelected[ids[0]].valor = total;
@@ -1839,7 +1928,8 @@ function calcParcelas() {
 }
 function atualizarBotaoVender(){
   const btn=document.getElementById('btn-vender');
-  const total=S.cart.reduce((a,it)=>a+it.preco*it.qtd,0);
+  const sub=S.cart.reduce((a,it)=>a+it.preco*it.qtd,0);
+  const total=sub - getDesconto();
   const ok=S.cart.length>0&&Object.keys(S.paySelected).length>0;
   btn.disabled=!ok;
   btn.textContent=ok?`Finalizar venda · ${fmtBRL(total)}`:'Finalizar venda';
@@ -1875,7 +1965,9 @@ async function finalizarVenda(){
       return;
     }
   }
-  const total=S.cart.reduce((a,it)=>a+it.preco*it.qtd,0);
+  const subtotal=S.cart.reduce((a,it)=>a+it.preco*it.qtd,0);
+  const desconto=getDesconto();
+  const total=subtotal-desconto;
   const custo=S.cart.reduce((a,it)=>a+(it.custo||0)*it.qtd,0);
   const somaPag=Object.values(S.paySelected).reduce((a,p)=>a+Number(p.valor||0),0);
   if(Math.abs(somaPag-total)>0.02) return toast(`Pagamentos (${fmtBRL(somaPag)}) ≠ total (${fmtBRL(total)})`,'danger');
@@ -1895,6 +1987,7 @@ async function finalizarVenda(){
   const venda=await dbInsert('finanza_autonomo_vendas',{
     user_id:S.user.id, cliente_id:cliId||null, cliente_nome:cli?cli.nome:'',
     forma_pagamento:formaStr, total, custo_total:custo, lucro_total:total-custo,
+    desconto:desconto,
     observacao:(document.getElementById('vd-obs').value||'').trim(),
     status:'Concluida'
   });
@@ -1945,6 +2038,8 @@ async function finalizarVenda(){
   S.cart=[]; S.paySelected={};
   document.getElementById('vd-obs').value='';
   document.getElementById('vd-cliente').value='';
+  const dPct=document.getElementById('vd-desc-pct'); if(dPct) dPct.value='';
+  const dVal=document.getElementById('vd-desc-val'); if(dVal) dVal.value='';
   showPage('home');
 }
 
@@ -2037,8 +2132,14 @@ let _finTab = 'pendente';
 
 function finTab(tab, el) {
   _finTab = tab;
-  document.querySelectorAll('#page-financeiro .tab').forEach(t => t.classList.remove('active'));
-  if (el) el.classList.add('active');
+  // Remove active de todos os chips do financeiro
+  ['pendente','atrasado','pago','baixado','todos'].forEach(t => {
+    const btn = document.getElementById('fin-tab-' + t);
+    if (btn) btn.classList.remove('active');
+  });
+  // Ativa o clicado
+  const ativo = document.getElementById('fin-tab-' + tab);
+  if (ativo) ativo.classList.add('active');
   renderFinanceiro();
 }
 
