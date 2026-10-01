@@ -910,8 +910,12 @@ function tok() { return S.session?.access_token || SB_KEY; }
 
 async function dbGet(table, filter) {
   const q = filter ? '?' + filter : '?select=*&order=created_at.asc';
-  const r = await sbReq('GET', `/rest/v1/${table}${q}`, null, tok());
-  return r.ok ? (r.data || []) : [];
+  // Prefer: count=none + Range para pegar até 5000 registros (evita limite padrão de 1000)
+  const h = { ...HDR, 'Authorization': 'Bearer ' + tok(), 'Range-Unit': 'items', 'Range': '0-4999' };
+  const r = await fetch(SB_URL + `/rest/v1/${table}${q}`, { method: 'GET', headers: h });
+  if (!r.ok) return [];
+  const d = await r.json().catch(() => []);
+  return Array.isArray(d) ? d : [];
 }
 
 async function dbInsert(table, row) {
@@ -2522,7 +2526,12 @@ function _getListaHistorico() {
   return lista;
 }
 
-function renderHistorico() {
+async function renderHistorico() {
+  // Garante venda_itens carregado
+  if (S.venda_itens.length === 0 && S.vendas.length > 0) {
+    const uid = S.user.id;
+    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`) || [];
+  }
   // Preenche select de clientes
   const sel = document.getElementById('hist-cli-sel');
   if (sel && sel.options.length <= 1) {
@@ -2627,25 +2636,59 @@ function trocarFiltroHist(f, el) {
   el.classList.add('active');
   renderHistorico();
 }
-function detalhesVenda(id){
-  const v=S.vendas.find(x=>x.id===id);if(!v)return;
-  const itens=S.venda_itens.filter(i=>i.venda_id===id);
+async function detalhesVenda(id) {
+  const v = S.vendas.find(x => x.id === id); if (!v) return;
+
+  // Busca itens — tenta local primeiro, depois banco se vazio
+  let itens = S.venda_itens.filter(i => i.venda_id === id);
+  if (itens.length === 0) {
+    // Busca direto do Supabase para esta venda específica
+    const r = await sbReq('GET', `/rest/v1/finanza_autonomo_venda_itens?venda_id=eq.${id}&select=*`, null, tok());
+    itens = (r.ok && Array.isArray(r.data)) ? r.data : [];
+    // Adiciona ao cache local
+    itens.forEach(i => { if (!S.venda_itens.find(x=>x.id===i.id)) S.venda_itens.push(i); });
+  }
+
+  const itensHtml = itens.length > 0
+    ? itens.map(i => `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">${esc(i.nome||'—')}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">
+              ${i.qtd > 1 ? `<span style="background:var(--surface3);padding:1px 6px;border-radius:8px;margin-right:6px">${i.qtd}x</span>` : ''}
+              ${esc(i.depto||'')}${i.familia?' · '+esc(i.familia):''}
+              ${i.custo_unit > 0 ? ' · Custo '+fmtBRL(i.custo_unit)+'/un' : ''}
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:10px">
+            <div style="font-size:14px;font-weight:700">${fmtBRL(i.preco_total)}</div>
+            ${i.lucro_total > 0 ? `<div style="font-size:11px;color:var(--green)">+${fmtBRL(i.lucro_total)}</div>` : ''}
+          </div>
+        </div>`).join('')
+    : '<div style="color:var(--text3);font-size:12px;text-align:center;padding:12px">Nenhum item encontrado</div>';
+
   abrirModal(`
     <button class="modal-close" onclick="fecharModal()">×</button>
     <div class="modal-title">Detalhes da venda</div>
-    <div class="card"><div class="flex-between mb-8"><span class="text-muted">Cliente</span><span class="fw-700">${esc(v.cliente_nome||'Avulso')}</span></div><div class="flex-between mb-8"><span class="text-muted">Data</span><span>${fmtDataHora(v.created_at)}</span></div><div class="flex-between"><span class="text-muted">Pagamento</span><span style="font-size:12px;text-align:right;max-width:60%">${esc(v.forma_pagamento||'—')}</span></div></div>
-    <div class="card"><div class="card-title">Itens</div>
-      ${itens.map(i=>`<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)">
-        <div><div style="font-size:13px;font-weight:600">${esc(i.nome)} <span class="tag tag-neutral">${i.qtd}x</span></div><div style="font-size:11px;color:var(--text2)">${esc(i.depto||'')}${i.custo_unit?' · Custo '+fmtBRL(i.custo_unit)+'/un':''}</div></div>
-        <div style="text-align:right"><div class="fw-700">${fmtBRL(i.preco_total)}</div>${i.lucro_total?`<div style="font-size:11px;color:var(--green)">+${fmtBRL(i.lucro_total)}</div>`:''}</div>
-      </div>`).join('')}
+
+    <div class="card mb-8">
+      <div class="flex-between mb-8"><span class="text-muted">Cliente</span><span class="fw-700">${esc(v.cliente_nome||'Avulso')}</span></div>
+      <div class="flex-between mb-8"><span class="text-muted">Data</span><span>${fmtDataHora(v.created_at)}</span></div>
+      <div class="flex-between"><span class="text-muted">Pagamento</span><span style="font-size:12px;text-align:right;max-width:55%">${esc(v.forma_pagamento||'—')}</span></div>
+      ${v.observacao ? `<div class="flex-between mt-8"><span class="text-muted">Obs</span><span style="font-size:12px">${esc(v.observacao)}</span></div>` : ''}
+    </div>
+
+    <div class="card mb-8">
+      <div class="card-title">📦 Itens (${itens.length})</div>
+      ${itensHtml}
       <div class="divider"></div>
-      <div class="flex-between mb-8"><span>Total</span><span class="fw-700">${fmtBRL(v.total)}</span></div>
+      <div class="flex-between mb-8"><span>Total</span><span class="fw-700" style="font-size:16px">${fmtBRL(v.total)}</span></div>
+      ${v.desconto > 0 ? `<div class="flex-between mb-8"><span class="text-muted">Desconto</span><span style="color:var(--warning)">- ${fmtBRL(v.desconto)}</span></div>` : ''}
       <div class="flex-between mb-8"><span class="text-muted">Custo</span><span class="text-muted">${fmtBRL(v.custo_total)}</span></div>
       <div class="flex-between"><span class="text-muted">Lucro</span><span class="fw-700 text-green">${fmtBRL(v.lucro_total)}</span></div>
     </div>
-    ${v.observacao?`<div class="text-muted" style="font-size:12px">Obs: ${esc(v.observacao)}</div>`:''}
-    <button class="btn btn-danger mt-12" onclick="cancelarVenda('${v.id}')">Cancelar venda</button>
+
+    <button class="btn btn-danger" onclick="cancelarVenda('${v.id}')">Cancelar venda</button>
   `);
 }
 async function cancelarVenda(id){
@@ -2720,8 +2763,15 @@ function exportarHistPDF() {
   y += 28;
 
   // ── VENDAS DETALHADAS ──
+  // Pré-monta mapa de itens por venda
+  const itensMap = {};
+  S.venda_itens.forEach(i => {
+    if (!itensMap[i.venda_id]) itensMap[i.venda_id] = [];
+    itensMap[i.venda_id].push(i);
+  });
+
   lista.forEach((v, idx) => {
-    const itens = S.venda_itens.filter(i => i.venda_id === v.id);
+    const itens = itensMap[v.id] || [];
     const alturaVenda = 16 + itens.length * 5 + 6;
     if (y + alturaVenda > 285) { doc.addPage(); y = 14; }
 
@@ -2808,8 +2858,13 @@ function exportarHistExcel() {
 
   // Aba de itens
   const itensRows = [['Venda ID','Data','Cliente','Produto','Qtd','Preço Unit.','Preço Total','Custo Unit.','Lucro']];
+  const itensMapEx = {};
+  S.venda_itens.forEach(i => {
+    if (!itensMapEx[i.venda_id]) itensMapEx[i.venda_id] = [];
+    itensMapEx[i.venda_id].push(i);
+  });
   lista.forEach(v => {
-    const itens = S.venda_itens.filter(i => i.venda_id === v.id);
+    const itens = itensMapEx[v.id] || [];
     const dt = new Date(v.created_at).toLocaleDateString('pt-BR');
     itens.forEach(i => {
       itensRows.push([v.id.substring(0,8)+'...', dt, v.cliente_nome||'', i.nome||'', i.qtd, i.preco_unit, i.preco_total, i.custo_unit||0, i.lucro_total||0]);
@@ -3161,7 +3216,13 @@ function _getVendasDash() {
   return _dashPeriodo === 'todos' ? S.vendas.slice() : S.vendas.filter(v => parseISO(v.created_at) >= ini);
 }
 
-function renderDashboard() {
+async function renderDashboard() {
+  // Garante que venda_itens esteja carregado
+  if (S.venda_itens.length === 0 && S.vendas.length > 0) {
+    const uid = S.user.id;
+    const vitens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`);
+    S.venda_itens = vitens || [];
+  }
   const vendas = _getVendasDash();
   const fat  = vendas.reduce((a,v) => a + Number(v.total), 0);
   const luc  = vendas.reduce((a,v) => a + Number(v.lucro_total), 0);
