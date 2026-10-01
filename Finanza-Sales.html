@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0A0E1A">
-<title>Autonomo-Finanza</title>
+<title>Finanza-Sales</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2557,17 +2557,44 @@ function renderHistorico() {
     const itensIds = lista.map(v => v.id);
     const itensCli = S.venda_itens.filter(i => itensIds.includes(i.venda_id));
     const topProd  = {};
-    itensCli.forEach(i => { topProd[i.nome] = (topProd[i.nome]||0) + Number(i.preco_total); });
-    const topList  = Object.entries(topProd).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    itensCli.forEach(i => {
+      const k = i.nome||'—';
+      if (!topProd[k]) topProd[k] = { nome:k, qtd:0, total:0 };
+      topProd[k].qtd   += Number(i.qtd||1);
+      topProd[k].total += Number(i.preco_total||0);
+    });
+    const topList = Object.values(topProd).sort((a,b)=>b.total-a.total).slice(0,5);
+    // Agrupa itens por venda para exibir lista completa
+    const vendasComItens = lista.slice().sort((a,b)=>parseISO(b.created_at)-parseISO(a.created_at)).map(v => ({
+      ...v,
+      itens: S.venda_itens.filter(i => i.venda_id === v.id)
+    }));
     resumoCont.innerHTML = `
       <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--green)">
         👤 ${esc(cli?.nome || 'Cliente')}
       </div>
       <div class="flex-between mb-6"><span class="text-muted">Total comprado</span><span class="fw-700">${fmtBRL(totalCli)}</span></div>
       <div class="flex-between mb-6"><span class="text-muted">Lucro gerado</span><span class="fw-700 text-green">${fmtBRL(lucCli)}</span></div>
-      <div class="flex-between mb-8"><span class="text-muted">Nº compras</span><span class="fw-700">${lista.length}</span></div>
-      ${topList.length ? '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Top produtos</div>'
-        + topList.map(([nome,val]) => `<div class="flex-between" style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)"><span>${esc(nome)}</span><span class="fw-700">${fmtBRL(val)}</span></div>`).join('') : ''}`;
+      <div class="flex-between mb-10"><span class="text-muted">Nº compras</span><span class="fw-700">${lista.length}</span></div>
+      ${topList.length ? `
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">🏆 Produtos mais comprados</div>
+        ${topList.map(p => `<div class="flex-between" style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span>${esc(p.nome)} <span style="color:var(--text3);font-size:10px">${p.qtd}x</span></span>
+          <span class="fw-700">${fmtBRL(p.total)}</span>
+        </div>`).join('')}` : ''}
+      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin:12px 0 6px">📋 Histórico de compras</div>
+      ${vendasComItens.map(v => `
+        <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px">
+          <div class="flex-between mb-6">
+            <span style="font-size:12px;color:var(--text2)">${fmtDataHora(v.created_at)}</span>
+            <span style="font-size:13px;font-weight:700;color:var(--green)">${fmtBRL(v.total)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">${esc(v.forma_pagamento||'—')}</div>
+          ${v.itens.map(i => `<div class="flex-between" style="font-size:11px;padding:3px 0;border-top:1px solid var(--border)">
+            <span style="color:var(--text2)">${esc(i.nome)} <span style="color:var(--text3)">${i.qtd>1?i.qtd+'x':''}</span></span>
+            <span style="font-weight:600">${fmtBRL(i.preco_total)}</span>
+          </div>`).join('')}
+        </div>`).join('')}`;
     resumoCli.style.display = 'block';
   } else {
     resumoCli.style.display = 'none';
@@ -3042,6 +3069,80 @@ async function excluirLemb(id){
 // ═══════════════════════════════════════════════════════════════
 let _dashPeriodo = 'mes';
 
+function abrirDashDetalhe(tipo, valorEnc) {
+  const valor = decodeURIComponent(valorEnc);
+  const vendas = _getVendasDash();
+  const vendasIds = new Set(vendas.map(v=>v.id));
+  const itens = S.venda_itens.filter(i => vendasIds.has(i.venda_id));
+
+  let titulo = '', vendasFiltradas = [], itensFiltrados = [];
+
+  if (tipo === 'cliente') {
+    titulo = '👤 ' + valor;
+    vendasFiltradas = vendas.filter(v => (v.cliente_nome||'Avulso') === valor);
+    itensFiltrados  = itens.filter(i => vendasFiltradas.some(v=>v.id===i.venda_id));
+  } else if (tipo === 'produto') {
+    titulo = '📦 ' + valor;
+    itensFiltrados  = itens.filter(i => i.nome === valor);
+    const ids = new Set(itensFiltrados.map(i=>i.venda_id));
+    vendasFiltradas = vendas.filter(v => ids.has(v.id));
+  } else if (tipo === 'depto') {
+    titulo = '🏷️ ' + valor;
+    itensFiltrados  = itens.filter(i => (i.depto||'Sem departamento') === valor);
+    const ids = new Set(itensFiltrados.map(i=>i.venda_id));
+    vendasFiltradas = vendas.filter(v => ids.has(v.id));
+  } else if (tipo === 'familia') {
+    titulo = '📂 ' + valor;
+    itensFiltrados  = itens.filter(i => i.familia === valor);
+    const ids = new Set(itensFiltrados.map(i=>i.venda_id));
+    vendasFiltradas = vendas.filter(v => ids.has(v.id));
+  }
+
+  const fat  = vendasFiltradas.reduce((a,v)=>a+Number(v.total),0);
+  const luc  = vendasFiltradas.reduce((a,v)=>a+Number(v.lucro_total),0);
+  const qtdI = itensFiltrados.reduce((a,i)=>a+Number(i.qtd||1),0);
+
+  const vendasSorted = vendasFiltradas.slice().sort((a,b)=>parseISO(b.created_at)-parseISO(a.created_at));
+
+  abrirModal(`
+    <button class="modal-close" onclick="fecharModal()">×</button>
+    <div class="modal-title">${esc(titulo)}</div>
+    <div class="stat-row mb-12">
+      <div class="stat-cell"><div class="stat-label">Faturamento</div><div class="stat-val green">${fmtBRL(fat)}</div></div>
+      <div class="stat-cell"><div class="stat-label">Lucro</div><div class="stat-val purple">${fmtBRL(luc)}</div></div>
+    </div>
+    <div class="stat-row mb-12">
+      <div class="stat-cell"><div class="stat-label">Vendas</div><div class="stat-val">${vendasFiltradas.length}</div></div>
+      <div class="stat-cell"><div class="stat-label">Itens vendidos</div><div class="stat-val blue">${qtdI}</div></div>
+    </div>
+    <div class="section-title">Vendas detalhadas</div>
+    ${vendasSorted.slice(0,20).map(v => {
+      const vitens = S.venda_itens.filter(i=>i.venda_id===v.id && (
+        tipo==='cliente' || tipo==='depto' ? true :
+        tipo==='produto' ? i.nome===valor :
+        tipo==='familia' ? i.familia===valor : true
+      ));
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-bottom:6px">
+        <div class="flex-between mb-6">
+          <div>
+            <div style="font-size:13px;font-weight:700">${esc(v.cliente_nome||'Avulso')}</div>
+            <div style="font-size:11px;color:var(--text2)">${fmtDataHora(v.created_at)} · ${esc(v.forma_pagamento||'—')}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:14px;font-weight:700;color:var(--green)">${fmtBRL(v.total)}</div>
+            <div style="font-size:11px;color:var(--text3)">Lucro ${fmtBRL(v.lucro_total)}</div>
+          </div>
+        </div>
+        ${vitens.map(i=>`<div class="flex-between" style="font-size:11px;padding:3px 0;border-top:1px solid var(--border)">
+          <span style="color:var(--text2)">${esc(i.nome)} ${i.qtd>1?'<span style="color:var(--text3)">'+i.qtd+'x</span>':''} ${i.depto?'<span style="color:var(--text3)">'+esc(i.depto)+'</span>':''}</span>
+          <span style="font-weight:600">${fmtBRL(i.preco_total)}</span>
+        </div>`).join('')}
+      </div>`;
+    }).join('')}
+    ${vendasFiltradas.length > 20 ? `<div class="text-muted text-center" style="font-size:11px">Mostrando 20 de ${vendasFiltradas.length} vendas</div>` : ''}
+  `);
+}
+
 function trocarDash(periodo, el) {
   _dashPeriodo = periodo;
   ['mes','semana','ano','todos'].forEach(p => {
@@ -3101,16 +3202,17 @@ function renderDashboard() {
   const topCli = Object.values(cliMap).sort((a,b) => b.fat-a.fat).slice(0,5);
 
   // ── Top produtos ──
+  const vendasIds = new Set(vendas.map(v=>v.id));
+  const itensVendas = S.venda_itens.filter(i => vendasIds.has(i.venda_id));
   const prodMap = {};
-  const itensVendas = S.venda_itens.filter(i => vendas.some(v=>v.id===i.venda_id));
   itensVendas.forEach(i => {
     const k = i.nome || '—';
-    if (!prodMap[k]) prodMap[k] = { nome:k, qtd:0, fat:0, luc:0 };
+    if (!prodMap[k]) prodMap[k] = { nome:k, depto:i.depto||'', familia:i.familia||'', qtd:0, fat:0, luc:0 };
     prodMap[k].qtd  += Number(i.qtd||1);
     prodMap[k].fat  += Number(i.preco_total||0);
     prodMap[k].luc  += Number(i.lucro_total||0);
   });
-  const topProd = Object.values(prodMap).sort((a,b) => b.fat-a.fat).slice(0,5);
+  const topProd = Object.values(prodMap).sort((a,b) => b.fat-a.fat).slice(0,10);
 
   // ── Top formas de pagamento ──
   const pagMap = {};
@@ -3141,23 +3243,33 @@ function renderDashboard() {
     </div>`).join('');
 
   const topCliHtml = topCli.map((c,i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--grad)':i<3?'var(--surface2)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${i===0?'#fff':'var(--text2)'};flex-shrink:0">${i+1}</div>
+    <div onclick="abrirDashDetalhe('cliente','${encodeURIComponent(c.nome)}')"
+      style="display:flex;align-items:center;gap:8px;padding:10px;margin-bottom:4px;background:var(--surface2);border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s"
+      onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
+      <div style="width:28px;height:28px;border-radius:50%;background:${i===0?'var(--grad)':i<3?'rgba(16,217,160,0.2)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${i===0?'#fff':'var(--text2)'};flex-shrink:0">${i+1}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.nome)}</div>
         <div style="font-size:11px;color:var(--text2)">${c.qtd} compra${c.qtd>1?'s':''} · Lucro ${fmtBRLs(c.luc)}</div>
       </div>
-      <div style="font-size:14px;font-weight:700;color:var(--green)">${fmtBRLs(c.fat)}</div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:700;color:var(--green)">${fmtBRLs(c.fat)}</div>
+        <div style="font-size:10px;color:var(--text3)">ver →</div>
+      </div>
     </div>`).join('');
 
   const topProdHtml = topProd.map((p,i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--grad)':i<3?'var(--surface2)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${i===0?'#fff':'var(--text2)'};flex-shrink:0">${i+1}</div>
+    <div onclick="abrirDashDetalhe('produto','${encodeURIComponent(p.nome)}')"
+      style="display:flex;align-items:center;gap:8px;padding:10px;margin-bottom:4px;background:var(--surface2);border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s"
+      onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
+      <div style="width:28px;height:28px;border-radius:50%;background:${i===0?'var(--grad)':i<3?'rgba(45,127,249,0.2)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${i===0?'#fff':'var(--text2)'};flex-shrink:0">${i+1}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nome)}</div>
-        <div style="font-size:11px;color:var(--text2)">${p.qtd} unid · Lucro ${fmtBRLs(p.luc)}</div>
+        <div style="font-size:11px;color:var(--text2)">${p.depto?esc(p.depto)+(p.familia?' · '+esc(p.familia):''):''} ${p.qtd} unid · Lucro ${fmtBRLs(p.luc)}</div>
       </div>
-      <div style="font-size:14px;font-weight:700;color:var(--blue)">${fmtBRLs(p.fat)}</div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:700;color:var(--blue)">${fmtBRLs(p.fat)}</div>
+        <div style="font-size:10px;color:var(--text3)">ver →</div>
+      </div>
     </div>`).join('');
 
   const topPagHtml = topPag.map(([m, val]) => {
@@ -3174,25 +3286,54 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
-  // Lucro por depto
+  // ── Por departamento ──
   const deptoMap = {};
   itensVendas.forEach(i => {
     const k = i.depto || 'Sem departamento';
-    if (!deptoMap[k]) deptoMap[k] = { luc:0, fat:0 };
+    if (!deptoMap[k]) deptoMap[k] = { luc:0, fat:0, qtd:0 };
     deptoMap[k].fat += Number(i.preco_total||0);
     deptoMap[k].luc += Number(i.lucro_total||0);
+    deptoMap[k].qtd += Number(i.qtd||1);
   });
   const maxDeptoFat = Math.max(...Object.values(deptoMap).map(d=>d.fat), 1);
-  const topDeptoHtml = Object.entries(deptoMap).sort((a,b)=>b[1].fat-a[1].fat).slice(0,5).map(([dep,d]) => `
-    <div style="margin-bottom:10px">
+  const topDeptoHtml = Object.entries(deptoMap).sort((a,b)=>b[1].fat-a[1].fat).slice(0,8).map(([dep,d]) => `
+    <div onclick="abrirDashDetalhe('depto','${encodeURIComponent(dep)}')"
+      style="margin-bottom:8px;cursor:pointer;padding:8px;background:var(--surface2);border-radius:var(--radius-sm)"
+      onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-        <span style="font-weight:600">${esc(dep)}</span>
+        <span style="font-weight:600">${esc(dep)} <span style="font-size:10px;color:var(--text3)">${d.qtd} un</span></span>
         <span><strong style="color:var(--green)">${fmtBRL(d.fat)}</strong> <span style="font-size:11px;color:var(--text3)">Lucro ${fmtBRL(d.luc)}</span></span>
       </div>
-      <div style="height:7px;background:var(--bg);border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${Math.round(d.fat/maxDeptoFat*100)}%;background:var(--grad-v);border-radius:4px"></div>
+      <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${Math.round(d.fat/maxDeptoFat*100)}%;background:var(--grad-v);border-radius:3px"></div>
       </div>
     </div>`).join('');
+
+  // ── Por família ──
+  const famMap = {};
+  itensVendas.forEach(i => {
+    if (!i.familia) return;
+    const k = i.familia;
+    if (!famMap[k]) famMap[k] = { fat:0, luc:0, qtd:0, depto:i.depto||'' };
+    famMap[k].fat += Number(i.preco_total||0);
+    famMap[k].luc += Number(i.lucro_total||0);
+    famMap[k].qtd += Number(i.qtd||1);
+  });
+  const maxFamFat = Math.max(...Object.values(famMap).map(d=>d.fat), 1);
+  const topFamHtml = Object.keys(famMap).length > 0
+    ? Object.entries(famMap).sort((a,b)=>b[1].fat-a[1].fat).slice(0,8).map(([fam,d]) => `
+    <div onclick="abrirDashDetalhe('familia','${encodeURIComponent(fam)}')"
+      style="margin-bottom:8px;cursor:pointer;padding:8px;background:var(--surface2);border-radius:var(--radius-sm)"
+      onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="font-weight:600">${esc(fam)} <span style="font-size:10px;color:var(--text3)">${d.depto?'· '+esc(d.depto):''}</span></span>
+        <span><strong style="color:var(--purple)">${fmtBRL(d.fat)}</strong></span>
+      </div>
+      <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${Math.round(d.fat/maxFamFat*100)}%;background:var(--grad);border-radius:3px"></div>
+      </div>
+    </div>`).join('')
+    : null;
 
   cont.innerHTML = `
     <div class="card mb-8">
@@ -3212,6 +3353,7 @@ function renderDashboard() {
       ${topPagHtml || '<p class="text-muted" style="font-size:12px">Sem dados</p>'}
     </div>
     ${topDeptoHtml ? `<div class="card mb-8"><div class="card-title">🏷️ Por departamento</div>${topDeptoHtml}</div>` : ''}
+    ${topFamHtml  ? `<div class="card mb-8"><div class="card-title">📂 Por família</div>${topFamHtml}</div>` : ''}
   `;
 }
 
