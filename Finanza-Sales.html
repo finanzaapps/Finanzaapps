@@ -394,6 +394,9 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
     <button class="inicio-tile" onclick="irPara('home')">
       <div class="inicio-ic green">📊</div>Resumo
     </button>
+    <button class="inicio-tile" onclick="irPara('dashboard')" style="grid-column:span 2;background:linear-gradient(135deg,rgba(16,217,160,0.12),rgba(45,127,249,0.12));border-color:rgba(45,127,249,0.3)">
+      <div class="inicio-ic blue">🏆</div>Dashboard
+    </button>
     <button class="inicio-tile" onclick="irPara('vender')">
       <div class="inicio-ic blue" style="position:relative">🛒<span id="inicio-cart-badge" class="inicio-badge" style="display:none">0</span></div>Vender
     </button>
@@ -610,6 +613,14 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
     <div><label>Cliente</label><input id="fin-cli-filtro" placeholder="Buscar cliente..." oninput="renderFinanceiro()"></div>
   </div>
 
+  <!-- Resumo por cliente -->
+  <div id="fin-resumo-cli" style="display:none" class="card mb-8">
+    <div id="fin-resumo-cli-content"></div>
+  </div>
+
+  <!-- Ranking clientes -->
+  <div id="fin-ranking-cli"></div>
+
   <!-- Previsão por mês -->
   <div id="fin-fluxo"></div>
 
@@ -627,17 +638,34 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 
 <!-- HISTÓRICO -->
 <section id="page-historico" class="page">
-  <div class="flex-between mb-12">
-    <div><div class="page-title">Histórico</div><div class="page-sub" id="hist-resumo">—</div></div>
-    
-  </div>
-  <div class="filter-row">
+  <div class="page-title">Histórico de vendas</div>
+
+  <!-- Filtros rápidos -->
+  <div class="filter-row" id="hist-chips">
     <div class="filter-chip active" onclick="trocarFiltroHist('hoje',this)">Hoje</div>
     <div class="filter-chip" onclick="trocarFiltroHist('semana',this)">7 dias</div>
     <div class="filter-chip" onclick="trocarFiltroHist('mes',this)">Mês</div>
     <div class="filter-chip" onclick="trocarFiltroHist('ano',this)">Ano</div>
     <div class="filter-chip" onclick="trocarFiltroHist('todos',this)">Todos</div>
+    <div class="filter-chip" onclick="trocarFiltroHist('custom',this)" id="hist-chip-custom">📅 Período</div>
   </div>
+
+  <!-- Filtro de período customizado -->
+  <div id="hist-custom-wrap" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div><label>De</label><input type="date" id="hist-de" onchange="renderHistorico()"></div>
+      <div><label>Até</label><input type="date" id="hist-ate" onchange="renderHistorico()"></div>
+    </div>
+  </div>
+
+  <!-- Filtro por cliente -->
+  <div class="field mb-8">
+    <select id="hist-cli-sel" onchange="renderHistorico()" style="font-size:13px">
+      <option value="">— Todos os clientes —</option>
+    </select>
+  </div>
+
+  <!-- Stats -->
   <div class="stat-row">
     <div class="stat-cell"><div class="stat-label">Faturamento</div><div class="stat-val green" id="hist-fat">R$ 0,00</div></div>
     <div class="stat-cell"><div class="stat-label">Lucro</div><div class="stat-val purple" id="hist-luc">R$ 0,00</div></div>
@@ -646,8 +674,44 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
     <div class="stat-cell"><div class="stat-label">Vendas</div><div class="stat-val" id="hist-qtd">0</div></div>
     <div class="stat-cell"><div class="stat-label">Ticket médio</div><div class="stat-val blue" id="hist-tick">R$ 0,00</div></div>
   </div>
-  <button class="btn btn-ghost btn-sm mb-12" onclick="exportarHistPDF()">📄 Exportar PDF</button>
+
+  <!-- Resumo do cliente selecionado -->
+  <div id="hist-cli-resumo" style="display:none" class="card mb-8">
+    <div id="hist-cli-resumo-content"></div>
+  </div>
+
+  <!-- Exportar -->
+  <div class="btn-row mb-12">
+    <button class="btn btn-ghost btn-sm" style="flex:1" onclick="exportarHistPDF()">📄 PDF</button>
+    <button class="btn btn-ghost btn-sm" style="flex:1" onclick="exportarHistExcel()">📊 Excel</button>
+  </div>
+
   <div id="hist-lista"></div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="page-dashboard" class="page">
+  <div class="page-title">Dashboard</div>
+
+  <!-- Filtro período -->
+  <div class="filter-row mb-8">
+    <div class="filter-chip active" id="dash-chip-mes" onclick="trocarDash('mes',this)">Este mês</div>
+    <div class="filter-chip" id="dash-chip-semana" onclick="trocarDash('semana',this)">7 dias</div>
+    <div class="filter-chip" id="dash-chip-ano" onclick="trocarDash('ano',this)">Este ano</div>
+    <div class="filter-chip" id="dash-chip-todos" onclick="trocarDash('todos',this)">Todos</div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="stat-row mb-8">
+    <div class="stat-cell"><div class="stat-label">Faturamento</div><div class="stat-val green" id="dash-fat">—</div></div>
+    <div class="stat-cell"><div class="stat-label">Lucro total</div><div class="stat-val purple" id="dash-luc">—</div></div>
+  </div>
+  <div class="stat-row mb-12">
+    <div class="stat-cell"><div class="stat-label">Nº vendas</div><div class="stat-val" id="dash-qtd">—</div></div>
+    <div class="stat-cell"><div class="stat-label">Margem média</div><div class="stat-val blue" id="dash-margem">—</div></div>
+  </div>
+
+  <div id="dash-content"></div>
 </section>
 
 <!-- PROMOÇÕES -->
@@ -1007,6 +1071,7 @@ function showPage(p) {
   else if (p==='vender') prepararVenda();
   else if (p==='clientes') renderClientes();
   else if (p==='mais') renderMais();
+  else if (p==='dashboard') renderDashboard();
   else if (p==='financeiro') renderFinanceiro();
   else if (p==='historico') renderHistorico();
   else if (p==='promocoes') renderPromocoes();
@@ -2187,6 +2252,49 @@ function renderFinanceiro() {
   }
 
   // ── Lista ──
+  // ── Resumo do cliente filtrado ──
+  const cliF = finCli;
+  const resumoCliEl  = document.getElementById('fin-resumo-cli');
+  const resumoCliCont = document.getElementById('fin-resumo-cli-content');
+  if (cliF && resumoCliEl && resumoCliCont) {
+    const parcsCliente = S.areceber.filter(p =>
+      p.status === 'Pendente' &&
+      (p.cliente_nome||'').toLowerCase().includes(cliF)
+    );
+    const totalCli = parcsCliente.reduce((a,p) => a+Number(p.valor_parcela),0);
+    resumoCliCont.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">👤 Resumo do cliente filtrado</div>
+      <div class="flex-between mb-6"><span class="text-muted">Parcelas pendentes</span><span class="fw-700">${parcsCliente.length}</span></div>
+      <div class="flex-between"><span class="text-muted">Saldo devedor total</span><span class="fw-700 text-danger">${fmtBRL(totalCli)}</span></div>`;
+    resumoCliEl.style.display = 'block';
+  } else if (resumoCliEl) resumoCliEl.style.display = 'none';
+
+  // ── Ranking por cliente (só na aba todos/pendente sem filtro) ──
+  const rankEl = document.getElementById('fin-ranking-cli');
+  if (rankEl && !cliF && (_finTab === 'pendente' || _finTab === 'todos')) {
+    const mapa = {};
+    S.areceber.filter(p => p.status === 'Pendente').forEach(p => {
+      const k = p.cliente_nome || '—';
+      if (!mapa[k]) mapa[k] = { nome:k, qtd:0, total:0 };
+      mapa[k].qtd++;
+      mapa[k].total += Number(p.valor_parcela);
+    });
+    const rank = Object.values(mapa).sort((a,b) => b.total-a.total).slice(0,5);
+    if (rank.length > 0) {
+      rankEl.innerHTML = `<div class="card mb-8">
+        <div class="card-title">📋 A receber por cliente</div>
+        ${rank.map(r => `
+          <div class="flex-between" style="padding:7px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-size:13px;font-weight:600">${esc(r.nome)}</div>
+              <div style="font-size:11px;color:var(--text2)">${r.qtd} título${r.qtd>1?'s':''}</div>
+            </div>
+            <div style="font-size:14px;font-weight:700;color:var(--danger)">${fmtBRL(r.total)}</div>
+          </div>`).join('')}
+      </div>`;
+    } else rankEl.innerHTML = '';
+  } else if (rankEl) rankEl.innerHTML = '';
+
   const cont = document.getElementById('fin-lista');
   if (!lista.length) { cont.innerHTML = '<div class="empty"><div class="empty-icon">💸</div><p>Nenhuma parcela aqui</p></div>'; return; }
 
@@ -2388,33 +2496,110 @@ function cobrarCliente(id) {
 // ═══════════════════════════════════════════════════════════════
 // HISTÓRICO
 // ═══════════════════════════════════════════════════════════════
-function renderHistorico(){
-  const hj=hoje0();
-  let ini=null;
-  if(S._filtHist==='hoje')ini=hj;
-  else if(S._filtHist==='semana'){ini=new Date(hj);ini.setDate(hj.getDate()-6);}
-  else if(S._filtHist==='mes')ini=new Date(hj.getFullYear(),hj.getMonth(),1);
-  else if(S._filtHist==='ano')ini=new Date(hj.getFullYear(),0,1);
-  let lista=S.vendas.slice();
-  if(ini)lista=lista.filter(v=>parseISO(v.created_at)>=ini);
-  const fat=lista.reduce((a,v)=>a+Number(v.total),0);
-  const luc=lista.reduce((a,v)=>a+Number(v.lucro_total),0);
-  const tick=lista.length?fat/lista.length:0;
-  document.getElementById('hist-fat').textContent=fmtBRLs(fat);
-  document.getElementById('hist-luc').textContent=fmtBRLs(luc);
-  document.getElementById('hist-qtd').textContent=lista.length;
-  document.getElementById('hist-tick').textContent=fmtBRLs(tick);
-  document.getElementById('hist-resumo').textContent=lista.length+' venda'+(lista.length===1?'':'s');
-  const cont=document.getElementById('hist-lista');
-  if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📊</div><p>Nenhuma venda no período</p></div>';return;}
-  cont.innerHTML=lista.map(v=>`
+function _getListaHistorico() {
+  const hj = hoje0();
+  let ini = null, fim = null;
+
+  if (S._filtHist === 'hoje')   ini = hj;
+  else if (S._filtHist === 'semana') { ini = new Date(hj); ini.setDate(hj.getDate()-6); }
+  else if (S._filtHist === 'mes')    ini = new Date(hj.getFullYear(), hj.getMonth(), 1);
+  else if (S._filtHist === 'ano')    ini = new Date(hj.getFullYear(), 0, 1);
+  else if (S._filtHist === 'custom') {
+    const de  = document.getElementById('hist-de')?.value;
+    const ate = document.getElementById('hist-ate')?.value;
+    if (de)  ini = new Date(de  + 'T00:00:00');
+    if (ate) fim = new Date(ate + 'T23:59:59');
+  }
+
+  let lista = S.vendas.slice();
+  if (ini) lista = lista.filter(v => parseISO(v.created_at) >= ini);
+  if (fim) lista = lista.filter(v => parseISO(v.created_at) <= fim);
+
+  // Filtro por cliente
+  const cliSel = document.getElementById('hist-cli-sel')?.value || '';
+  if (cliSel) lista = lista.filter(v => v.cliente_id === cliSel);
+
+  return lista;
+}
+
+function renderHistorico() {
+  // Preenche select de clientes
+  const sel = document.getElementById('hist-cli-sel');
+  if (sel && sel.options.length <= 1) {
+    const clisOrdenados = S.clientes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR'));
+    sel.innerHTML = '<option value="">— Todos os clientes —</option>'
+      + clisOrdenados.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  }
+
+  // Mostra/esconde filtro custom
+  const customWrap = document.getElementById('hist-custom-wrap');
+  if (customWrap) customWrap.style.display = S._filtHist === 'custom' ? 'block' : 'none';
+
+  const lista = _getListaHistorico();
+  const cliSel = document.getElementById('hist-cli-sel')?.value || '';
+
+  // Stats
+  const fat  = lista.reduce((a,v) => a + Number(v.total), 0);
+  const luc  = lista.reduce((a,v) => a + Number(v.lucro_total), 0);
+  const tick = lista.length ? fat / lista.length : 0;
+  document.getElementById('hist-fat').textContent  = fmtBRLs(fat);
+  document.getElementById('hist-luc').textContent  = fmtBRLs(luc);
+  document.getElementById('hist-qtd').textContent  = lista.length;
+  document.getElementById('hist-tick').textContent = fmtBRLs(tick);
+
+  // Resumo do cliente selecionado
+  const resumoCli = document.getElementById('hist-cli-resumo');
+  const resumoCont = document.getElementById('hist-cli-resumo-content');
+  if (cliSel && lista.length > 0) {
+    const cli = S.clientes.find(c => c.id === cliSel);
+    const totalCli = lista.reduce((a,v) => a + Number(v.total), 0);
+    const lucCli   = lista.reduce((a,v) => a + Number(v.lucro_total), 0);
+    const itensIds = lista.map(v => v.id);
+    const itensCli = S.venda_itens.filter(i => itensIds.includes(i.venda_id));
+    const topProd  = {};
+    itensCli.forEach(i => { topProd[i.nome] = (topProd[i.nome]||0) + Number(i.preco_total); });
+    const topList  = Object.entries(topProd).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    resumoCont.innerHTML = `
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--green)">
+        👤 ${esc(cli?.nome || 'Cliente')}
+      </div>
+      <div class="flex-between mb-6"><span class="text-muted">Total comprado</span><span class="fw-700">${fmtBRL(totalCli)}</span></div>
+      <div class="flex-between mb-6"><span class="text-muted">Lucro gerado</span><span class="fw-700 text-green">${fmtBRL(lucCli)}</span></div>
+      <div class="flex-between mb-8"><span class="text-muted">Nº compras</span><span class="fw-700">${lista.length}</span></div>
+      ${topList.length ? '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Top produtos</div>'
+        + topList.map(([nome,val]) => `<div class="flex-between" style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)"><span>${esc(nome)}</span><span class="fw-700">${fmtBRL(val)}</span></div>`).join('') : ''}`;
+    resumoCli.style.display = 'block';
+  } else {
+    resumoCli.style.display = 'none';
+  }
+
+  // Lista de vendas
+  const cont = document.getElementById('hist-lista');
+  if (!lista.length) {
+    cont.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><p>Nenhuma venda no período</p></div>';
+    return;
+  }
+  const sorted = lista.slice().sort((a,b) => parseISO(b.created_at) - parseISO(a.created_at));
+  cont.innerHTML = sorted.map(v => `
     <div class="list-item" onclick="detalhesVenda('${v.id}')" style="cursor:pointer">
       <div class="list-avatar green">${(v.cliente_nome||'A')[0].toUpperCase()}</div>
-      <div class="list-body"><div class="list-title">${esc(v.cliente_nome||'Cliente avulso')}</div><div class="list-sub">${esc(v.forma_pagamento||'—')} · ${fmtDataHora(v.created_at)}</div></div>
-      <div class="list-right"><div class="v green">${fmtBRLs(v.total)}</div><div class="s">Lucro ${fmtBRLs(v.lucro_total)}</div></div>
+      <div class="list-body">
+        <div class="list-title">${esc(v.cliente_nome||'Cliente avulso')}</div>
+        <div class="list-sub">${esc(v.forma_pagamento||'—')} · ${fmtDataHora(v.created_at)}</div>
+      </div>
+      <div class="list-right">
+        <div class="v green">${fmtBRLs(v.total)}</div>
+        <div class="s">Lucro ${fmtBRLs(v.lucro_total)}</div>
+      </div>
     </div>`).join('');
 }
-function trocarFiltroHist(f,el){S._filtHist=f;document.querySelectorAll('#page-historico .filter-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderHistorico();}
+
+function trocarFiltroHist(f, el) {
+  S._filtHist = f;
+  document.querySelectorAll('#hist-chips .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderHistorico();
+}
 function detalhesVenda(id){
   const v=S.vendas.find(x=>x.id===id);if(!v)return;
   const itens=S.venda_itens.filter(i=>i.venda_id===id);
@@ -2447,31 +2632,168 @@ async function cancelarVenda(id){
   await sbReq('DELETE',`/rest/v1/finanza_autonomo_areceber?venda_id=eq.${id}`,null,tok());
   toast('Venda cancelada');fecharModal();renderHistorico();
 }
-function exportarHistPDF(){
-  const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  const W=210,mg=14;let y=28;
-  doc.setFillColor(10,14,26);doc.rect(0,0,W,26,'F');
-  doc.setTextColor(255);doc.setFontSize(15);doc.setFont('helvetica','bold');
-  doc.text('HISTÓRICO DE VENDAS',mg,14);doc.setFontSize(9);doc.setFont('helvetica','normal');
-  const labels={hoje:'Hoje',semana:'7 dias',mes:'Mês',ano:'Ano',todos:'Todos'};
-  doc.text(labels[S._filtHist]+' · '+(S.user.nome||S.user.email),mg,22);
-  const hj=hoje0();let ini=null;
-  if(S._filtHist==='hoje')ini=hj;else if(S._filtHist==='semana'){ini=new Date(hj);ini.setDate(hj.getDate()-6);}else if(S._filtHist==='mes')ini=new Date(hj.getFullYear(),hj.getMonth(),1);else if(S._filtHist==='ano')ini=new Date(hj.getFullYear(),0,1);
-  let lista=S.vendas.slice();if(ini)lista=lista.filter(v=>parseISO(v.created_at)>=ini);
-  const fat=lista.reduce((a,v)=>a+Number(v.total),0);const luc=lista.reduce((a,v)=>a+Number(v.lucro_total),0);
-  doc.setTextColor(20);doc.setFontSize(10);
-  doc.text('Faturamento: '+fmtBRL(fat),mg,y);doc.text('Lucro: '+fmtBRL(luc),mg,y+6);doc.text('Vendas: '+lista.length,mg,y+12);y+=22;
-  doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setFillColor(45,127,249);doc.rect(mg,y-5,W-mg*2,7,'F');
-  doc.setTextColor(255);doc.text('DATA',mg+2,y);doc.text('CLIENTE',mg+25,y);doc.text('PGTO',mg+80,y);doc.text('LUCRO',W-mg-28,y,{align:'right'});doc.text('TOTAL',W-mg,y,{align:'right'});
-  doc.setTextColor(20);doc.setFont('helvetica','normal');y+=6;
-  lista.forEach(v=>{
-    if(y>283){doc.addPage();y=14;}
-    doc.text(fmtData(v.created_at),mg+2,y);doc.text((v.cliente_nome||'Avulso').substring(0,25),mg+25,y);doc.text((v.forma_pagamento||'').substring(0,18),mg+80,y);
-    doc.setTextColor(16,217,160);doc.text(fmtBRL(v.lucro_total),W-mg-28,y,{align:'right'});
-    doc.setTextColor(20);doc.setFont('helvetica','bold');doc.text(fmtBRL(v.total),W-mg,y,{align:'right'});
-    doc.setFont('helvetica','normal');y+=6;
+function exportarHistPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, mg = 14;
+  const lista = _getListaHistorico().slice().sort((a,b) => parseISO(a.created_at)-parseISO(b.created_at));
+  const fat = lista.reduce((a,v) => a+Number(v.total), 0);
+  const luc = lista.reduce((a,v) => a+Number(v.lucro_total), 0);
+  const usuario = S.user.nome || S.user.email || '';
+  const cliSel = document.getElementById('hist-cli-sel')?.value;
+  const cliNome = cliSel ? (S.clientes.find(c=>c.id===cliSel)?.nome||'') : '';
+  const labels = {hoje:'Hoje',semana:'Últimos 7 dias',mes:'Este mês',ano:'Este ano',todos:'Todos',custom:'Período personalizado'};
+  const periodo = labels[S._filtHist] || '';
+
+  // ── CAPA / HEADER ──
+  // Gradiente simulado com retângulos
+  doc.setFillColor(10, 14, 26);
+  doc.rect(0, 0, W, 38, 'F');
+  doc.setFillColor(16, 217, 160);
+  doc.rect(0, 0, 5, 38, 'F');
+
+  // Logo texto
+  doc.setTextColor(16, 217, 160);
+  doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+  doc.text('Finanza', mg + 4, 14);
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(154, 163, 184);
+  doc.text('Organize. Planeje. Cresça.', mg + 4, 20);
+
+  // Título
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+  doc.text('HISTÓRICO DE VENDAS', mg + 4, 30);
+
+  // Sub-info
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(154, 163, 184);
+  let subInfo = periodo + ' · ' + usuario;
+  if (cliNome) subInfo += ' · Cliente: ' + cliNome;
+  doc.text(subInfo, mg + 4, 36);
+  doc.text('Gerado em ' + new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}), W-mg, 36, {align:'right'});
+
+  let y = 50;
+
+  // ── RESUMO ──
+  doc.setFillColor(26, 32, 48);
+  doc.roundedRect(mg, y, W-mg*2, 20, 3, 3, 'F');
+  doc.setTextColor(154, 163, 184); doc.setFontSize(8);
+  doc.text('FATURAMENTO', mg+6, y+6);
+  doc.text('LUCRO', mg+60, y+6);
+  doc.text('VENDAS', mg+110, y+6);
+  doc.text('TICKET MÉDIO', mg+145, y+6);
+  doc.setTextColor(16, 217, 160); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text(fmtBRL(fat), mg+6, y+15);
+  doc.setTextColor(123, 63, 242);
+  doc.text(fmtBRL(luc), mg+60, y+15);
+  doc.setTextColor(255, 255, 255);
+  doc.text(String(lista.length), mg+110, y+15);
+  doc.setTextColor(45, 127, 249);
+  doc.text(fmtBRL(lista.length ? fat/lista.length : 0), mg+145, y+15);
+  y += 28;
+
+  // ── VENDAS DETALHADAS ──
+  lista.forEach((v, idx) => {
+    const itens = S.venda_itens.filter(i => i.venda_id === v.id);
+    const alturaVenda = 16 + itens.length * 5 + 6;
+    if (y + alturaVenda > 285) { doc.addPage(); y = 14; }
+
+    // Card da venda
+    const corFundo = idx % 2 === 0 ? [26,32,48] : [19,24,38];
+    doc.setFillColor(...corFundo);
+    doc.roundedRect(mg, y, W-mg*2, alturaVenda, 2, 2, 'F');
+
+    // Linha topo da venda
+    doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text(esc(v.cliente_nome || 'Cliente avulso').substring(0,30), mg+4, y+6);
+    doc.setTextColor(16, 217, 160); doc.setFontSize(10);
+    doc.text(fmtBRL(v.total), W-mg-2, y+6, {align:'right'});
+
+    // Linha info
+    doc.setTextColor(154, 163, 184); doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.text(fmtDataHora(v.created_at), mg+4, y+11);
+    doc.text((v.forma_pagamento||'').substring(0,40), mg+40, y+11);
+    doc.setTextColor(123, 63, 242);
+    doc.text('Lucro: '+fmtBRL(v.lucro_total), W-mg-2, y+11, {align:'right'});
+
+    // Itens
+    let yi = y + 15;
+    doc.setDrawColor(45, 55, 72); doc.setLineWidth(0.2);
+    doc.line(mg+4, yi-1, W-mg-4, yi-1);
+    itens.forEach(i => {
+      doc.setTextColor(200, 210, 220); doc.setFontSize(7);
+      const nomeItem = (i.nome||'').substring(0,38);
+      doc.text(nomeItem, mg+4, yi+4);
+      if (i.qtd > 1) { doc.setTextColor(154,163,184); doc.text('x'+i.qtd, mg+82, yi+4); }
+      doc.setTextColor(255,255,255);
+      doc.text(fmtBRL(i.preco_total), W-mg-2, yi+4, {align:'right'});
+      yi += 5;
+    });
+    y += alturaVenda + 3;
   });
-  doc.save('historico-finanza.pdf');
+
+  // ── RODAPÉ ──
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(10,14,26); doc.rect(0,290,W,8,'F');
+    doc.setTextColor(92,100,120); doc.setFontSize(7);
+    doc.text('Finanza — app.finanzaapps.com', mg, 295);
+    doc.text('Página ' + i + ' de ' + pageCount, W-mg, 295, {align:'right'});
+  }
+
+  doc.save('historico-finanza-' + new Date().toLocaleDateString('pt-BR').replace(/\//g,'-') + '.pdf');
+}
+
+function exportarHistExcel() {
+  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregada','danger'); return; }
+  const lista = _getListaHistorico().slice().sort((a,b) => parseISO(a.created_at)-parseISO(b.created_at));
+  if (!lista.length) { toast('Nenhuma venda para exportar','warning'); return; }
+
+  const rows = [['Data','Hora','Cliente','Forma de Pagamento','Total','Custo','Lucro','Desconto','Observação']];
+  lista.forEach(v => {
+    const dt = new Date(v.created_at);
+    rows.push([
+      dt.toLocaleDateString('pt-BR'),
+      dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+      v.cliente_nome || 'Cliente avulso',
+      v.forma_pagamento || '',
+      Number(v.total),
+      Number(v.custo_total||0),
+      Number(v.lucro_total||0),
+      Number(v.desconto||0),
+      v.observacao || ''
+    ]);
+  });
+
+  // Linha de totais
+  rows.push([]);
+  const fat = lista.reduce((a,v)=>a+Number(v.total),0);
+  const luc = lista.reduce((a,v)=>a+Number(v.lucro_total),0);
+  rows.push(['TOTAL','','','',fat,'',luc,'','']);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Largura das colunas
+  ws['!cols'] = [{wch:12},{wch:7},{wch:28},{wch:30},{wch:12},{wch:12},{wch:12},{wch:10},{wch:25}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
+
+  // Aba de itens
+  const itensRows = [['Venda ID','Data','Cliente','Produto','Qtd','Preço Unit.','Preço Total','Custo Unit.','Lucro']];
+  lista.forEach(v => {
+    const itens = S.venda_itens.filter(i => i.venda_id === v.id);
+    const dt = new Date(v.created_at).toLocaleDateString('pt-BR');
+    itens.forEach(i => {
+      itensRows.push([v.id.substring(0,8)+'...', dt, v.cliente_nome||'', i.nome||'', i.qtd, i.preco_unit, i.preco_total, i.custo_unit||0, i.lucro_total||0]);
+    });
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(itensRows);
+  ws2['!cols'] = [{wch:12},{wch:12},{wch:22},{wch:28},{wch:5},{wch:12},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Itens');
+
+  XLSX.writeFile(wb, 'historico-finanza-' + new Date().toLocaleDateString('pt-BR').replace(/\//g,'-') + '.xlsx');
+  toast('Excel exportado!','success');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2718,6 +3040,181 @@ async function excluirLemb(id){
 // ═══════════════════════════════════════════════════════════════
 // MAIS
 // ═══════════════════════════════════════════════════════════════
+let _dashPeriodo = 'mes';
+
+function trocarDash(periodo, el) {
+  _dashPeriodo = periodo;
+  ['mes','semana','ano','todos'].forEach(p => {
+    document.getElementById('dash-chip-'+p)?.classList.remove('active');
+  });
+  el.classList.add('active');
+  renderDashboard();
+}
+
+function _getVendasDash() {
+  const hj = hoje0();
+  let ini = null;
+  if (_dashPeriodo === 'semana') { ini = new Date(hj); ini.setDate(hj.getDate()-6); }
+  else if (_dashPeriodo === 'mes')  ini = new Date(hj.getFullYear(), hj.getMonth(), 1);
+  else if (_dashPeriodo === 'ano')  ini = new Date(hj.getFullYear(), 0, 1);
+  return _dashPeriodo === 'todos' ? S.vendas.slice() : S.vendas.filter(v => parseISO(v.created_at) >= ini);
+}
+
+function renderDashboard() {
+  const vendas = _getVendasDash();
+  const fat  = vendas.reduce((a,v) => a + Number(v.total), 0);
+  const luc  = vendas.reduce((a,v) => a + Number(v.lucro_total), 0);
+  const marg = fat > 0 ? (luc/fat*100).toFixed(1) : '0';
+
+  document.getElementById('dash-fat').textContent    = fmtBRLs(fat);
+  document.getElementById('dash-luc').textContent    = fmtBRLs(luc);
+  document.getElementById('dash-qtd').textContent    = vendas.length;
+  document.getElementById('dash-margem').textContent = marg + '%';
+
+  const cont = document.getElementById('dash-content');
+  if (!vendas.length) {
+    cont.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div><p>Sem dados no período</p><button class="btn btn-sm btn-grad" onclick="irPara('vender')">Registrar venda</button></div>';
+    return;
+  }
+
+  // ── Vendas por dia (últimos 7 dias do período) ──
+  const hj = hoje0();
+  const diasLabels = ['D','S','T','Q','Q','S','S'];
+  const diasData = [];
+  for (let i=6; i>=0; i--) {
+    const d0 = new Date(hj); d0.setDate(hj.getDate()-i);
+    const d1 = new Date(d0); d1.setDate(d0.getDate()+1);
+    const total = vendas.filter(v=>{const dt=parseISO(v.created_at);return dt>=d0&&dt<d1;}).reduce((a,v)=>a+Number(v.total),0);
+    diasData.push({ lbl: diasLabels[d0.getDay()], total });
+  }
+  const maxDia = Math.max(...diasData.map(d=>d.total), 1);
+
+  // ── Top clientes ──
+  const cliMap = {};
+  vendas.forEach(v => {
+    const k = v.cliente_nome || 'Avulso';
+    if (!cliMap[k]) cliMap[k] = { nome:k, fat:0, luc:0, qtd:0 };
+    cliMap[k].fat += Number(v.total);
+    cliMap[k].luc += Number(v.lucro_total);
+    cliMap[k].qtd++;
+  });
+  const topCli = Object.values(cliMap).sort((a,b) => b.fat-a.fat).slice(0,5);
+
+  // ── Top produtos ──
+  const prodMap = {};
+  const itensVendas = S.venda_itens.filter(i => vendas.some(v=>v.id===i.venda_id));
+  itensVendas.forEach(i => {
+    const k = i.nome || '—';
+    if (!prodMap[k]) prodMap[k] = { nome:k, qtd:0, fat:0, luc:0 };
+    prodMap[k].qtd  += Number(i.qtd||1);
+    prodMap[k].fat  += Number(i.preco_total||0);
+    prodMap[k].luc  += Number(i.lucro_total||0);
+  });
+  const topProd = Object.values(prodMap).sort((a,b) => b.fat-a.fat).slice(0,5);
+
+  // ── Top formas de pagamento ──
+  const pagMap = {};
+  let totalPag = 0;
+  vendas.forEach(v => {
+    const formas = (v.forma_pagamento||'').split(' | ');
+    formas.forEach(fp => {
+      const [metodo, valorStr] = fp.split(':');
+      const m = (metodo||'').trim();
+      if (!m) return;
+      let val = 0;
+      if (formas.length === 1) val = Number(v.total);
+      else {
+        const raw = (valorStr||'0').replace(/[R$\s.]/g,'').replace(',','.');
+        val = parseFloat(raw)||0;
+      }
+      if (!pagMap[m]) pagMap[m] = 0;
+      pagMap[m] += val; totalPag += val;
+    });
+  });
+  const topPag = Object.entries(pagMap).sort((a,b) => b[1]-a[1]);
+
+  // ── Render ──
+  const barChart = diasData.map(d => `
+    <div class="chart-bar-col">
+      <div class="chart-bar ${d.total===0?'zero':''}" style="height:${d.total===0?3:Math.max(6,(d.total/maxDia)*58)}px"></div>
+      <div class="chart-bar-lbl">${d.lbl}</div>
+    </div>`).join('');
+
+  const topCliHtml = topCli.map((c,i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--grad)':i<3?'var(--surface2)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${i===0?'#fff':'var(--text2)'};flex-shrink:0">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.nome)}</div>
+        <div style="font-size:11px;color:var(--text2)">${c.qtd} compra${c.qtd>1?'s':''} · Lucro ${fmtBRLs(c.luc)}</div>
+      </div>
+      <div style="font-size:14px;font-weight:700;color:var(--green)">${fmtBRLs(c.fat)}</div>
+    </div>`).join('');
+
+  const topProdHtml = topProd.map((p,i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--grad)':i<3?'var(--surface2)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${i===0?'#fff':'var(--text2)'};flex-shrink:0">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nome)}</div>
+        <div style="font-size:11px;color:var(--text2)">${p.qtd} unid · Lucro ${fmtBRLs(p.luc)}</div>
+      </div>
+      <div style="font-size:14px;font-weight:700;color:var(--blue)">${fmtBRLs(p.fat)}</div>
+    </div>`).join('');
+
+  const topPagHtml = topPag.map(([m, val]) => {
+    const pct = totalPag > 0 ? Math.round(val/totalPag*100) : 0;
+    const ics = {Dinheiro:'💵',PIX:'⚡',Débito:'🏧',Crédito:'💳',Fiado:'📒',Boleto:'📄'};
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="font-weight:600">${ics[m]||'💰'} ${m}</span>
+        <span><strong style="color:var(--purple)">${fmtBRL(val)}</strong> <span style="color:var(--text3);font-size:11px">${pct}%</span></span>
+      </div>
+      <div style="height:7px;background:var(--bg);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:var(--grad);border-radius:4px"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Lucro por depto
+  const deptoMap = {};
+  itensVendas.forEach(i => {
+    const k = i.depto || 'Sem departamento';
+    if (!deptoMap[k]) deptoMap[k] = { luc:0, fat:0 };
+    deptoMap[k].fat += Number(i.preco_total||0);
+    deptoMap[k].luc += Number(i.lucro_total||0);
+  });
+  const maxDeptoFat = Math.max(...Object.values(deptoMap).map(d=>d.fat), 1);
+  const topDeptoHtml = Object.entries(deptoMap).sort((a,b)=>b[1].fat-a[1].fat).slice(0,5).map(([dep,d]) => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="font-weight:600">${esc(dep)}</span>
+        <span><strong style="color:var(--green)">${fmtBRL(d.fat)}</strong> <span style="font-size:11px;color:var(--text3)">Lucro ${fmtBRL(d.luc)}</span></span>
+      </div>
+      <div style="height:7px;background:var(--bg);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.round(d.fat/maxDeptoFat*100)}%;background:var(--grad-v);border-radius:4px"></div>
+      </div>
+    </div>`).join('');
+
+  cont.innerHTML = `
+    <div class="card mb-8">
+      <div class="card-title">📈 Vendas — últimos 7 dias</div>
+      <div class="chart-bar-wrap">${barChart}</div>
+    </div>
+    <div class="card mb-8">
+      <div class="card-title">🏆 Top clientes</div>
+      ${topCliHtml || '<p class="text-muted" style="font-size:12px">Sem dados</p>'}
+    </div>
+    <div class="card mb-8">
+      <div class="card-title">📦 Top produtos</div>
+      ${topProdHtml || '<p class="text-muted" style="font-size:12px">Sem dados</p>'}
+    </div>
+    <div class="card mb-8">
+      <div class="card-title">💳 Formas de pagamento</div>
+      ${topPagHtml || '<p class="text-muted" style="font-size:12px">Sem dados</p>'}
+    </div>
+    ${topDeptoHtml ? `<div class="card mb-8"><div class="card-title">🏷️ Por departamento</div>${topDeptoHtml}</div>` : ''}
+  `;
+}
+
 function renderMais(){
   document.getElementById('mais-email').textContent=S.user.email||'—';
   const planoAtual = (S.user.plano || 'free').toLowerCase();
