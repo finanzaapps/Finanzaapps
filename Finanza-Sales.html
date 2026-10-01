@@ -3073,7 +3073,7 @@ function renderDashboard() {
 
   const cont = document.getElementById('dash-content');
   if (!vendas.length) {
-    cont.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div><p>Sem dados no período</p><button class="btn btn-sm btn-grad" onclick="irPara('vender')">Registrar venda</button></div>';
+    cont.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div><p>Sem dados no período</p><button class="btn btn-sm btn-grad" onclick="irPara(&quot;vender&quot;)">Registrar venda</button></div>';
     return;
   }
 
