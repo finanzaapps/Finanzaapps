@@ -2057,35 +2057,161 @@ async function finalizarVenda(){
   const primeiraParc = document.getElementById('parc-primeira')?.value ||
     (diasParc===30 ? _somarMeses(_isoLocal(new Date()),1) : _somarDias(_isoLocal(new Date()), diasParc));
 
+  const FORMAS_AVISTA = ['dinheiro', 'pix', 'debito'];
   for (const id of Object.keys(S.paySelected)) {
-    const f = FORMAS.find(x=>x.id===id); if (!f?.parc) continue;
+    const f = FORMAS.find(x=>x.id===id); if (!f) continue;
     const sel = S.paySelected[id];
-    const qtd = qtdParc;
-    const vTotal = sel.valor || total;
-    const base = Math.round(vTotal / qtd * 100) / 100;
-    for (let pi = 1; pi <= qtd; pi++) {
-      const vParcela = pi === qtd ? vTotal - base*(qtd-1) : base;
-      const dtVenc   = _vencParcela(primeiraParc, diasParc, pi);
+    if (FORMAS_AVISTA.includes(id)) {
       const par = {
         user_id: S.user.id, venda_id: venda.id,
         cliente_nome: cli ? cli.nome : '', cliente_tel: cli ? cli.telefone||'' : '',
-        valor_total: total, num_parcela: pi, total_parcelas: qtd,
-        valor_parcela: vParcela, data_vencimento: dtVenc, status: 'Pendente'
+        valor_total: total, num_parcela: 1, total_parcelas: 1,
+        valor_parcela: sel.valor || 0,
+        data_vencimento: today(), data_pagamento: today(), status: 'Pago'
       };
       const res = await dbInsert('finanza_autonomo_areceber', par);
       if (res) S.areceber.push(res);
+    } else if (f.parc) {
+      const qtd = qtdParc;
+      const vTotal = sel.valor || total;
+      const base = Math.round(vTotal / qtd * 100) / 100;
+      for (let pi = 1; pi <= qtd; pi++) {
+        const vParcela = pi === qtd ? vTotal - base*(qtd-1) : base;
+        const dtVenc   = _vencParcela(primeiraParc, diasParc, pi);
+        const par = {
+          user_id: S.user.id, venda_id: venda.id,
+          cliente_nome: cli ? cli.nome : '', cliente_tel: cli ? cli.telefone||'' : '',
+          valor_total: total, num_parcela: pi, total_parcelas: qtd,
+          valor_parcela: vParcela, data_vencimento: dtVenc, status: 'Pendente'
+        };
+        const res = await dbInsert('finanza_autonomo_areceber', par);
+        if (res) S.areceber.push(res);
+      }
     }
   }
   setSyncStatus('ok');
-  toast(`Venda registrada! ${fmtBRL(total)}`,'success');
+  const dadosRecibo = {
+    vendaId: venda.id,
+    cliente: cli ? cli.nome : '',
+    telefone: cli ? (cli.telefone||'') : '',
+    data: new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    itens: S.cart.map(function(it){return{nome:it.nome,qtd:it.qtd,preco:it.preco,total:it.preco*it.qtd};}),
+    total:total, desconto:desconto, subtotal:subtotal, formaStr:formaStr,
+    obs:(document.getElementById('vd-obs').value||'').trim()
+  };
   S.cart=[]; S.paySelected={};
   document.getElementById('vd-obs').value='';
   document.getElementById('vd-cliente').value='';
   const dPct=document.getElementById('vd-desc-pct'); if(dPct) dPct.value='';
   const dVal=document.getElementById('vd-desc-val'); if(dVal) dVal.value='';
-  showPage('home');
+  exibirReciboVenda(dadosRecibo);
 }
 
+
+
+// =================================================================
+// RECIBO DE VENDA
+// =================================================================
+function gerarTextoRecibo(d) {
+  var linha = "─────────────────────────";
+  var nl = "\n";
+  var txt = "";
+  txt += "\uD83E\uDDFE *RECIBO DE VENDA*" + nl;
+  txt += linha + nl;
+  txt += "*" + (S.user.nome || "Finanza") + "*" + nl;
+  txt += linha + nl;
+  txt += "Data: " + d.data + nl;
+  if (d.cliente) txt += "Cliente: " + d.cliente + nl;
+  txt += linha + nl;
+  txt += "*ITENS*" + nl;
+  d.itens.forEach(function(it) {
+    var pre = it.qtd > 1 ? (it.qtd + "x ") : "";
+    var suf = it.qtd > 1 ? ("  (" + fmtBRL(it.preco) + " un)  *" + fmtBRL(it.total) + "*") : ("  *" + fmtBRL(it.total) + "*");
+    txt += "- " + pre + it.nome + suf + nl;
+  });
+  txt += linha + nl;
+  if (d.desconto > 0) {
+    txt += "Subtotal: " + fmtBRL(d.subtotal) + nl;
+    txt += "Desconto: -" + fmtBRL(d.desconto) + nl;
+  }
+  txt += "*TOTAL: " + fmtBRL(d.total) + "*" + nl;
+  txt += linha + nl;
+  txt += "Pagamento: " + d.formaStr + nl;
+  if (d.obs) txt += "Obs: " + d.obs + nl;
+  txt += linha + nl;
+  txt += "_Obrigado pela preferencia!_" + nl;
+  txt += "_Finanza - Organize. Planeje. Cresca._";
+  return txt;
+}
+
+function exibirReciboVenda(d) {
+  var temTel = d.telefone && d.telefone.trim();
+  var itensHtml = d.itens.map(function(it) {
+    return '<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)">'
+      + '<div><div style="font-size:13px;font-weight:600">' + esc(it.nome) + '</div>'
+      + (it.qtd > 1 ? '<div style="font-size:11px;color:var(--text2)">' + it.qtd + 'x ' + fmtBRL(it.preco) + '/un</div>' : '')
+      + '</div><div style="font-size:14px;font-weight:700">' + fmtBRL(it.total) + '</div></div>';
+  }).join('');
+
+  var descontoHtml = d.desconto > 0
+    ? '<div class="flex-between" style="font-size:12px;color:var(--text2);margin-bottom:4px"><span>Subtotal</span><span>' + fmtBRL(d.subtotal) + '</span></div>'
+    + '<div class="flex-between" style="font-size:12px;color:var(--warning);margin-bottom:8px"><span>Desconto</span><span>- ' + fmtBRL(d.desconto) + '</span></div>'
+    : '';
+
+  var cliHtml = d.cliente ? '<div style="font-size:13px;font-weight:600;margin-top:4px">Cliente: ' + esc(d.cliente) + '</div>' : '';
+  var obsHtml = d.obs ? '<div style="font-size:11px;color:var(--text3);margin-top:4px">Obs: ' + esc(d.obs) + '</div>' : '';
+  var recibo = gerarTextoRecibo(d);
+  var telEnc = encodeURIComponent(d.telefone || '');
+  var msgEnc = encodeURIComponent(recibo);
+
+  var waBtnHtml = temTel
+    ? '<button class="btn btn-grad mb-8" onclick="enviarReciboWhats(\x27' + telEnc + '\x27,\x27' + msgEnc + '\x27)">Enviar recibo por WhatsApp</button>'
+    : '<div style="background:rgba(255,181,71,0.1);border:1px solid rgba(255,181,71,0.3);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px;font-size:12px;color:var(--warning);text-align:center">Cliente sem WhatsApp cadastrado</div>';
+
+  abrirModal(
+    '<button class="modal-close" onclick="fecharModal();irInicio()">x</button>'
+    + '<div class="modal-title">Venda registrada!</div>'
+    + '<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px">'
+    + '<div style="text-align:center;margin-bottom:10px">'
+    + '<div style="font-size:16px;font-weight:800;color:var(--green)">Recibo de Venda</div>'
+    + '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + d.data + '</div>'
+    + cliHtml
+    + '</div><div class="divider"></div>'
+    + itensHtml + '<div class="divider"></div>'
+    + descontoHtml
+    + '<div class="flex-between" style="font-size:16px;font-weight:800;margin-bottom:8px"><span>Total</span><span style="color:var(--green)">' + fmtBRL(d.total) + '</span></div>'
+    + '<div style="font-size:12px;color:var(--text2)">Pagamento: ' + esc(d.formaStr) + '</div>'
+    + obsHtml + '</div>'
+    + waBtnHtml
+    + '<button class="btn btn-ghost" onclick="fecharModal();irInicio()">Fechar</button>'
+  );
+}
+
+function enviarReciboWhats(telEnc, msgEnc) {
+  var tel = decodeURIComponent(telEnc).replace(/\D/g,'');
+  var num = tel.startsWith('55') ? tel : '55' + tel;
+  var msg = decodeURIComponent(msgEnc);
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+async function enviarReciboHistorico(vendaId) {
+  var v = S.vendas.find(function(x){return x.id===vendaId;}); if(!v) return;
+  var itens = S.venda_itens.filter(function(i){return i.venda_id===vendaId;});
+  if (!itens.length) {
+    var r = await sbReq('GET', '/rest/v1/finanza_autonomo_venda_itens?venda_id=eq.'+vendaId+'&select=*', null, tok());
+    itens = (r.ok && Array.isArray(r.data)) ? r.data : [];
+  }
+  var cli = S.clientes.find(function(c){return c.id===v.cliente_id;});
+  var d = {
+    vendaId: vendaId, cliente: v.cliente_nome||'', telefone: cli?cli.telefone||'':'',
+    data: fmtDataHora(v.created_at),
+    itens: itens.map(function(i){return{nome:i.nome,qtd:i.qtd||1,preco:i.preco_unit||0,total:i.preco_total||0};}),
+    total: Number(v.total), desconto: Number(v.desconto||0),
+    subtotal: Number(v.total)+Number(v.desconto||0),
+    formaStr: v.forma_pagamento||'', obs: v.observacao||''
+  };
+  exibirReciboVenda(d);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // CLIENTES
@@ -2688,7 +2814,10 @@ async function detalhesVenda(id) {
       <div class="flex-between"><span class="text-muted">Lucro</span><span class="fw-700 text-green">${fmtBRL(v.lucro_total)}</span></div>
     </div>
 
-    <button class="btn btn-danger" onclick="cancelarVenda('${v.id}')">Cancelar venda</button>
+    <div class="btn-row">
+      <button class="btn btn-grad" style="flex:1" onclick="fecharModal();enviarReciboHistorico('${v.id}')">Enviar recibo</button>
+      <button class="btn btn-danger" style="flex:1" onclick="cancelarVenda('${v.id}')">Cancelar</button>
+    </div>
   `);
 }
 async function cancelarVenda(id){
