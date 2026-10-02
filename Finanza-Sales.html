@@ -478,7 +478,7 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
   <div class="page-sub">Adicione itens e finalize</div>
   <div class="card">
     <div class="card-title">Cliente</div>
-    <select id="vd-cliente"><option value="">— Cliente avulso —</option></select>
+    <select id="vd-cliente" onchange="atualizarBotaoVender()"><option value="">— Selecione o cliente * —</option></select>
     <div class="btn-row mt-8">
       <button class="btn btn-sm btn-ghost" style="flex:1" onclick="abrirModalCliente()">+ Novo</button>
       <button class="btn btn-sm btn-ghost" style="flex:1" onclick="abrirBuscaCliente()">🔍 Buscar</button>
@@ -1632,7 +1632,7 @@ function prepararVenda() {
 function popularSelectCli() {
   const sel = document.getElementById('vd-cliente');
   const cur = sel.value;
-  sel.innerHTML = '<option value="">— Cliente avulso —</option>'
+  sel.innerHTML = '<option value="">— Selecione o cliente * —</option>'
     + S.clientes.map(c=>`<option value="${c.id}" ${cur===c.id?'selected':''}>${esc(c.nome)} — ${esc(c.telefone||'')}</option>`).join('');
 }
 function abrirBuscaCliente() {
@@ -1973,12 +1973,13 @@ function atualizarBotaoVender(){
   const btn=document.getElementById('btn-vender');
   const sub=S.cart.reduce((a,it)=>a+it.preco*it.qtd,0);
   const total=sub - getDesconto();
-  const ok=S.cart.length>0&&Object.keys(S.paySelected).length>0;
+  const ok=S.cart.length>0&&Object.keys(S.paySelected).length>0&&!!document.getElementById('vd-cliente').value;
   btn.disabled=!ok;
-  btn.textContent=ok?`Finalizar venda · ${fmtBRL(total)}`:'Finalizar venda';
+  btn.textContent=ok?`Finalizar venda · ${fmtBRL(total)}`:(S.cart.length&&!document.getElementById('vd-cliente').value?'Selecione o cliente':'Finalizar venda');
 }
 
 async function finalizarVenda(){
+  if(!document.getElementById('vd-cliente').value) return toast('Selecione o cliente para finalizar a venda','danger');
   if(!S.cart.length) return toast('Adicione itens','danger');
   if(!Object.keys(S.paySelected).length) return toast('Selecione forma de pagamento','danger');
 
@@ -2288,6 +2289,27 @@ function renderClientes(){
 }
 function trocarTabCliente(tab,el){S._tabCli=tab;document.querySelectorAll('#page-clientes .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderClientes();}
 
+function maskTel(v){
+  let d=String(v||'').replace(/\D/g,'');
+  if(d.startsWith('55')&&d.length>11)d=d.slice(2);
+  d=d.slice(0,11);
+  if(d.length<=2)return d?'('+d:'';
+  if(d.length<=6)return '('+d.slice(0,2)+') '+d.slice(2);
+  if(d.length<=10)return '('+d.slice(0,2)+') '+d.slice(2,6)+'-'+d.slice(6);
+  return '('+d.slice(0,2)+') '+d.slice(2,3)+' '+d.slice(3,7)+'-'+d.slice(7);
+}
+function maskData(v){
+  const d=String(v||'').replace(/\D/g,'').slice(0,8);
+  if(d.length<=2)return d;
+  if(d.length<=4)return d.slice(0,2)+'/'+d.slice(2);
+  return d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4);
+}
+function dataValida(t){
+  const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t);if(!m)return false;
+  const d=+m[1],mo=+m[2],a=+m[3];
+  if(a<1900||a>new Date().getFullYear()||mo<1||mo>12||d<1)return false;
+  return d<=new Date(a,mo,0).getDate();
+}
 function abrirModalCliente(id){
   const c=id?S.clientes.find(x=>x.id===id):null;
   const compras=id?calcComprasCliente(id):{total:0,qtd:0};
@@ -2296,9 +2318,9 @@ function abrirModalCliente(id){
     <div class="modal-title">${c?'Editar cliente':'Novo cliente'}</div>
     ${c?`<div class="flex-between mb-12" style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px"><span class="text-muted">${compras.qtd} compras</span><span class="fw-700 text-green">${fmtBRL(compras.total)}</span></div>`:''}
     <div class="field"><label>Nome *</label><input id="c-nome" value="${esc(c?.nome||'')}" placeholder="Nome completo"></div>
-    <div class="field"><label>WhatsApp</label><input id="c-tel" type="tel" value="${esc(c?.telefone||'')}" placeholder="(11) 9 9999-9999"></div>
+    <div class="field"><label>WhatsApp</label><input id="c-tel" type="tel" inputmode="numeric" maxlength="16" value="${esc(maskTel(c?.telefone||''))}" placeholder="(11) 9 9999-9999" oninput="this.value=maskTel(this.value)"></div>
     <div class="field"><label>E-mail</label><input id="c-email" type="email" value="${esc(c?.email||'')}" placeholder="opcional"></div>
-    <div class="field"><label>Aniversário (DD/MM/AAAA)</label><input id="c-nasc" value="${esc(c?.nascimento||'')}" placeholder="Ex: 15/06/1990"></div>
+    <div class="field"><label>Aniversário (DD/MM/AAAA)</label><input id="c-nasc" inputmode="numeric" maxlength="10" value="${esc(maskData(c?.nascimento||''))}" placeholder="DD/MM/AAAA" oninput="this.value=maskData(this.value)"></div>
     <div class="field"><label>Endereço</label><input id="c-end" value="${esc(c?.endereco||'')}" placeholder="opcional"></div>
     <div class="field"><label>Observações</label><textarea id="c-obs" rows="2">${esc(c?.observacoes||'')}</textarea></div>
     <div class="btn-row mt-12">
@@ -2313,19 +2335,24 @@ function calcComprasCliente(id){
   return{qtd:vs.length,total:vs.reduce((a,v)=>a+Number(v.total),0)};
 }
 async function salvarCliente(id){
+  var novoId=null;
   const nome=(document.getElementById('c-nome').value||'').trim();
   if(!nome)return toast('Informe o nome','danger');
+  const _nasc=(document.getElementById('c-nasc').value||'').trim();
+  if(_nasc&&!dataValida(_nasc))return toast('Data de nascimento inválida (DD/MM/AAAA)','danger');
+  const _tel=(document.getElementById('c-tel').value||'').replace(/\D/g,'');
+  if(_tel&&_tel.length<10)return toast('Telefone incompleto (DDD + número)','danger');
   if(!id){
     const dup=S.clientes.find(c=>(c.nome||'').toLowerCase()===nome.toLowerCase()||(document.getElementById('c-tel').value&&c.telefone&&c.telefone.replace(/\D/g,'')===(document.getElementById('c-tel').value).replace(/\D/g,'')));
     if(dup&&!confirm(`Já existe cliente similar: "${dup.nome}"\n\nCadastrar mesmo assim?`))return;
   }
   const row={user_id:S.user.id,nome,telefone:(document.getElementById('c-tel').value||'').trim(),email:(document.getElementById('c-email').value||'').trim(),nascimento:(document.getElementById('c-nasc').value||'').trim(),endereco:(document.getElementById('c-end').value||'').trim(),observacoes:(document.getElementById('c-obs').value||'').trim()};
   if(id){await dbUpdate('finanza_autonomo_clientes',id,row);const idx=S.clientes.findIndex(x=>x.id===id);if(idx>=0)S.clientes[idx]={...S.clientes[idx],...row};}
-  else{const novo=await dbInsert('finanza_autonomo_clientes',row);if(novo){S.clientes.push(novo);S.clientes.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR'));}}
+  else{const novo=await dbInsert('finanza_autonomo_clientes',row);if(novo){novoId=novo.id;S.clientes.push(novo);S.clientes.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR'));}}
   toast(id?'Cliente atualizado':'Cliente cadastrado','success');
   fecharModal();
   renderClientes();
-  if(document.getElementById('page-vender').classList.contains('active'))popularSelectCli();
+  if(document.getElementById('page-vender').classList.contains('active')){popularSelectCli();if(novoId){document.getElementById('vd-cliente').value=novoId;}atualizarBotaoVender();}
 }
 async function excluirCliente(id){
   if(!confirm('Excluir este cliente? O histórico de vendas será mantido.'))return;
