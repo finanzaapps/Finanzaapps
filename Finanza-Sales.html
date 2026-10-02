@@ -499,7 +499,7 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
     <div id="pay-splits"></div>
     <div id="pay-check" style="font-size:12px;text-align:right;margin-top:4px"></div>
 
-    <!-- Parcelamento — aparece só para Crédito/Fiado/Boleto -->
+    <!-- Parcelamento — aparece só para Crédito/Carteira/Boleto -->
     <div id="parcelas-wrap" style="display:none;background:rgba(45,127,249,0.08);border:1px solid rgba(45,127,249,0.2);border-radius:var(--radius-sm);padding:12px;margin-top:10px">
       <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:10px">📆 Configurar parcelamento</div>
       <div class="field-row">
@@ -788,7 +788,7 @@ const FORMAS = [
   { id:'pix',      nome:'PIX',      parc:false },
   { id:'debito',   nome:'Débito',   parc:false },
   { id:'credito',  nome:'Crédito',  parc:true, qtd:1, dias:30 },
-  { id:'fiado',    nome:'Fiado',    parc:true, qtd:1, dias:30 },
+  { id:'carteira', nome:'Carteira', parc:true, qtd:1, dias:30 },
   { id:'boleto',   nome:'Boleto',   parc:true, qtd:1, dias:30 },
 ];
 
@@ -1869,7 +1869,7 @@ const FORMAS_UI = {
   pix:      { ic:'⚡', nome:'PIX' },
   debito:   { ic:'🏧', nome:'Débito' },
   credito:  { ic:'💳', nome:'Crédito' },
-  fiado:    { ic:'📒', nome:'Fiado' },
+  carteira: { ic:'📒', nome:'Carteira' },
   boleto:   { ic:'📄', nome:'Boleto' },
 };
 
@@ -2058,6 +2058,7 @@ async function finalizarVenda(){
     (diasParc===30 ? _somarMeses(_isoLocal(new Date()),1) : _somarDias(_isoLocal(new Date()), diasParc));
 
   const FORMAS_AVISTA = ['dinheiro', 'pix', 'debito'];
+  const pagamentosRecibo = [];
   for (const id of Object.keys(S.paySelected)) {
     const f = FORMAS.find(x=>x.id===id); if (!f) continue;
     const sel = S.paySelected[id];
@@ -2070,8 +2071,10 @@ async function finalizarVenda(){
         data_vencimento: today(), data_pagamento: today(), status: 'Pago'
       };
       const res = await dbInsert('finanza_autonomo_areceber', par);
-      if (res) S.areceber.push(res);
+      if (res) S.areceber.push(res); else toast('Erro ao registrar '+f.nome+' em A receber','danger');
+      pagamentosRecibo.push({tipo:'entrada', nome:f.nome, valor:sel.valor||0});
     } else if (f.parc) {
+      var _parcs = [];
       const qtd = qtdParc;
       const vTotal = sel.valor || total;
       const base = Math.round(vTotal / qtd * 100) / 100;
@@ -2086,7 +2089,9 @@ async function finalizarVenda(){
         };
         const res = await dbInsert('finanza_autonomo_areceber', par);
         if (res) S.areceber.push(res);
+        _parcs.push({n:pi, valor:vParcela, venc:dtVenc, pago:false});
       }
+      pagamentosRecibo.push({tipo:'parcelado', nome:f.nome, valor:vTotal, qtd:qtd, parcelas:_parcs});
     }
   }
   setSyncStatus('ok');
@@ -2096,7 +2101,7 @@ async function finalizarVenda(){
     telefone: cli ? (cli.telefone||'') : '',
     data: new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
     itens: S.cart.map(function(it){return{nome:it.nome,qtd:it.qtd,preco:it.preco,total:it.preco*it.qtd};}),
-    total:total, desconto:desconto, subtotal:subtotal, formaStr:formaStr,
+    total:total, desconto:desconto, subtotal:subtotal, formaStr:formaStr, pagamentos:pagamentosRecibo,
     obs:(document.getElementById('vd-obs').value||'').trim()
   };
   S.cart=[]; S.paySelected={};
@@ -2112,13 +2117,32 @@ async function finalizarVenda(){
 // =================================================================
 // RECIBO DE VENDA
 // =================================================================
+function linhasPagamento(d) {
+  var out = [];
+  var pags = d.pagamentos || [];
+  if (!pags.length) { out.push(d.formaStr || '-'); return out; }
+  var entradas = pags.filter(function(p){return p.tipo==='entrada';});
+  var parcs = pags.filter(function(p){return p.tipo==='parcelado';});
+  entradas.forEach(function(p) {
+    out.push((parcs.length ? 'Entrada' : 'Pago') + ' (' + p.nome + '): ' + fmtBRL(p.valor) + ' - pago');
+  });
+  parcs.forEach(function(p) {
+    var ps = p.parcelas || [];
+    if (ps.length > 1) out.push(p.nome + ': ' + fmtBRL(p.valor) + ' em ' + ps.length + 'x');
+    else out.push(p.nome + ': ' + fmtBRL(p.valor) + ' a vencer em ' + (ps[0] ? fmtData(ps[0].venc) : '-'));
+    if (ps.length > 1) ps.forEach(function(x) {
+      out.push('   ' + x.n + '/' + ps.length + ' - ' + fmtData(x.venc) + ' - ' + fmtBRL(x.valor) + (x.pago ? ' (pago)' : ''));
+    });
+  });
+  return out;
+}
+
 function gerarTextoRecibo(d) {
-  var linha = "─────────────────────────";
+  var linha = "-------------------------";
   var nl = "\n";
   var txt = "";
-  txt += "\uD83E\uDDFE *RECIBO DE VENDA*" + nl;
-  txt += linha + nl;
-  txt += "*" + (S.user.nome || "Finanza") + "*" + nl;
+  txt += "Ol\u00E1" + (d.cliente ? ", " + d.cliente : "") + "! Segue o recibo da sua compra:" + nl + nl;
+  txt += "*RECIBO DE VENDA*" + nl;
   txt += linha + nl;
   txt += "Data: " + d.data + nl;
   if (d.cliente) txt += "Cliente: " + d.cliente + nl;
@@ -2136,11 +2160,12 @@ function gerarTextoRecibo(d) {
   }
   txt += "*TOTAL: " + fmtBRL(d.total) + "*" + nl;
   txt += linha + nl;
-  txt += "Pagamento: " + d.formaStr + nl;
-  if (d.obs) txt += "Obs: " + d.obs + nl;
+  txt += "*FORMA DE PAGAMENTO*" + nl;
+  linhasPagamento(d).forEach(function(l){ txt += l + nl; });
+  if (d.obs) txt += linha + nl + "Obs: " + d.obs + nl;
   txt += linha + nl;
-  txt += "_Obrigado pela preferencia!_" + nl;
-  txt += "_Finanza - Organize. Planeje. Cresca._";
+  txt += "Obrigado pela prefer\u00EAncia, \u00E9 sempre um prazer atender voc\u00EA" + nl;
+  txt += "*" + (S.user.nome || "") + "*";
   return txt;
 }
 
@@ -2180,7 +2205,7 @@ function exibirReciboVenda(d) {
     + itensHtml + '<div class="divider"></div>'
     + descontoHtml
     + '<div class="flex-between" style="font-size:16px;font-weight:800;margin-bottom:8px"><span>Total</span><span style="color:var(--green)">' + fmtBRL(d.total) + '</span></div>'
-    + '<div style="font-size:12px;color:var(--text2)">Pagamento: ' + esc(d.formaStr) + '</div>'
+    + '<div style="font-size:12px;color:var(--text2);line-height:1.6"><b>Pagamento</b><br>' + linhasPagamento(d).map(esc).join('<br>').replace(/ /g,'&nbsp;') + '</div>'
     + obsHtml + '</div>'
     + waBtnHtml
     + '<button class="btn btn-ghost" onclick="fecharModal();irInicio()">Fechar</button>'
@@ -2192,6 +2217,29 @@ function enviarReciboWhats(telEnc, msgEnc) {
   var num = tel.startsWith('55') ? tel : '55' + tel;
   var msg = decodeURIComponent(msgEnc);
   window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function pagamentosDaVenda(v) {
+  var rows = S.areceber.filter(function(r){return r.venda_id===v.id;});
+  if (!rows.length) return [];
+  var partes = (v.forma_pagamento||'').split(' | ').map(function(x){
+    var i = x.indexOf(':'); var n = (i>=0 ? x.slice(0,i) : x).trim();
+    return n === 'Fiado' ? 'Carteira' : n;
+  });
+  var avista = ['Dinheiro','PIX','Débito'];
+  var nomesAv = partes.filter(function(n){return avista.indexOf(n)>=0;});
+  var nomesPar = partes.filter(function(n){return avista.indexOf(n)<0;});
+  var res = [];
+  var isEnt = function(r){ return Number(r.total_parcelas)===1 && r.status==='Pago' && r.data_pagamento===r.data_vencimento; };
+  var ents = rows.filter(isEnt);
+  var pars = rows.filter(function(r){return !isEnt(r);}).sort(function(a,b){return a.data_vencimento.localeCompare(b.data_vencimento);});
+  ents.forEach(function(r,i){ res.push({tipo:'entrada', nome:nomesAv[i]||'Entrada', valor:Number(r.valor_parcela)}); });
+  if (pars.length) {
+    var tot = pars.reduce(function(a,r){return a+Number(r.valor_parcela);},0);
+    res.push({tipo:'parcelado', nome:nomesPar.length===1?nomesPar[0]:'Parcelado', valor:tot, qtd:pars.length,
+      parcelas: pars.map(function(r,i){return {n:i+1, valor:Number(r.valor_parcela), venc:r.data_vencimento, pago:r.status==='Pago'||r.status==='Baixado'};})});
+  }
+  return res;
 }
 
 async function enviarReciboHistorico(vendaId) {
@@ -2210,6 +2258,7 @@ async function enviarReciboHistorico(vendaId) {
     subtotal: Number(v.total)+Number(v.desconto||0),
     formaStr: v.forma_pagamento||'', obs: v.observacao||''
   };
+  d.pagamentos = pagamentosDaVenda(v);
   exibirReciboVenda(d);
 }
 
@@ -2462,7 +2511,7 @@ function renderFinanceiro() {
       <div class="flex-between" style="gap:10px">
         <div style="flex:1;min-width:0">
           <div style="font-size:15px;font-weight:700">${esc(p.cliente_nome || '—')}</div>
-          <div class="list-sub">Parcela ${p.num_parcela}/${p.total_parcelas} · Vence ${fmtData(p.data_vencimento)}</div>
+          <div class="list-sub">${(pago && Number(p.total_parcelas)===1 && p.data_pagamento===p.data_vencimento) ? 'Entrada / à vista · ' + fmtData(p.data_pagamento) : 'Parcela ' + p.num_parcela + '/' + p.total_parcelas + ' · Vence ' + fmtData(p.data_vencimento)}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:17px;font-weight:800;color:${atras?'var(--danger)':pago?'var(--green)':'var(--text)'}">${fmtBRL(p.valor_parcela)}</div>
@@ -3439,7 +3488,8 @@ async function renderDashboard() {
     const formas = (v.forma_pagamento||'').split(' | ');
     formas.forEach(fp => {
       const [metodo, valorStr] = fp.split(':');
-      const m = (metodo||'').trim();
+      let m = (metodo||'').trim();
+      if (m === 'Fiado') m = 'Carteira';
       if (!m) return;
       let val = 0;
       if (formas.length === 1) val = Number(v.total);
@@ -3492,7 +3542,7 @@ async function renderDashboard() {
 
   const topPagHtml = topPag.map(([m, val]) => {
     const pct = totalPag > 0 ? Math.round(val/totalPag*100) : 0;
-    const ics = {Dinheiro:'💵',PIX:'⚡',Débito:'🏧',Crédito:'💳',Fiado:'📒',Boleto:'📄'};
+    const ics = {Dinheiro:'💵',PIX:'⚡',Débito:'🏧',Crédito:'💳',Carteira:'📒',Boleto:'📄'};
     return `<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
         <span style="font-weight:600">${ics[m]||'💰'} ${m}</span>
