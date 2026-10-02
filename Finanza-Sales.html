@@ -682,8 +682,8 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 
   <!-- Exportar -->
   <div class="btn-row mb-12">
-    <button class="btn btn-ghost btn-sm" style="flex:1" onclick="exportarHistPDF()">📄 PDF</button>
-    <button class="btn btn-ghost btn-sm" style="flex:1" onclick="exportarHistExcel()">📊 Excel</button>
+    <button class="btn btn-ghost btn-sm" style="flex:1" id="btn-pdf" onclick="btnExportar('pdf',this)">📄 PDF</button>
+    <button class="btn btn-ghost btn-sm" style="flex:1" id="btn-excel" onclick="btnExportar('excel',this)">📊 Excel</button>
   </div>
 
   <div id="hist-lista"></div>
@@ -2702,7 +2702,29 @@ async function cancelarVenda(id){
   await sbReq('DELETE',`/rest/v1/finanza_autonomo_areceber?venda_id=eq.${id}`,null,tok());
   toast('Venda cancelada');fecharModal();renderHistorico();
 }
-function exportarHistPDF() {
+async function btnExportar(tipo, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando...';
+  try {
+    if (tipo === 'pdf') await exportarHistPDF();
+    else await exportarHistExcel();
+  } catch(e) {
+    toast('Erro ao exportar: ' + e.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+async function exportarHistPDF() {
+  // Garante itens carregados antes de gerar PDF
+  if (S.venda_itens.length === 0 && S.vendas.length > 0) {
+    toast('⏳ Carregando itens...', 'warning');
+    const uid = S.user.id;
+    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`) || [];
+  }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210, mg = 14;
@@ -2822,8 +2844,13 @@ function exportarHistPDF() {
   doc.save('historico-finanza-' + new Date().toLocaleDateString('pt-BR').replace(/\//g,'-') + '.pdf');
 }
 
-function exportarHistExcel() {
+async function exportarHistExcel() {
   if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregada','danger'); return; }
+  if (S.venda_itens.length === 0 && S.vendas.length > 0) {
+    toast('⏳ Carregando itens...', 'warning');
+    const uid = S.user.id;
+    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`) || [];
+  }
   const lista = _getListaHistorico().slice().sort((a,b) => parseISO(a.created_at)-parseISO(b.created_at));
   if (!lista.length) { toast('Nenhuma venda para exportar','warning'); return; }
 
@@ -3217,12 +3244,14 @@ function _getVendasDash() {
 }
 
 async function renderDashboard() {
-  // Garante que venda_itens esteja carregado
-  if (S.venda_itens.length === 0 && S.vendas.length > 0) {
-    const uid = S.user.id;
-    const vitens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`);
-    S.venda_itens = vitens || [];
-  }
+  const cont = document.getElementById('dash-content');
+  cont.innerHTML = '<div class="empty"><p style="color:var(--text2)">⏳ Carregando dados...</p></div>';
+
+  // Sempre recarrega itens para garantir dados completos
+  const uid = S.user.id;
+  const vitens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`);
+  if (vitens && vitens.length > 0) S.venda_itens = vitens;
+
   const vendas = _getVendasDash();
   const fat  = vendas.reduce((a,v) => a + Number(v.total), 0);
   const luc  = vendas.reduce((a,v) => a + Number(v.lucro_total), 0);
@@ -3233,7 +3262,6 @@ async function renderDashboard() {
   document.getElementById('dash-qtd').textContent    = vendas.length;
   document.getElementById('dash-margem').textContent = marg + '%';
 
-  const cont = document.getElementById('dash-content');
   if (!vendas.length) {
     cont.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div><p>Sem dados no período</p><button class="btn btn-sm btn-grad" onclick="irPara(&quot;vender&quot;)">Registrar venda</button></div>';
     return;
@@ -3407,7 +3435,7 @@ async function renderDashboard() {
     </div>
     <div class="card mb-8">
       <div class="card-title">📦 Top produtos</div>
-      ${topProdHtml || '<p class="text-muted" style="font-size:12px">Sem dados</p>'}
+      ${topProd.length > 0 ? topProdHtml : '<p class="text-muted" style="font-size:12px">Sem dados neste período</p>'}
     </div>
     <div class="card mb-8">
       <div class="card-title">💳 Formas de pagamento</div>
