@@ -150,7 +150,7 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 8';
+const VERSAO = 'Entrega 9';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -558,7 +558,7 @@ R.nova = async () => {
         if (ef) throw ef;
       }
       b.textContent = 'A IA está descrevendo as peças…';
-      try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`Requisição salva. A IA descreveu ${d.gravadas} peça(s).`); }
+      try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`Requisição salva. A IA descreveu ${d.gravadas} peça(s)${d.exemplos ? `, usando ${d.exemplos} correção(ões) da equipe` : ''}.`); }
       catch (e2) { toast('Requisição salva, mas a IA não descreveu: ' + erroMsg(e2), true); }
       ir('req', r.id);
     } catch (err) { toast(erroMsg(err), true); b.disabled = false; b.textContent = 'Salvar requisição'; }
@@ -644,7 +644,7 @@ R.req = async id => {
   };
   ACT.descrever = async b => {
     b.disabled = true; b.textContent = 'A IA está descrevendo…';
-    try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`A IA descreveu ${d.gravadas} peça(s).`); ir('req', r.id); }
+    try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`A IA descreveu ${d.gravadas} peça(s)${d.exemplos ? `, usando ${d.exemplos} correção(ões) da equipe` : ''}.`); ir('req', r.id); }
     catch (e) { b.disabled = false; b.textContent = 'Descrever de novo com a IA'; toast(erroMsg(e), true); }
   };
   ACT.devolver = async b => {
