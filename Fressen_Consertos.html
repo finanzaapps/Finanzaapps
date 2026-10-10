@@ -111,7 +111,21 @@ dl.info dd{margin:0;font-weight:600}
 .hbar .trilho i{display:block;height:100%;background:var(--terra);border-radius:99px}
 .hbar b{font-variant-numeric:tabular-nums}
 .pct{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-.segp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.segp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+
+.trilha{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.etapa{position:relative;display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 12px 12px 48px;cursor:pointer;color:inherit;min-height:84px}
+.etapa .en{position:absolute;left:12px;top:12px;width:26px;height:26px;border-radius:50%;background:var(--rose);color:var(--rose-ink);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+.etapa .et{font-size:13px;font-weight:700;color:var(--muted)}
+.etapa b{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.etapa.foco{border:2px solid var(--info);background:var(--info-soft)}
+.etapa.foco .en{background:var(--info);color:#fff}
+.etapa.zero{opacity:.55}
+.trilha5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;text-align:center}
+.trilha5 div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 2px}
+.trilha5 b{display:block;font-size:20px;font-weight:800}
+.trilha5 span{font-size:11px;color:var(--muted);line-height:1.2;display:block}
+.lotehead{display:flex;gap:10px;align-items:center}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:max-content;max-width:92%;background:var(--rose-ink);color:#fff;padding:12px 16px;border-radius:12px;font-weight:600;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 #toast.erro{background:var(--bad)}
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:60;padding:12px}
@@ -136,7 +150,7 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 6';
+const VERSAO = 'Entrega 8';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -282,6 +296,67 @@ async function iniciar() {
   } catch (e) { toast(erroMsg(e), true); telaLogin(); }
 }
 
+// ====== Etapas do processo ======
+const ETAPAS = {
+  loja:       {n: 1, t: 'Na loja',          d: 'Requisições abertas pela loja e ainda não enviadas na remessa.'},
+  receber:    {n: 2, t: 'A receber',        d: 'Remessas enviadas pela loja, aguardando a conferência da Fran.'},
+  conferidas: {n: 3, t: 'Conferidas',       d: 'Peças conferidas na fábrica, aguardando ir para o Jonatan.'},
+  jonatan:    {n: 4, t: 'Com o Jonatan',    d: 'Peças em limpeza, conserto, banho ou flash.'},
+  voltaram:   {n: 5, t: 'Voltaram',         d: 'Peças identificadas no retorno, nos saquinhos, aguardando devolução.'},
+  devolvidas: {n: 6, t: 'Devolvidas',       d: 'Requisições entregues à loja nos últimos 7 dias.'}
+};
+const diasDesde = ts => ts ? Math.max(0, Math.floor((Date.now() - new Date(ts).getTime()) / 86400000)) : null;
+const iso7 = () => new Date(Date.now() - 7 * 86400000).toISOString();
+function trilha(c) {
+  return `<div class="trilha">${Object.entries(ETAPAS).map(([k, e]) => `<button class="etapa ${k === 'jonatan' ? 'foco' : ''} ${c[k].main ? '' : 'zero'}" data-ir="etapa" data-p="${k}">
+    <span class="en">${e.n}</span><span class="et">${e.t}</span><b>${c[k].main}</b><span class="s">${c[k].sub}</span></button>`).join('')}</div>`;
+}
+
+R.etapa = async k => {
+  const e = ETAPAS[k]; if (!e) return ir('home');
+  let h = `<button class="link" data-ir="home">‹ Início</button>
+    <div class="stack" style="gap:4px"><span class="pill neutro" style="align-self:flex-start">Etapa ${e.n} de 6</span><h1>${e.t}</h1><p class="sub">${e.d}</p></div>`;
+  if (['loja','receber','devolvidas'].includes(k)) {
+    let q = sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)');
+    q = k === 'loja' ? q.eq('status', 'registrada') : k === 'receber' ? q.in('status', ['enviada','registrada']) : q.eq('status', 'devolvida').gte('devolvida_em', iso7());
+    const {data, error} = await q.order('id', {ascending: false}).limit(500);
+    if (error) throw error;
+    const arr = k === 'loja' ? data.filter(r => r.criado_por === r.executiva_id) : k === 'receber' ? data.filter(r => r.status === 'enviada' || r.criado_por !== r.executiva_id) : data;
+    h += arr.length ? arr.map(cardReq).join('') : '<p class="vazio">Nada nesta etapa.</p>';
+    $('#main').innerHTML = h; return;
+  }
+  const st = {conferidas: 'na_fabrica', jonatan: 'com_jonatan', voltaram: 'retornou'}[k];
+  const {data: pecas, error} = await sb.from('cons_pecas').select('id,posicao,grupo,medida,status,enviada_em,retornou_em,servico_previsto,servico_feito,lote_id,requisicao_id,cons_requisicoes(id,numero_formulario,consultora,data_promessa)').eq('status', st).order('lote_id').order('requisicao_id').order('posicao').limit(1000);
+  if (error) throw error;
+  const ids = [...new Set(pecas.map(p => p.lote_id).filter(Boolean))];
+  let lotes = [];
+  if (ids.length) { const q = await sb.from('cons_lotes').select('id,cor_ordem,data_entrada').in('id', ids).order('id'); if (q.error) throw q.error; lotes = q.data; }
+  if (!pecas.length) h += '<p class="vazio">Nenhuma peça nesta etapa.</p>';
+  for (const l of lotes) {
+    const ps = pecas.filter(p => p.lote_id === l.id);
+    const desde = k === 'jonatan' ? ps.map(p => p.enviada_em).filter(Boolean).sort()[0] : null;
+    const acao = k === 'conferidas' && S.perfil !== 'executiva' ? `<button class="btn dark small" data-act="enviar" data-lote="${l.id}">Enviar ${ps.length} peça(s) ao Jonatan · pote ${esc(cor(l.cor_ordem).nome.toLowerCase())}</button>`
+      : k === 'jonatan' ? `<button class="btn small" data-ir="retorno" data-p="${l.id}">Registrar retorno deste lote</button>` : '';
+    const porReq = {}; ps.forEach(p => (porReq[p.requisicao_id] = porReq[p.requisicao_id] || []).push(p));
+    h += `<div class="card stack" style="gap:10px">
+      <div class="lotehead">${dot(l.cor_ordem, true)}<div style="flex:1;min-width:0"><b>${esc(loteNome(l))}</b>
+        <div class="s">${ps.length} peça(s)${desde ? ` · com o Jonatan desde ${fmt(desde.slice(0, 10))} (${diasDesde(desde)} dia(s))` : ''}</div></div>
+        <button class="link" data-ir="lote" data-p="${l.id}">Abrir</button></div>
+      ${acao}
+      ${Object.values(porReq).map(rs => { const r = rs[0].cons_requisicoes; return `<div class="pecarow">
+        <button class="link" data-ir="req" data-p="${r.id}" style="padding:0">${esc(reqNome(r))} · ${esc(r.consultora)}</button>
+        ${rs.map(p => `<span class="s">${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''} · ${k === 'voltaram' ? 'feito: ' + (SNOME[p.servico_feito] || '—') : 'previsto: ' + (SNOME[p.servico_previsto] || '—')}</span>`).join('')}</div>`; }).join('')}
+    </div>`;
+  }
+  $('#main').innerHTML = h;
+  ACT.enviar = async b => {
+    b.disabled = true;
+    const {error: eu} = await sb.from('cons_pecas').update({status: 'com_jonatan', enviada_em: new Date().toISOString()}).eq('lote_id', +b.dataset.lote).eq('status', 'na_fabrica');
+    if (eu) { b.disabled = false; return toast(erroMsg(eu), true); }
+    toast('Peças enviadas ao Jonatan. Elas aparecem na etapa 4.'); ir('etapa', 'jonatan');
+  };
+};
+
 // ====== Início ======
 function pronta(r) {
   const p = r.cons_pecas || [];
@@ -317,9 +392,13 @@ R.home = async () => {
     if (error) throw error;
     const naLoja = data.filter(r => r.status === 'registrada'), outras = data.filter(r => r.status !== 'registrada');
     const nPec = naLoja.reduce((s, r) => s + (r.cons_pecas || []).length, 0);
+    const conta = f => data.filter(f).length;
+    const mini = [['Na loja', conta(r => r.status === 'registrada')], ['Enviadas', conta(r => r.status === 'enviada')],
+      ['Na fábrica', conta(r => r.status === 'na_fabrica' && !pronta(r))], ['Prontas', conta(r => r.status === 'na_fabrica' && pronta(r))], ['Devolvidas', conta(r => r.status === 'devolvida')]];
     $('#main').innerHTML = `
       <h1>Olá, ${esc(primeiro(S.nome))}</h1>
       <button class="btn" data-ir="nova">+ Nova requisição</button>
+      <div class="trilha5">${mini.map(([t, n]) => `<div><b>${n}</b><span>${t}</span></div>`).join('')}</div>
       <h2>Na loja, ainda não enviadas (${naLoja.length})</h2>
       ${naLoja.length ? `<div class="card stack"><p class="sub">Ao final do dia, finalize a remessa. Todas estas requisições vão para a fábrica no lote/cor de hoje.</p>
         <button class="btn dark" data-act="finalizar">Finalizar remessa do dia · ${naLoja.length} requisição(ões) · ${nPec} peça(s)</button></div>` : ''}
@@ -353,15 +432,25 @@ R.home = async () => {
   const abertas = lotes.reduce((s, l) => s + (l.total - l.devolvida), 0);
   const atras = lotes.filter(l => l.cor_ordem > 0 && diaUtil(l.data_entrada) > 12).length;
   const h = infoHoje(ult, lotes);
+  const qd = await sb.from('cons_requisicoes').select('id', {count: 'exact', head: true}).eq('status', 'devolvida').gte('devolvida_em', iso7());
+  const soma = c => lotes.reduce((s, l) => s + (l[c] || 0), 0);
+  const pec = arr => arr.reduce((s, r) => s + (r.cons_pecas || []).length, 0);
+  const lojaArr = reqs.filter(r => r.status === 'registrada' && r.criado_por === r.executiva_id);
+  const nJon = lotes.filter(l => l.com_jonatan > 0).length;
+  const c = {
+    loja: {main: lojaArr.length, sub: `requisições · ${pec(lojaArr)} peças`},
+    receber: {main: aRec.length, sub: `requisições · ${pec(aRec)} peças`},
+    conferidas: {main: soma('na_fabrica'), sub: 'peças a enviar ao Jonatan'},
+    jonatan: {main: soma('com_jonatan'), sub: `peças em ${nJon} lote(s)`},
+    voltaram: {main: soma('retornou'), sub: `peças · ${prontas.length} requisição(ões) pronta(s)`},
+    devolvidas: {main: qd.count || 0, sub: 'requisições em 7 dias'}
+  };
   $('#main').innerHTML = `
     <div><h1>Olá, ${esc(primeiro(S.nome))}</h1><p class="sub">${new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'})}</p></div>
     <div class="card ${h.alerta ? 'alerta' : ''}" style="display:flex;gap:10px;align-items:flex-start">${dot(h.cor, true)}<div class="stack" style="gap:4px"><span>${esc(h.texto)}</span>${h.ocupId ? `<button class="link" data-ir="lote" data-p="${h.ocupId}">Abrir o lote ${n3(h.ocupId)}</button>` : ''}</div></div>
-    <div class="kpis">
-      <div class="kpi"><b>${aRec.length}</b><span>requisições a receber</span></div>
-      <div class="kpi"><b>${abertas}</b><span>peças em aberto na fábrica</span></div>
-      <div class="kpi"><b style="color:var(--ok)">${prontas.length}</b><span>prontas para devolver</span></div>
-      <div class="kpi"><b style="color:${atras ? 'var(--bad)' : 'inherit'}">${atras}</b><span>lotes acima de 12 dias úteis</span></div>
-    </div>
+    <h2>Onde estão as peças</h2>
+    ${trilha(c)}
+    <p class="sub">${abertas} peça(s) em aberto na fábrica${atras ? ` · <span class="flag">${atras} lote(s) acima de 12 dias úteis</span>` : ''}</p>
     <button class="btn dark" data-ir="retorno">Retorno do Jonatan · limpeza, banho, flash</button>
     ${lotes.length ? `<div class="lotesmini">${lotes.map(l => `<button class="lchip" data-ir="lote" data-p="${l.id}">${dot(l.cor_ordem)}${n3(l.id)} <span class="s">${l.total - l.devolvida} pç</span></button>`).join('')}</div>` : ''}
     <input id="busca" type="search" placeholder="Buscar nº do formulário ou consultora" aria-label="Buscar requisição">
@@ -647,7 +736,7 @@ R.lote = async id => {
         <div class="top2"><div style="display:flex;gap:10px;align-items:center">${dot(l.cor_ordem, true)}<h1>${esc(loteNome(l))}</h1></div><span class="pill ${aberto ? 'info' : 'ok'}">${aberto ? 'Aberto' : 'Fechado'}</span></div>
         <p class="sub">Entrada ${fmtA(l.data_entrada)}${l.promessa ? ' · entregar até ' + fmt(l.promessa) : ''}${du ? ` · <span class="${du > 12 ? 'flag' : ''}">dia útil ${du} de 12</span>` : ''}</p>
         <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center">
-          <div><b>${c('na_fabrica')}</b><div class="s">Fábrica</div></div><div><b>${c('com_jonatan')}</b><div class="s">Jonatan</div></div>
+          <div><b>${c('na_fabrica')}</b><div class="s">Conferidas</div></div><div><b>${c('com_jonatan')}</b><div class="s">Jonatan</div></div>
           <div><b>${c('retornou')}</b><div class="s">Voltaram</div></div><div><b>${c('devolvida')}</b><div class="s">Devolvidas</div></div></div>
       </div>
       ${acoes}
@@ -906,9 +995,11 @@ R.retorno = async loteId => {
 };
 
 // ====== Painel (fábrica) e Dashboard (gestão) ======
-let PERIODO = 30;
+const ymd = d => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); };
+const mesDe = (ano, mes) => ({ini: ymd(new Date(ano, mes, 1, 12)), fim: ymd(new Date(ano, mes + 1, 0, 12))});
+const PER = (() => { const h = new Date(); return {...mesDe(h.getFullYear(), h.getMonth()), atalho: 'mes'}; })();
 R.painel = async () => {
-  const {data: d, error} = await sb.rpc('cons_painel', {p_dias: PERIODO});
+  const {data: d, error} = await sb.rpc('cons_painel_periodo', {p_ini: PER.ini, p_fim: PER.fim});
   if (error) throw error;
   const g = S.perfil === 'gestao', t = d.tempos || {};
   const dias = v => v == null ? '—' : String(v).replace('.', ',') + ' dia' + (Number(v) === 1 ? '' : 's');
@@ -930,14 +1021,23 @@ R.painel = async () => {
   };
   $('#main').innerHTML = `
     <div><h1>${g ? 'Painel de gestão' : 'Painel da fábrica'}</h1><p class="sub">Andamento dos lotes e tempo de cada etapa.</p></div>
-    <div class="segp">${[[30,'30 dias'],[90,'90 dias'],[0,'Tudo']].map(([v, n]) => `<button type="button" class="segb ${PERIODO === v ? 'on' : ''}" data-act="periodo" data-v="${v}">${n}</button>`).join('')}</div>
+    <div class="card stack" style="gap:10px">
+      <div class="segp">${[['mes','Este mês'],['anterior','Mês passado'],['7d','Últimos 7 dias'],['tudo','Tudo']].map(([v, n]) => `<button type="button" class="segb ${PER.atalho === v ? 'on' : ''}" data-act="atalho" data-v="${v}">${n}</button>`).join('')}</div>
+      <div class="field"><label for="pMes">Escolher um mês</label><input id="pMes" type="month" value="${PER.ini ? PER.ini.slice(0, 7) : ''}"></div>
+      <div class="grid2">
+        <div class="field"><label for="pIni">De</label><input id="pIni" type="date" value="${PER.ini || ''}"></div>
+        <div class="field"><label for="pFim">Até</label><input id="pFim" type="date" value="${PER.fim || ''}"></div>
+      </div>
+      <button type="button" class="btn outline small" data-act="aplicar">Aplicar datas</button>
+      <p class="s" style="margin:0">Mostrando: <b>${PER.ini ? fmtA(PER.ini) + ' a ' + fmtA(PER.fim) : 'todo o período'}</b></p>
+    </div>
 
     <h2>Andamento dos lotes</h2>
     <p class="sub">% = requisições prontas ou devolvidas sobre o total do lote.</p>
     ${d.lotes.length ? d.lotes.map(cardLotePct).join('') : '<p class="vazio">Nenhum lote aberto.</p>'}
 
     <h2>Tempo de cada etapa</h2>
-    <p class="sub">Requisições devolvidas no período (${t.devolvidas || 0}).</p>
+    <p class="sub">Requisições devolvidas no período: ${t.devolvidas || 0} · abertas no período: ${t.abertas_periodo || 0}.</p>
     <div class="kpis">
       <div class="kpi"><b>${dias(t.total)}</b><span>tempo total médio · da abertura da requisição até a devolução</span></div>
       <div class="kpi"><b>${dias(t.fabrica)}</b><span>tempo na fábrica · do aceite da Fran até a devolução</span></div>
@@ -947,13 +1047,27 @@ R.painel = async () => {
     <div class="card s">Em andamento agora: <b>${t.abertas || 0}</b> requisição(ões), abertas há <b>${dias(t.idade_aberta)}</b> em média · na fábrica há <b>${dias(t.idade_fabrica)}</b> em média.</div>
 
     ${g ? `
-    <h2>Top consultoras em consertos</h2>
+    <h2>Top consultoras em consertos</h2><p class="sub">Requisições abertas no período.</p>
     <div class="card stack">${barras(d.consultoras, x => x.consultora, x => x.requisicoes, 'req.')}</div>
     <h2>Grupos de peças com mais consertos</h2>
     <div class="card stack">${barras(d.grupos, x => GNOME[x.grupo] || x.grupo, x => x.pecas, 'pç')}</div>
-    <h2>Serviços realizados</h2>
+    <h2>Serviços realizados</h2><p class="sub">Peças que voltaram do Jonatan no período.</p>
     <div class="card stack">${barras(d.servicos, x => SNOME[x.servico] || x.servico, x => x.pecas, 'pç')}</div>` : ''}`;
-  ACT.periodo = b => { PERIODO = +b.dataset.v; ir('painel'); };
+  ACT.atalho = b => {
+    const h = new Date(), v = b.dataset.v;
+    if (v === 'mes') Object.assign(PER, mesDe(h.getFullYear(), h.getMonth()));
+    else if (v === 'anterior') Object.assign(PER, mesDe(h.getFullYear(), h.getMonth() - 1));
+    else if (v === '7d') Object.assign(PER, {ini: ymd(Date.now() - 6 * 86400000), fim: ymd(Date.now())});
+    else Object.assign(PER, {ini: null, fim: null});
+    PER.atalho = v; ir('painel');
+  };
+  $('#pMes').onchange = e => { if (!e.target.value) return; const [a, m] = e.target.value.split('-').map(Number); Object.assign(PER, mesDe(a, m - 1), {atalho: ''}); ir('painel'); };
+  ACT.aplicar = () => {
+    const i = $('#pIni').value, f = $('#pFim').value;
+    if (!i || !f) return toast('Escolha a data inicial e a final.', true);
+    if (i > f) return toast('A data inicial precisa ser antes da final.', true);
+    Object.assign(PER, {ini: i, fim: f, atalho: ''}); ir('painel');
+  };
 };
 
 // ====== Usuários (gestão) ======
