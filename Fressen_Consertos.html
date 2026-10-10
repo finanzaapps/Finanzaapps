@@ -129,7 +129,7 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 2.1';
+const VERSAO = 'Entrega 3';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -137,7 +137,7 @@ const GNOME = Object.fromEntries(GRUPOS);
 const ordemG = g => GRUPOS.findIndex(x => x[0] === g);
 const SERV = [['limpeza','Limpeza'],['banho','Banho'],['flash','Flash']];
 const SNOME = Object.fromEntries(SERV);
-const ST = {registrada:['Na loja','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Com Jonatan','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
+const ST = {registrada:['A conferir','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Com Jonatan','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
 const PH = {corrente:'ex.: 45 cm', pulseira:'ex.: 19 cm', tornozeleira:'ex.: 24 cm', anel:'ex.: aro 16', brinco:'ex.: Ø 2 cm', pingente:'ex.: 2 cm', outro:''};
 const PERFIL_NOME = {executiva:'Executiva', fabrica:'Fábrica', gestao:'Gestão'};
 const S = {user:null, perfil:null, nome:'', cores:{}, nCores:12};
@@ -284,13 +284,14 @@ function pronta(r) {
 function pillReq(r) {
   const p = r.cons_pecas || [];
   if (r.status === 'na_fabrica') { const ok = p.filter(x => ['retornou','devolvida'].includes(x.status)).length; return `<span class="pill ${ok === p.length ? 'ok' : 'info'}">${ok} de ${p.length}</span>`; }
-  const st = {registrada:['Na loja','warn'], devolvida:['Devolvida','ok']}[r.status] || ['?','neutro'];
+  const st = {registrada:['Na loja','warn'], enviada:['Enviada','info'], devolvida:['Devolvida','ok']}[r.status] || ['?','neutro'];
   return `<span class="pill ${st[1]}">${st[0]}</span>`;
 }
 function cardReq(r) {
   const busca = `${r.numero_formulario || ''} r-${r.id} ${r.consultora}`.toLowerCase();
   const ex = r.fab_perfis ? esc(r.fab_perfis.nome) + ' · ' : '';
-  return `<button class="row" data-ir="req" data-p="${r.id}" data-busca="${esc(busca)}"><div><div class="t">${esc(reqNome(r))} · ${esc(r.consultora)}</div><div class="s">${ex}recebida ${fmt(r.data_recebimento)} · entregar até ${fmt(r.data_promessa)}</div></div>${pillReq(r)}</button>`;
+  const lt = r.cons_lotes ? dot(r.cons_lotes.cor_ordem) + ' ' : '';
+  return `<button class="row" data-ir="req" data-p="${r.id}" data-busca="${esc(busca)}"><div><div class="t">${lt}${esc(reqNome(r))} · ${esc(r.consultora)}</div><div class="s">${ex}recebida ${fmt(r.data_recebimento)} · entregar até ${fmt(r.data_promessa)}</div></div>${pillReq(r)}</button>`;
 }
 const lista = (arr, vazio) => arr.length ? arr.map(cardReq).join('') : `<p class="vazio">${vazio}</p>`;
 function infoHoje(ult, abertos) {
@@ -304,22 +305,42 @@ function infoHoje(ult, abertos) {
 
 R.home = async () => {
   if (S.perfil === 'executiva') {
-    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,cons_pecas(status)').order('id', {ascending: false}).limit(60);
+    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').order('id', {ascending: false}).limit(80);
     if (error) throw error;
+    const naLoja = data.filter(r => r.status === 'registrada'), outras = data.filter(r => r.status !== 'registrada');
+    const nPec = naLoja.reduce((s, r) => s + (r.cons_pecas || []).length, 0);
     $('#main').innerHTML = `
       <h1>Olá, ${esc(primeiro(S.nome))}</h1>
       <button class="btn" data-ir="nova">+ Nova requisição</button>
-      <h2>Minhas requisições</h2>${lista(data, 'Nenhuma requisição ainda.')}`;
+      <h2>Na loja, ainda não enviadas (${naLoja.length})</h2>
+      ${naLoja.length ? `<div class="card stack"><p class="sub">Ao final do dia, finalize a remessa. Todas estas requisições vão para a fábrica no lote/cor de hoje.</p>
+        <button class="btn dark" data-act="finalizar">Finalizar remessa do dia · ${naLoja.length} requisição(ões) · ${nPec} peça(s)</button></div>` : ''}
+      ${lista(naLoja, 'Nenhuma requisição na loja.')}
+      <h2>Enviadas e em conserto</h2>${lista(outras, 'Nada enviado ainda.')}`;
+    ACT.finalizar = async b => {
+      if (!confirma(b)) return;
+      b.disabled = true;
+      const {data: d, error: e} = await sb.rpc('cons_finalizar_remessa');
+      if (e) {
+        b.disabled = false;
+        const k = erroMsg(e).match(/COR_OCUPADA:(\d+)/);
+        return toast(k ? `A fábrica ainda não liberou a cor do próximo lote (lote ${n3(k[1])}). Avise a Fran.` : erroMsg(e), true);
+      }
+      const {data: l} = await sb.from('cons_lotes').select('id,cor_ordem').eq('id', d.lote).single();
+      toast(`Remessa enviada: ${d.requisicoes} requisição(ões), ${d.pecas} peça(s) · ${l ? loteNome(l) : 'Lote ' + n3(d.lote)}`);
+      ir('home');
+    };
     return;
   }
   const [q1, q2, q3] = await Promise.all([
-    sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,modo_devolucao,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_pecas(status)').in('status', ['registrada','na_fabrica']).order('id'),
+    sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,modo_devolucao,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').in('status', ['registrada','enviada','na_fabrica']).order('id'),
     sb.from('cons_lotes_resumo').select('*').eq('status', 'aberto').order('id'),
     sb.from('cons_lotes').select('id,cor_ordem,data_entrada,status').gt('cor_ordem', 0).order('id', {ascending: false}).limit(1)
   ]);
   for (const q of [q1, q2, q3]) if (q.error) throw q.error;
   const reqs = q1.data, lotes = q2.data, ult = q3.data[0];
-  const aRec = reqs.filter(r => r.status === 'registrada');
+  const aRec = reqs.filter(r => r.status === 'enviada' || (r.status === 'registrada' && r.criado_por !== r.executiva_id));
+  const naLoja = reqs.filter(r => r.status === 'registrada' && r.criado_por === r.executiva_id).length;
   const prontas = reqs.filter(r => r.status === 'na_fabrica' && pronta(r));
   const abertas = lotes.reduce((s, l) => s + (l.total - l.devolvida), 0);
   const atras = lotes.filter(l => l.cor_ordem > 0 && diaUtil(l.data_entrada) > 12).length;
@@ -336,7 +357,7 @@ R.home = async () => {
     <button class="btn dark" data-ir="retorno">Retorno do Jonatan · limpeza, banho, flash</button>
     ${lotes.length ? `<div class="lotesmini">${lotes.map(l => `<button class="lchip" data-ir="lote" data-p="${l.id}">${dot(l.cor_ordem)}${n3(l.id)} <span class="s">${l.total - l.devolvida} pç</span></button>`).join('')}</div>` : ''}
     <input id="busca" type="search" placeholder="Buscar nº do formulário ou consultora" aria-label="Buscar requisição">
-    <h2>A receber na fábrica (${aRec.length})</h2>${lista(aRec, 'Nada a receber.')}
+    <h2>A receber na fábrica (${aRec.length})</h2>${naLoja ? `<p class="sub">${naLoja} requisição(ões) ainda na loja, sem remessa finalizada.</p>` : ''}${lista(aRec, 'Nada a receber.')}
     <h2>Prontas para devolver (${prontas.length})</h2>${lista(prontas, 'Nenhuma pronta ainda.')}`;
   $('#busca').oninput = e => { const t = e.target.value.trim().toLowerCase(); document.querySelectorAll('.row[data-busca]').forEach(r => r.hidden = !!t && !r.dataset.busca.includes(t)); };
 };
@@ -439,7 +460,7 @@ R.nova = async () => {
         if (ef) throw ef;
       }
       b.textContent = 'A IA está descrevendo as peças…';
-      try { await ia({acao: 'descrever', requisicao_id: r.id}); toast('Requisição salva e descrita pela IA.'); }
+      try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`Requisição salva. A IA descreveu ${d.gravadas} peça(s).`); }
       catch (e2) { toast('Requisição salva, mas a IA não descreveu: ' + erroMsg(e2), true); }
       ir('req', r.id);
     } catch (err) { toast(erroMsg(err), true); b.disabled = false; b.textContent = 'Salvar requisição'; }
@@ -458,7 +479,7 @@ R.req = async id => {
   if (qp.error) throw qp.error; if (qf.error) throw qf.error;
   const pecas = qp.data, fotos = qf.data, urls = await assinar(fotos.map(f => f.caminho));
   r.cons_pecas = pecas;
-  const fab = S.perfil !== 'executiva', conferir = fab && r.status === 'registrada';
+  const fab = S.perfil !== 'executiva', conferir = fab && ['registrada','enviada'].includes(r.status);
   const volt = pecas.filter(p => p.status === 'retornou'), falta = pecas.filter(p => !['retornou','devolvida'].includes(p.status));
   const podeExcluir = S.perfil === 'gestao' || (r.status === 'registrada' && (fab || r.executiva_id === S.user.id));
 
@@ -524,7 +545,7 @@ R.req = async id => {
   };
   ACT.descrever = async b => {
     b.disabled = true; b.textContent = 'A IA está descrevendo…';
-    try { await ia({acao: 'descrever', requisicao_id: r.id}); toast('Descrições atualizadas.'); ir('req', r.id); }
+    try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`A IA descreveu ${d.gravadas} peça(s).`); ir('req', r.id); }
     catch (e) { b.disabled = false; b.textContent = 'Descrever de novo com a IA'; toast(erroMsg(e), true); }
   };
   ACT.devolver = async b => {
