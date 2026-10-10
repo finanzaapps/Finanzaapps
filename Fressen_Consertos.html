@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FFFFFF">
+<title>Fressen · Consertos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<style>
+:root{--bg:#FAFAF8;--card:#FFFFFF;--ink:#1A1A1A;--muted:#7A6055;--line:#F0E0D8;--field:#EAD6CC;
+--rose:#F1B79C;--rose-soft:#FDE8DE;--rose-ink:#2D1A10;--terra:#A0583A;
+--ok:#1E7E34;--ok-soft:#E8F5E9;--bad:#C0392B;--bad-soft:#FDECEA;--info:#1A5C9C;--info-soft:#EAF1F8;--warn:#8A5A00;--warn-soft:#FFF4E0;color-scheme:light}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,'SF Pro Text','Segoe UI',Roboto,Helvetica,sans-serif}
+button,input,select,textarea{font-family:inherit}
+#app{max-width:560px;margin:0 auto;min-height:100vh}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 10px;background:var(--card);border-bottom:1.5px solid var(--line)}
+.top img{height:20px;display:block}
+.who{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);text-align:right}
+nav{display:flex;gap:6px;padding:8px 12px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{flex:1;min-height:40px;border:none;border-radius:10px;background:none;font-size:14px;font-weight:600;color:var(--muted);white-space:nowrap;padding:0 10px;cursor:pointer}
+nav button.on{background:var(--rose-soft);color:var(--rose-ink)}
+main{padding:16px 16px calc(56px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+h1{margin:0;font-size:24px;font-weight:800;line-height:1.2}
+h2{margin:8px 0 0;font-size:17px}
+.sub{color:var(--muted);font-size:14px;margin:0}
+.s{color:var(--muted);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.card.alerta{background:var(--bad-soft);border-color:#F3C3BD}
+.stack{display:flex;flex-direction:column;gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+label,.lbl{font-size:13px;font-weight:600;color:var(--muted)}
+input,select,textarea{width:100%;min-height:44px;border:1px solid var(--field);border-radius:10px;padding:0 12px;font-size:16px;background:#fff;color:var(--ink)}
+textarea{padding:10px 12px;min-height:60px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--rose);border-color:var(--rose)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border:none;border-radius:14px;background:var(--rose);color:var(--rose-ink);font-size:16px;font-weight:700;cursor:pointer;padding:0 16px;text-align:center;text-decoration:none}
+.btn.outline{background:#fff;border:2px solid var(--rose)}
+.btn.dark{background:var(--rose-ink);color:#fff}
+.btn.green{background:var(--ok);color:#fff}
+.btn.small{min-height:40px;font-size:14px;border-radius:10px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.row:focus-visible,.chipbtn:focus-visible{outline:3px solid var(--terra);outline-offset:2px}
+.link{background:none;border:none;color:var(--terra);font-size:14px;font-weight:700;padding:6px 0;cursor:pointer;text-align:left}
+.row{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;color:inherit;cursor:pointer}
+.row .t{font-weight:700}
+.pill{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.info{background:var(--info-soft);color:var(--info)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.neutro{background:var(--rose-soft);color:var(--rose-ink)}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.kpi b{display:block;font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--muted)}
+.cor{display:inline-flex;align-items:center;gap:7px;font-weight:700}
+.dot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.25);display:inline-block;flex-shrink:0}
+.dot.big{width:28px;height:28px}
+.lotesmini{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.lchip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:700;white-space:nowrap;cursor:pointer;color:inherit}
+.dica{background:var(--rose-soft);border-radius:12px;padding:12px;font-size:14px}
+.dica ol{margin:6px 0 0;padding-left:20px}
+.thumbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.th{position:relative}
+.th img,.thumbs>img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;display:block;background:var(--rose-soft)}
+.th .x{position:absolute;top:4px;right:4px;width:30px;height:30px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:18px;cursor:pointer}
+.grupos{display:flex;flex-wrap:wrap;gap:8px}
+.chipbtn{min-height:40px;border:1.5px solid var(--rose);background:#fff;border-radius:999px;padding:0 14px;font-size:14px;font-weight:600;color:var(--rose-ink);cursor:pointer}
+.chipbtn.on{background:var(--rose)}
+.peca{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.top2{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.seg.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.seg label{position:relative;min-height:42px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--field);border-radius:10px;font-size:14px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg label:has(input:checked){background:var(--rose);border-color:var(--rose);color:var(--rose-ink);font-weight:700}
+.seg label:has(input:focus-visible){outline:3px solid var(--terra)}
+.check{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink);font-weight:500;min-height:40px}
+.check input{width:22px;height:22px;min-height:0;flex-shrink:0}
+dl.info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;margin:0}
+dl.info dt{font-size:12px;color:var(--muted);font-weight:600}
+dl.info dd{margin:0;font-weight:600}
+.pecarow{display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
+.acoes3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.acoes3 button{min-height:46px;border-radius:10px;border:1.5px solid var(--rose);background:#fff;font-size:15px;font-weight:700;color:var(--rose-ink);cursor:pointer}
+.acoes3 button:active{background:var(--rose)}
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:var(--rose-soft);padding:4px;border-radius:12px}
+.tabs button{min-height:38px;border:none;border-radius:9px;background:none;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer}
+.tabs button.on{background:#fff;color:var(--rose-ink);font-weight:700}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok)}
+.flag{color:var(--bad);font-weight:700}
+.vazio{color:var(--muted);text-align:center;padding:12px;margin:0}
+.login{margin-top:30px}
+.segb{min-height:44px;border:1.5px solid var(--field);border-radius:10px;background:#fff;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer}
+.segb.on{background:var(--rose);border-color:var(--rose);color:var(--rose-ink);font-weight:700}
+.cand{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px}
+.cand.on{border:2.5px solid var(--terra);background:var(--rose-soft)}
+.cand img{width:76px;height:76px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:zoom-in}
+.cand-b{flex:1;min-width:0;text-align:left;background:none;border:none;padding:0;font-size:14px;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.cand-b .t{font-weight:700;font-size:15px}
+.conf{display:inline-block;font-weight:800;color:var(--terra)}
+.fotoret{width:100%;max-height:320px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--line);cursor:zoom-in}
+.ia{display:flex;gap:10px;align-items:center;background:var(--rose-ink);color:#fff;border-radius:12px;padding:14px;font-weight:600}
+.ia i{width:18px;height:18px;border-radius:50%;border:3px solid var(--rose);border-top-color:transparent;animation:gira 1s linear infinite;flex-shrink:0}
+@keyframes gira{to{transform:rotate(360deg)}}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:max-content;max-width:92%;background:var(--rose-ink);color:#fff;padding:12px 16px;border-radius:12px;font-weight:600;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+#toast.erro{background:var(--bad)}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:60;padding:12px}
+#zoom img{max-width:100%;max-height:100%;border-radius:8px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <img alt="Fressen" src="data:image/png;base64,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">
+    <div class="who"><span id="quem"></span><button id="sair" class="link" hidden>Sair</button></div>
+  </header>
+  <nav id="nav" hidden></nav>
+  <main id="main"><p class="vazio">Carregando…</p></main>
+</div>
+<div id="toast" role="status" hidden></div>
+<div id="zoom" hidden><img alt="Foto ampliada"></div>
+
+<script>
+// ====== Configuração (chave pública do Supabase; pode ficar no HTML) ======
+const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const VERSAO = 'Entrega 2';
+
+// ====== Constantes ======
+const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
+const GNOME = Object.fromEntries(GRUPOS);
+const ordemG = g => GRUPOS.findIndex(x => x[0] === g);
+const SERV = [['limpeza','Limpeza'],['banho','Banho'],['flash','Flash']];
+const SNOME = Object.fromEntries(SERV);
+const ST = {registrada:['Na loja','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Com Jonatan','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
+const PH = {corrente:'ex.: 45 cm', pulseira:'ex.: 19 cm', tornozeleira:'ex.: 24 cm', anel:'ex.: aro 16', brinco:'ex.: Ø 2 cm', pingente:'ex.: 2 cm', outro:''};
+const PERFIL_NOME = {executiva:'Executiva', fabrica:'Fábrica', gestao:'Gestão'};
+const S = {user:null, perfil:null, nome:'', cores:{}, nCores:12};
+let ACT = {}, rota = {v:'', p:null};
+const R = {};
+
+// ====== Utilidades ======
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hojeISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const addDias = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); };
+const fmt = iso => iso ? iso.slice(8,10) + '/' + iso.slice(5,7) : '—';
+const fmtA = iso => iso ? fmt(iso) + '/' + iso.slice(2,4) : '—';
+const primeiro = s => String(s || '').split(' ')[0];
+const n3 = id => String(id).padStart(3, '0');
+const reqNome = r => r.numero_formulario ? 'Nº ' + r.numero_formulario : 'R-' + r.id;
+const cor = o => S.cores[o] || {nome:'?', hex:'#999999'};
+const dot = (o, big) => `<span class="dot${big ? ' big' : ''}" style="background:${cor(o).hex}"></span>`;
+const loteNome = l => `Lote ${n3(l.id)} · ${cor(l.cor_ordem).nome}`;
+const corChip = (o, txt) => `<span class="cor">${dot(o)}${esc(txt)}</span>`;
+const erroMsg = e => (e && (e.message || e.error_description)) || String(e);
+function diaUtil(ini) { // dia útil do lote, de segunda a sábado; 1 = dia da entrada
+  let d = new Date(ini + 'T12:00:00'); const fim = new Date(hojeISO() + 'T12:00:00'); let n = 0;
+  while (d <= fim) { if (d.getDay() !== 0) n++; d.setDate(d.getDate() + 1); }
+  return n;
+}
+function toast(msg, erro) {
+  const t = $('#toast'); t.textContent = msg; t.className = erro ? 'erro' : ''; t.hidden = false;
+  clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, erro ? 7000 : 3000);
+}
+function confirma(btn) { // segundo toque confirma (o app não usa janelas de confirmação)
+  if (btn.dataset.ok === '1') return true;
+  btn.dataset.ok = '1'; const t = btn.textContent; btn.textContent = 'Toque de novo para confirmar';
+  setTimeout(() => { btn.dataset.ok = ''; btn.textContent = t; }, 4000);
+  return false;
+}
+async function assinar(paths) {
+  if (!paths.length) return {};
+  const {data, error} = await sb.storage.from('consertos').createSignedUrls(paths, 3600);
+  if (error) throw error;
+  const m = {}; data.forEach(d => m[d.path] = d.signedUrl); return m;
+}
+async function comprimir(file, max = 2000, q = 0.82) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, falha) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => falha(new Error('Não consegui ler a foto. Tente tirar de novo.')); i.src = url; });
+    const s = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise(ok => c.toBlob(ok, 'image/jpeg', q));
+  } finally { URL.revokeObjectURL(url); }
+}
+const thumbs = (fotos, urls) => fotos.length
+  ? `<div class="thumbs">${fotos.map(f => `<img src="${esc(urls[f.caminho] || '')}" alt="Foto das peças" data-zoom="${esc(urls[f.caminho] || '')}">`).join('')}</div>`
+  : '<p class="vazio">Sem fotos.</p>';
+
+async function ia(body) { // chama a IA pelo Supabase (a chave fica guardada lá)
+  const {data, error} = await sb.functions.invoke('cons-ia', {body});
+  if (error) { let m = error.message; try { const j = await error.context.json(); m = j.erro || m; } catch (_) {} throw new Error(m); }
+  if (data && data.erro) throw new Error(data.erro);
+  return data;
+}
+const b64 = blob => new Promise((ok, falha) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = falha; r.readAsDataURL(blob); });
+
+// ====== Navegação ======
+async function ir(v, p) {
+  rota = {v, p}; ACT = {}; window.scrollTo(0, 0); renderNav();
+  $('#main').innerHTML = '<p class="vazio">Carregando…</p>';
+  try { await R[v](p); }
+  catch (e) {
+    console.error(e);
+    $('#main').innerHTML = `<div class="card stack"><b>Não foi possível carregar.</b><p class="sub">${esc(erroMsg(e))}</p><button class="btn outline" data-ir="home">Voltar ao início</button></div>`;
+  }
+}
+function renderNav() {
+  const n = $('#nav');
+  if (!S.perfil) { n.hidden = true; return; }
+  const itens = [['home','Início'], ['nova','Nova']];
+  if (S.perfil !== 'executiva') itens.push(['retorno','Retorno'], ['lotes','Lotes']);
+  if (S.perfil === 'gestao') itens.push(['usuarios','Usuários']);
+  n.hidden = false;
+  n.innerHTML = itens.map(([v, t]) => `<button data-ir="${v}" class="${rota.v === v ? 'on' : ''}">${t}</button>`).join('');
+}
+document.addEventListener('click', e => {
+  const z = e.target.closest('[data-zoom]');
+  if (z) { e.preventDefault(); const o = $('#zoom'); o.querySelector('img').src = z.dataset.zoom; o.hidden = false; return; }
+  if (e.target.closest('#zoom')) { $('#zoom').hidden = true; return; }
+  const i = e.target.closest('[data-ir]');
+  if (i) { e.preventDefault(); ir(i.dataset.ir, i.dataset.p || null); return; }
+  const a = e.target.closest('[data-act]');
+  if (a && ACT[a.dataset.act]) { e.preventDefault(); ACT[a.dataset.act](a); }
+});
+
+// ====== Login ======
+function telaLogin() {
+  S.perfil = null; renderNav(); $('#sair').hidden = true; $('#quem').textContent = '';
+  $('#main').innerHTML = `
+  <form id="fLogin" class="card stack login">
+    <h1>Consertos</h1><p class="sub">Entre com o login criado pela gestão.</p>
+    <div class="field"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
+    <button class="btn" type="submit">Entrar</button>
+    <p class="s" style="text-align:center">${VERSAO}</p>
+  </form>`;
+  $('#fLogin').onsubmit = async e => {
+    e.preventDefault(); const b = e.target.querySelector('button'); b.disabled = true; b.textContent = 'Entrando…';
+    const {error} = await sb.auth.signInWithPassword({email: $('#lEmail').value.trim(), password: $('#lSenha').value});
+    b.disabled = false; b.textContent = 'Entrar';
+    if (error) return toast('E-mail ou senha incorretos.', true);
+    iniciar();
+  };
+}
+$('#sair').onclick = async () => { await sb.auth.signOut(); telaLogin(); };
+
+async function iniciar() {
+  try {
+    const {data: {session}} = await sb.auth.getSession();
+    if (!session) return telaLogin();
+    S.user = session.user; $('#sair').hidden = false;
+    const {data: p, error} = await sb.from('fab_perfis').select('nome,perfil,ativo').eq('id', S.user.id).maybeSingle();
+    if (error) throw error;
+    if (!p || !p.perfil || !p.ativo) {
+      S.perfil = null; renderNav(); $('#quem').textContent = S.user.email;
+      $('#main').innerHTML = `<div class="card stack"><h1>Acesso aguardando liberação</h1><p class="sub">Seu login (${esc(S.user.email)}) existe, mas a gestão ainda não definiu o seu perfil.</p></div>`;
+      return;
+    }
+    S.perfil = p.perfil; S.nome = p.nome || S.user.email;
+    $('#quem').textContent = `${primeiro(S.nome)} · ${PERFIL_NOME[S.perfil]}`;
+    const {data: cores, error: ec} = await sb.from('cons_cores').select('*').order('ordem');
+    if (ec) throw ec;
+    S.cores = {}; cores.forEach(c => S.cores[c.ordem] = c);
+    S.nCores = cores.filter(c => c.ordem > 0).length || 12;
+    ir('home');
+  } catch (e) { toast(erroMsg(e), true); telaLogin(); }
+}
+
+// ====== Início ======
+function pronta(r) {
+  const p = r.cons_pecas || [];
+  const volt = p.filter(x => x.status === 'retornou').length;
+  const falta = p.filter(x => !['retornou','devolvida'].includes(x.status)).length;
+  return volt > 0 && (falta === 0 || r.modo_devolucao === 'parcial');
+}
+function pillReq(r) {
+  const p = r.cons_pecas || [];
+  if (r.status === 'na_fabrica') { const ok = p.filter(x => ['retornou','devolvida'].includes(x.status)).length; return `<span class="pill ${ok === p.length ? 'ok' : 'info'}">${ok} de ${p.length}</span>`; }
+  const st = {registrada:['Na loja','warn'], devolvida:['Devolvida','ok']}[r.status] || ['?','neutro'];
+  return `<span class="pill ${st[1]}">${st[0]}</span>`;
+}
+function cardReq(r) {
+  const busca = `${r.numero_formulario || ''} r-${r.id} ${r.consultora}`.toLowerCase();
+  const ex = r.fab_perfis ? esc(r.fab_perfis.nome) + ' · ' : '';
+  return `<button class="row" data-ir="req" data-p="${r.id}" data-busca="${esc(busca)}"><div><div class="t">${esc(reqNome(r))} · ${esc(r.consultora)}</div><div class="s">${ex}recebida ${fmt(r.data_recebimento)} · entregar até ${fmt(r.data_promessa)}</div></div>${pillReq(r)}</button>`;
+}
+const lista = (arr, vazio) => arr.length ? arr.map(cardReq).join('') : `<p class="vazio">${vazio}</p>`;
+function infoHoje(ult, abertos) {
+  const hoje = hojeISO();
+  if (ult && ult.data_entrada === hoje) return {cor: ult.cor_ordem, texto: `Lote de hoje: ${loteNome(ult)}. Separe no pote ${cor(ult.cor_ordem).nome.toLowerCase()}.`};
+  const prox = ult ? (ult.cor_ordem % S.nCores) + 1 : 1;
+  const ocup = abertos.find(l => l.cor_ordem === prox);
+  if (ocup) return {cor: prox, alerta: true, ocupId: ocup.id, texto: `A próxima cor é ${cor(prox).nome}, mas o ${loteNome(ocup)} ainda tem peças. Feche esse lote ou transfira as pendências para o Preto antes de receber.`};
+  return {cor: prox, texto: `Próximo lote: ${cor(prox).nome}. Ele é criado no primeiro recebimento de hoje.`};
+}
+
+R.home = async () => {
+  if (S.perfil === 'executiva') {
+    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,cons_pecas(status)').order('id', {ascending: false}).limit(60);
+    if (error) throw error;
+    $('#main').innerHTML = `
+      <h1>Olá, ${esc(primeiro(S.nome))}</h1>
+      <button class="btn" data-ir="nova">+ Nova requisição</button>
+      <h2>Minhas requisições</h2>${lista(data, 'Nenhuma requisição ainda.')}`;
+    return;
+  }
+  const [q1, q2, q3] = await Promise.all([
+    sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,modo_devolucao,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_pecas(status)').in('status', ['registrada','na_fabrica']).order('id'),
+    sb.from('cons_lotes_resumo').select('*').eq('status', 'aberto').order('id'),
+    sb.from('cons_lotes').select('id,cor_ordem,data_entrada,status').gt('cor_ordem', 0).order('id', {ascending: false}).limit(1)
+  ]);
+  for (const q of [q1, q2, q3]) if (q.error) throw q.error;
+  const reqs = q1.data, lotes = q2.data, ult = q3.data[0];
+  const aRec = reqs.filter(r => r.status === 'registrada');
+  const prontas = reqs.filter(r => r.status === 'na_fabrica' && pronta(r));
+  const abertas = lotes.reduce((s, l) => s + (l.total - l.devolvida), 0);
+  const atras = lotes.filter(l => l.cor_ordem > 0 && diaUtil(l.data_entrada) > 12).length;
+  const h = infoHoje(ult, lotes);
+  $('#main').innerHTML = `
+    <div><h1>Olá, ${esc(primeiro(S.nome))}</h1><p class="sub">${new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'})}</p></div>
+    <div class="card ${h.alerta ? 'alerta' : ''}" style="display:flex;gap:10px;align-items:flex-start">${dot(h.cor, true)}<div class="stack" style="gap:4px"><span>${esc(h.texto)}</span>${h.ocupId ? `<button class="link" data-ir="lote" data-p="${h.ocupId}">Abrir o lote ${n3(h.ocupId)}</button>` : ''}</div></div>
+    <div class="kpis">
+      <div class="kpi"><b>${aRec.length}</b><span>requisições a receber</span></div>
+      <div class="kpi"><b>${abertas}</b><span>peças em aberto na fábrica</span></div>
+      <div class="kpi"><b style="color:var(--ok)">${prontas.length}</b><span>prontas para devolver</span></div>
+      <div class="kpi"><b style="color:${atras ? 'var(--bad)' : 'inherit'}">${atras}</b><span>lotes acima de 12 dias úteis</span></div>
+    </div>
+    <button class="btn dark" data-ir="retorno">Retorno do Jonatan · limpeza, banho, flash</button>
+    ${lotes.length ? `<div class="lotesmini">${lotes.map(l => `<button class="lchip" data-ir="lote" data-p="${l.id}">${dot(l.cor_ordem)}${n3(l.id)} <span class="s">${l.total - l.devolvida} pç</span></button>`).join('')}</div>` : ''}
+    <input id="busca" type="search" placeholder="Buscar nº do formulário ou consultora" aria-label="Buscar requisição">
+    <h2>A receber na fábrica (${aRec.length})</h2>${lista(aRec, 'Nada a receber.')}
+    <h2>Prontas para devolver (${prontas.length})</h2>${lista(prontas, 'Nenhuma pronta ainda.')}`;
+  $('#busca').oninput = e => { const t = e.target.value.trim().toLowerCase(); document.querySelectorAll('.row[data-busca]').forEach(r => r.hidden = !!t && !r.dataset.busca.includes(t)); };
+};
+
+// ====== Nova requisição ======
+R.nova = async () => {
+  let execs = [];
+  if (S.perfil !== 'executiva') {
+    const {data, error} = await sb.from('fab_perfis').select('id,nome').eq('perfil', 'executiva').eq('ativo', true).order('nome');
+    if (error) throw error; execs = data;
+  }
+  const hoje = hojeISO(); let pecas = [], fotos = [], seq = 0;
+  $('#main').innerHTML = `
+  <div><h1>Nova requisição</h1><p class="sub">Dados do formulário de conserto.</p></div>
+  <form id="fReq" class="stack">
+    <div class="card stack">
+      ${S.perfil !== 'executiva' ? `<div class="field"><label for="rExec">Executiva</label><select id="rExec"><option value="">${execs.length ? 'Escolha a executiva' : 'Nenhuma executiva cadastrada'}</option>${execs.map(x => `<option value="${x.id}">${esc(x.nome)}</option>`).join('')}</select></div>` : ''}
+      <div class="grid2">
+        <div class="field"><label for="rNum">Nº do formulário</label><input id="rNum" inputmode="numeric" placeholder="se houver"></div>
+        <div class="field"><label for="rCons">Consultora</label><input id="rCons" required autocomplete="off"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="rRec">Recebido em</label><input id="rRec" type="date" value="${hoje}" required></div>
+        <div class="field"><label for="rProm">Entregar até</label><input id="rProm" type="date" value="${addDias(hoje, 30)}" required></div>
+      </div>
+      <div class="field"><span class="lbl">Devolução para a loja</span>
+        <div class="seg two"><label><input type="radio" name="rModo" value="completa" checked>Completa</label><label><input type="radio" name="rModo" value="parcial">Parcial</label></div></div>
+      <div class="field"><label for="rObs">Observação</label><textarea id="rObs" rows="2" placeholder="ex.: banho dourado"></textarea></div>
+    </div>
+    <div class="card stack">
+      <h2 style="margin:0">Foto das peças</h2>
+      <div class="dica"><b>Padrão da foto</b><ol>
+        <li>Régua esticada na parte de baixo.</li>
+        <li>De cima para baixo: correntes (esticadas), anéis e pingentes, pulseiras, brincos.</li>
+        <li>Brinco: um em pé, cravado no tapete, e o par deitado ao lado.</li>
+        <li>Celular reto, de cima, sem sol direto.</li></ol></div>
+      <div class="grid2">
+        <label class="btn outline small" for="rCam">Tirar foto</label>
+        <label class="btn outline small" for="rGal">Da galeria</label>
+      </div>
+      <input id="rCam" type="file" accept="image/*" capture="environment" hidden>
+      <input id="rGal" type="file" accept="image/*" multiple hidden>
+      <div id="rPrev"></div>
+    </div>
+    <div class="card stack">
+      <h2 style="margin:0">Peças</h2>
+      <p class="sub">Toque no grupo de cada peça. O app coloca na ordem da foto.</p>
+      <div class="grupos">${GRUPOS.map(([g, n]) => `<button type="button" class="chipbtn" data-act="add" data-v="${g}">+ ${n}</button>`).join('')}</div>
+      <div id="rPecas" class="stack"></div>
+    </div>
+    <button class="btn" type="submit" id="rSalvar">Salvar requisição</button>
+  </form>`;
+
+  const renderFotos = () => {
+    $('#rPrev').innerHTML = fotos.length ? `<div class="thumbs">${fotos.map((f, i) => `<div class="th"><img src="${f.url}" alt="Foto ${i + 1}" data-zoom="${f.url}"><button type="button" class="x" data-act="rmFoto" data-i="${i}" aria-label="Remover foto">×</button></div>`).join('')}</div>` : '<p class="vazio">Nenhuma foto ainda.</p>';
+  };
+  const renderPecas = () => {
+    pecas.sort((a, b) => ordemG(a.grupo) - ordemG(b.grupo) || a.k - b.k);
+    $('#rPecas').innerHTML = pecas.length ? pecas.map((p, i) => `
+      <div class="peca"><div class="top2"><b>${i + 1} · ${GNOME[p.grupo]}</b><button type="button" class="link" data-act="del" data-k="${p.k}">Remover</button></div>
+      <div class="grid2">
+        <div class="field"><label for="m${p.k}">Medida</label><input id="m${p.k}" data-k="${p.k}" data-f="medida" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
+        <div class="field"><label for="d${p.k}">Descrição (opcional)</label><input id="d${p.k}" data-k="${p.k}" data-f="descricao" value="${esc(p.descricao)}"></div>
+      </div></div>`).join('') : '<p class="vazio">Nenhuma peça adicionada.</p>';
+  };
+  renderFotos(); renderPecas();
+
+  const addFotos = e => { [...e.target.files].forEach(f => fotos.push({file: f, url: URL.createObjectURL(f)})); e.target.value = ''; renderFotos(); };
+  $('#rCam').onchange = addFotos; $('#rGal').onchange = addFotos;
+  $('#rRec').onchange = e => { if (e.target.value) $('#rProm').value = addDias(e.target.value, 30); };
+  $('#rPecas').oninput = e => { const p = pecas.find(x => x.k == e.target.dataset.k); if (p) p[e.target.dataset.f] = e.target.value; };
+  ACT.add = b => { pecas.push({k: ++seq, grupo: b.dataset.v, medida: '', descricao: ''}); renderPecas(); };
+  ACT.del = b => { pecas = pecas.filter(x => x.k != b.dataset.k); renderPecas(); };
+  ACT.rmFoto = b => { fotos.splice(+b.dataset.i, 1); renderFotos(); };
+
+  $('#fReq').onsubmit = async e => {
+    e.preventDefault(); const b = $('#rSalvar');
+    if (!pecas.length) return toast('Adicione ao menos uma peça.', true);
+    if (!fotos.length) return toast('Tire ao menos uma foto das peças.', true);
+    const execId = S.perfil === 'executiva' ? S.user.id : ($('#rExec').value || null);
+    b.disabled = true; b.textContent = 'Salvando…';
+    try {
+      const {data: r, error} = await sb.from('cons_requisicoes').insert({
+        numero_formulario: $('#rNum').value.trim() || null, executiva_id: execId, consultora: $('#rCons').value.trim(),
+        data_recebimento: $('#rRec').value, data_promessa: $('#rProm').value,
+        modo_devolucao: document.querySelector('input[name=rModo]:checked').value, observacao: $('#rObs').value.trim() || null
+      }).select('id').single();
+      if (error) throw error;
+      const {error: ep} = await sb.from('cons_pecas').insert(pecas.map((p, i) => ({requisicao_id: r.id, posicao: i + 1, grupo: p.grupo, medida: p.medida.trim() || null, descricao: p.descricao.trim() || null})));
+      if (ep) throw ep;
+      for (let i = 0; i < fotos.length; i++) {
+        b.textContent = `Enviando foto ${i + 1} de ${fotos.length}…`;
+        const base = `req/${r.id}/${Date.now()}-${i}`;
+        const grande = await comprimir(fotos[i].file), menor = await comprimir(fotos[i].file, 1024, 0.8);
+        for (const [sufixo, blob] of [['.jpg', grande], ['-ia.jpg', menor]]) {
+          const {error: eu} = await sb.storage.from('consertos').upload(base + sufixo, blob, {contentType: 'image/jpeg'});
+          if (eu) throw eu;
+        }
+        const {error: ef} = await sb.from('cons_fotos').insert({requisicao_id: r.id, caminho: base + '.jpg', caminho_ia: base + '-ia.jpg', tipo: 'chegada'});
+        if (ef) throw ef;
+      }
+      b.textContent = 'A IA está descrevendo as peças…';
+      try { await ia({acao: 'descrever', requisicao_id: r.id}); toast('Requisição salva e descrita pela IA.'); }
+      catch (e2) { toast('Requisição salva, mas a IA não descreveu: ' + erroMsg(e2), true); }
+      ir('req', r.id);
+    } catch (err) { toast(erroMsg(err), true); b.disabled = false; b.textContent = 'Salvar requisição'; }
+  };
+};
+
+// ====== Requisição ======
+R.req = async id => {
+  const q = await sb.from('cons_requisicoes').select('*,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem)').eq('id', id).single();
+  if (q.error) throw q.error;
+  const r = q.data;
+  const [qp, qf] = await Promise.all([
+    sb.from('cons_pecas').select('*,cons_lotes!cons_pecas_lote_id_fkey(id,cor_ordem)').eq('requisicao_id', id).order('posicao'),
+    sb.from('cons_fotos').select('*').eq('requisicao_id', id).order('id')
+  ]);
+  if (qp.error) throw qp.error; if (qf.error) throw qf.error;
+  const pecas = qp.data, fotos = qf.data, urls = await assinar(fotos.map(f => f.caminho));
+  r.cons_pecas = pecas;
+  const fab = S.perfil !== 'executiva', conferir = fab && r.status === 'registrada';
+  const volt = pecas.filter(p => p.status === 'retornou'), falta = pecas.filter(p => !['retornou','devolvida'].includes(p.status));
+  const podeExcluir = S.perfil === 'gestao' || (r.status === 'registrada' && (fab || r.executiva_id === S.user.id));
+
+  const linha = p => `<div class="peca"><div class="top2"><b>${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</b><span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span></div>
+    ${p.descricao ? `<div>${esc(p.descricao)}</div>` : ''}
+    ${p.descricao_ia && p.descricao_ia !== p.descricao ? `<div class="s">IA: ${esc(p.descricao_ia)}</div>` : ''}
+    <div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div></div>`;
+  const conf = p => `<div class="peca"><b>${p.posicao} · ${GNOME[p.grupo]}</b>
+    <div class="grid2">
+      <div class="field"><label for="m${p.id}">Medida</label><input id="m${p.id}" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
+      <div class="field"><label for="d${p.id}">Descrição</label><input id="d${p.id}" value="${esc(p.descricao || p.descricao_ia)}"></div>
+    </div>
+    <div class="field"><span class="lbl">Serviço previsto</span><div class="seg">${SERV.map(([s, n]) => `<label><input type="radio" name="s${p.id}" value="${s}" ${(p.servico_previsto || 'limpeza') === s ? 'checked' : ''}>${n}</label>`).join('')}</div></div></div>`;
+  let dev = '';
+  if (fab && r.status === 'na_fabrica') {
+    const bloq = r.modo_devolucao === 'completa' && falta.length > 0;
+    dev = volt.length ? `<div class="card stack"><h2 style="margin:0">Devolução</h2>
+      ${volt.map(p => `<label class="check"><input type="checkbox" name="dev" value="${p.id}" checked>${p.posicao} · ${GNOME[p.grupo]} · ${SNOME[p.servico_feito] || ''}</label>`).join('')}
+      ${bloq ? `<p class="sub">Devolução completa: ainda faltam ${falta.length} peça(s).</p>` : ''}
+      <button class="btn green" data-act="devolver" ${bloq ? 'disabled' : ''}>Registrar devolução${r.fab_perfis ? ' à ' + esc(primeiro(r.fab_perfis.nome)) : ''}</button></div>`
+      : `<div class="card"><p class="sub">Nenhuma peça voltou ainda. ${falta.length} em processo.</p></div>`;
+  }
+
+  $('#main').innerHTML = `
+    <button class="link" data-ir="home">‹ Início</button>
+    <div class="card stack">
+      <div class="top2"><h1>${esc(reqNome(r))}</h1>${pillReq(r)}</div>
+      ${r.cons_lotes ? `<button class="link" data-ir="lote" data-p="${r.cons_lotes.id}">${corChip(r.cons_lotes.cor_ordem, loteNome(r.cons_lotes))}</button>` : ''}
+      <dl class="info">
+        <div><dt>Consultora</dt><dd>${esc(r.consultora)}</dd></div>
+        <div><dt>Executiva</dt><dd>${esc(r.fab_perfis ? r.fab_perfis.nome : '—')}</dd></div>
+        <div><dt>Recebido em</dt><dd>${fmtA(r.data_recebimento)}</dd></div>
+        <div><dt>Entregar até</dt><dd>${fmtA(r.data_promessa)}</dd></div>
+        <div><dt>Devolução</dt><dd>${r.modo_devolucao === 'parcial' ? 'Parcial' : 'Completa'}</dd></div>
+        ${r.observacao ? `<div><dt>Observação</dt><dd>${esc(r.observacao)}</dd></div>` : ''}
+      </dl>
+    </div>
+    <h2>Fotos</h2>${thumbs(fotos, urls)}
+    <h2>Peças (${pecas.length})</h2>
+    ${conferir ? `<p class="sub">Confira a medida, a descrição e o serviço de cada peça.</p>${pecas.map(conf).join('')}<button class="btn" data-act="receber">Conferido · receber no lote de hoje</button>` : pecas.map(linha).join('')}
+    ${dev}
+    ${fotos.length && (r.status === 'registrada' || fab) && r.status !== 'devolvida' ? `<button class="btn outline" data-act="descrever">Descrever de novo com a IA</button>` : ''}
+    ${podeExcluir ? `<button class="btn outline" data-act="excluir">Excluir requisição</button>` : ''}`;
+
+  ACT.receber = async b => {
+    b.disabled = true; b.textContent = 'Recebendo…';
+    try {
+      for (const p of pecas) {
+        const {error} = await sb.from('cons_pecas').update({
+          medida: $('#m' + p.id).value.trim() || null, descricao: $('#d' + p.id).value.trim() || null,
+          servico_previsto: document.querySelector(`input[name=s${p.id}]:checked`).value
+        }).eq('id', p.id);
+        if (error) throw error;
+      }
+      const {data: lote, error} = await sb.rpc('cons_receber', {p_req: r.id});
+      if (error) throw error;
+      toast(`Recebida no lote ${n3(lote)}.`); ir('req', r.id);
+    } catch (e) {
+      b.disabled = false; b.textContent = 'Conferido · receber no lote de hoje';
+      const k = erroMsg(e).match(/COR_OCUPADA:(\d+)/);
+      toast(k ? `A próxima cor ainda está no lote ${n3(k[1])}. Abra esse lote e transfira as pendências para o Preto.` : erroMsg(e), true);
+    }
+  };
+  ACT.descrever = async b => {
+    b.disabled = true; b.textContent = 'A IA está descrevendo…';
+    try { await ia({acao: 'descrever', requisicao_id: r.id}); toast('Descrições atualizadas.'); ir('req', r.id); }
+    catch (e) { b.disabled = false; b.textContent = 'Descrever de novo com a IA'; toast(erroMsg(e), true); }
+  };
+  ACT.devolver = async b => {
+    const ids = [...document.querySelectorAll('input[name=dev]:checked')].map(x => +x.value);
+    if (!ids.length) return toast('Marque as peças que vão voltar.', true);
+    if (!confirma(b)) return;
+    b.disabled = true;
+    const {error} = await sb.rpc('cons_devolver', {p_req: r.id, p_pecas: ids});
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    toast('Devolução registrada.'); ir('req', r.id);
+  };
+  ACT.excluir = async b => {
+    if (!confirma(b)) return;
+    b.disabled = true;
+    const {error} = await sb.from('cons_requisicoes').delete().eq('id', r.id);
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    if (fab && fotos.length) await sb.storage.from('consertos').remove(fotos.map(f => f.caminho));
+    toast('Requisição excluída.'); ir('home');
+  };
+};
+
+// ====== Lotes ======
+function cardLote(l) {
+  const pend = l.total - l.devolvida, du = l.cor_ordem > 0 && l.status === 'aberto' ? diaUtil(l.data_entrada) : null;
+  return `<button class="row" data-ir="lote" data-p="${l.id}" style="align-items:flex-start">
+    <div style="display:flex;gap:12px;align-items:flex-start;min-width:0;flex:1">${dot(l.cor_ordem, true)}
+    <div class="stack" style="gap:4px;min-width:0;flex:1"><div class="t">${esc(loteNome(l))}</div>
+    <div class="s">Entrada ${fmt(l.data_entrada)}${l.promessa ? ' · entregar até ' + fmt(l.promessa) : ''}${du ? ` · <span class="${du > 12 ? 'flag' : ''}">dia ${du} de 12</span>` : ''}</div>
+    <div class="s">Fábrica ${l.na_fabrica} · Jonatan ${l.com_jonatan} · Voltaram ${l.retornou} · Devolvidas ${l.devolvida}/${l.total}</div>
+    <div class="bar"><i style="width:${l.total ? Math.round(100 * l.devolvida / l.total) : 0}%"></i></div></div></div>
+    <span class="pill ${l.status === 'aberto' ? (pend ? 'info' : 'ok') : 'ok'}">${l.status === 'aberto' ? pend + ' em aberto' : 'Fechado'}</span></button>`;
+}
+R.lotes = async () => {
+  const [a, f] = await Promise.all([
+    sb.from('cons_lotes_resumo').select('*').eq('status', 'aberto').order('id'),
+    sb.from('cons_lotes_resumo').select('*').eq('status', 'fechado').order('id', {ascending: false}).limit(12)
+  ]);
+  if (a.error) throw a.error; if (f.error) throw f.error;
+  $('#main').innerHTML = `
+    <div><h1>Lotes</h1><p class="sub">Um lote por dia útil, na sequência das ${S.nCores} cores. O Preto é só para pendências.</p></div>
+    <h2>Abertos (${a.data.length})</h2>${a.data.length ? a.data.map(cardLote).join('') : '<p class="vazio">Nenhum lote aberto.</p>'}
+    <h2>Fechados recentes</h2>${f.data.length ? f.data.map(cardLote).join('') : '<p class="vazio">Nenhum lote fechado ainda.</p>'}`;
+};
+
+R.lote = async id => {
+  const [ql, qp] = await Promise.all([
+    sb.from('cons_lotes_resumo').select('*').eq('id', id).single(),
+    sb.from('cons_pecas').select('*,cons_requisicoes(id,numero_formulario,consultora,data_promessa,modo_devolucao)').eq('lote_id', id).order('requisicao_id').order('posicao')
+  ]);
+  if (ql.error) throw ql.error; if (qp.error) throw qp.error;
+  const l = ql.data, pecas = qp.data, fab = S.perfil !== 'executiva';
+  const reqIds = [...new Set(pecas.map(p => p.requisicao_id))];
+  let fotos = [];
+  if (reqIds.length) { const q = await sb.from('cons_fotos').select('*').in('requisicao_id', reqIds).eq('tipo', 'chegada').order('id'); if (q.error) throw q.error; fotos = q.data; }
+  const urls = await assinar(fotos.map(f => f.caminho));
+  const F = {aba: 'aguardando', grupo: ''};
+  const emProc = p => ['na_fabrica','com_jonatan'].includes(p.status);
+
+  function render() {
+    const c = k => pecas.filter(p => p.status === k).length;
+    const pend = pecas.filter(p => p.status !== 'devolvida').length;
+    const grupos = [...new Set(pecas.map(p => p.grupo))].sort((a, b) => ordemG(a) - ordemG(b));
+    const filtro = pecas.filter(p => (!F.grupo || p.grupo === F.grupo) && (F.aba === 'todas' || (F.aba === 'aguardando' ? emProc(p) : p.status === 'retornou')));
+    const porReq = {}; filtro.forEach(p => (porReq[p.requisicao_id] = porReq[p.requisicao_id] || []).push(p));
+    const du = l.cor_ordem > 0 && l.status === 'aberto' ? diaUtil(l.data_entrada) : null;
+    const aberto = l.status === 'aberto';
+    const acoes = !fab || !aberto ? '' : [
+      c('com_jonatan') + c('na_fabrica') ? `<button class="btn" data-ir="retorno" data-p="${l.id}">Identificar retorno com a IA</button>` : '',
+      c('na_fabrica') ? `<button class="btn dark" data-act="enviar">Enviar ${c('na_fabrica')} peça(s) ao Jonatan · pote ${esc(cor(l.cor_ordem).nome.toLowerCase())}</button>` : '',
+      l.cor_ordem > 0 && pend ? `<button class="btn outline" data-act="transferir">Transferir ${pend} pendência(s) para o Preto</button>` : '',
+      !pend && pecas.length ? `<button class="btn" data-act="fechar">Fechar lote</button>` : ''
+    ].join('');
+    const linhaP = p => {
+      let acao;
+      if (fab && emProc(p) && aberto) acao = `<span class="lbl">Voltou com:</span><div class="acoes3">${SERV.map(([s, n]) => `<button data-act="voltou" data-id="${p.id}" data-v="${s}">${n}</button>`).join('')}</div>`;
+      else if (p.status === 'retornou') acao = `<div class="top2"><span class="pill ok">Voltou · ${SNOME[p.servico_feito] || ''}</span>${fab ? `<button class="link" data-act="desfazer" data-id="${p.id}">Desfazer</button>` : ''}</div>`;
+      else acao = `<span class="pill ${ST[p.status][1]}" style="align-self:flex-start">${ST[p.status][0]}</span>`;
+      return `<div class="pecarow"><div><b>${p.posicao} · ${GNOME[p.grupo]}</b>${p.medida ? ' · ' + esc(p.medida) : ''}${emProc(p) ? ` <span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span>` : ''}
+        ${p.descricao ? `<div>${esc(p.descricao)}</div>` : ''}<div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}</div></div>${acao}</div>`;
+    };
+    const bloco = ([rid, ps]) => {
+      const r = ps[0].cons_requisicoes, fs = fotos.filter(f => f.requisicao_id == rid);
+      return `<div class="card stack" style="gap:10px"><div class="top2"><button class="link" data-ir="req" data-p="${rid}">${esc(reqNome(r))} · ${esc(r.consultora)}</button><span class="s">até ${fmt(r.data_promessa)}</span></div>
+        ${fs.length ? thumbs(fs, urls) : ''}${ps.map(linhaP).join('')}</div>`;
+    };
+    $('#main').innerHTML = `
+      <button class="link" data-ir="lotes">‹ Lotes</button>
+      <div class="card stack">
+        <div class="top2"><div style="display:flex;gap:10px;align-items:center">${dot(l.cor_ordem, true)}<h1>${esc(loteNome(l))}</h1></div><span class="pill ${aberto ? 'info' : 'ok'}">${aberto ? 'Aberto' : 'Fechado'}</span></div>
+        <p class="sub">Entrada ${fmtA(l.data_entrada)}${l.promessa ? ' · entregar até ' + fmt(l.promessa) : ''}${du ? ` · <span class="${du > 12 ? 'flag' : ''}">dia útil ${du} de 12</span>` : ''}</p>
+        <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center">
+          <div><b>${c('na_fabrica')}</b><div class="s">Fábrica</div></div><div><b>${c('com_jonatan')}</b><div class="s">Jonatan</div></div>
+          <div><b>${c('retornou')}</b><div class="s">Voltaram</div></div><div><b>${c('devolvida')}</b><div class="s">Devolvidas</div></div></div>
+      </div>
+      ${acoes}
+      <div class="tabs">${[['aguardando','Aguardando'],['voltaram','Voltaram'],['todas','Todas']].map(([v, t]) => `<button class="${F.aba === v ? 'on' : ''}" data-act="aba" data-v="${v}">${t}</button>`).join('')}</div>
+      ${grupos.length > 1 ? `<div class="grupos"><button class="chipbtn ${!F.grupo ? 'on' : ''}" data-act="grupo" data-v="">Todos</button>${grupos.map(g => `<button class="chipbtn ${F.grupo === g ? 'on' : ''}" data-act="grupo" data-v="${g}">${GNOME[g]}</button>`).join('')}</div>` : ''}
+      ${Object.keys(porReq).length ? Object.entries(porReq).map(bloco).join('') : '<p class="vazio">Nenhuma peça neste filtro.</p>'}`;
+  }
+  render();
+
+  ACT.aba = b => { F.aba = b.dataset.v; render(); };
+  ACT.grupo = b => { F.grupo = b.dataset.v; render(); };
+  ACT.voltou = async b => {
+    const p = pecas.find(x => x.id == b.dataset.id); b.disabled = true;
+    const upd = {status: 'retornou', servico_feito: b.dataset.v, retornou_em: new Date().toISOString()};
+    const {error} = await sb.from('cons_pecas').update(upd).eq('id', p.id);
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    Object.assign(p, upd); toast(`${GNOME[p.grupo]} → saquinho ${reqNome(p.cons_requisicoes)}`); render();
+  };
+  ACT.desfazer = async b => {
+    const p = pecas.find(x => x.id == b.dataset.id);
+    const upd = {status: p.enviada_em ? 'com_jonatan' : 'na_fabrica', servico_feito: null, retornou_em: null};
+    const {error} = await sb.from('cons_pecas').update(upd).eq('id', p.id);
+    if (error) return toast(erroMsg(error), true);
+    Object.assign(p, upd); render();
+  };
+  ACT.enviar = async b => {
+    b.disabled = true; const agora = new Date().toISOString();
+    const {error} = await sb.from('cons_pecas').update({status: 'com_jonatan', enviada_em: agora}).eq('lote_id', l.id).eq('status', 'na_fabrica');
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    pecas.forEach(p => { if (p.status === 'na_fabrica') { p.status = 'com_jonatan'; p.enviada_em = agora; } });
+    toast('Peças enviadas ao Jonatan.'); render();
+  };
+  ACT.transferir = async b => {
+    if (!confirma(b)) return; b.disabled = true;
+    const {data, error} = await sb.rpc('cons_transferir_pendencias', {p_lote: l.id});
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    toast(`${data} peça(s) foram para o lote Preto. A cor ${cor(l.cor_ordem).nome} está livre.`); ir('lotes');
+  };
+  ACT.fechar = async b => {
+    b.disabled = true;
+    const {error} = await sb.from('cons_lotes').update({status: 'fechado', fechado_em: new Date().toISOString()}).eq('id', l.id);
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    toast('Lote fechado.'); ir('lotes');
+  };
+};
+
+// ====== Retorno do Jonatan (limpeza, banho, flash) com IA ======
+R.retorno = async loteId => {
+  const [ql, qlog] = await Promise.all([
+    sb.from('cons_lotes_resumo').select('*').eq('status', 'aberto').order('id'),
+    sb.from('cons_ia_log').select('posicao_ia').order('id', {ascending: false}).limit(300)
+  ]);
+  if (ql.error) throw ql.error;
+  const lotes = ql.data.filter(l => l.na_fabrica + l.com_jonatan > 0);
+  const logs = qlog.data || [];
+  const E = {lote: null, pend: [], fotosReq: {}, urls: {}, grupo: '', medida: '', fotoUrl: '', busy: '', cands: null, info: '', manual: false, escolha: null, serv: 'limpeza'};
+  const peca = id => E.pend.find(p => p.id === id);
+
+  async function abrirLote(l) {
+    Object.assign(E, {lote: l, grupo: '', cands: null, escolha: null, fotoUrl: '', manual: false, busy: 'Carregando as peças do lote…'}); render();
+    try {
+      const qp = await sb.from('cons_pecas').select('*,cons_requisicoes(id,numero_formulario,consultora,data_promessa)').eq('lote_id', l.id).in('status', ['na_fabrica','com_jonatan']).order('requisicao_id').order('posicao');
+      if (qp.error) throw qp.error;
+      E.pend = qp.data;
+      const ids = [...new Set(E.pend.map(p => p.requisicao_id))];
+      let fotos = [];
+      if (ids.length) { const qf = await sb.from('cons_fotos').select('*').in('requisicao_id', ids).eq('tipo', 'chegada').order('id'); if (qf.error) throw qf.error; fotos = qf.data; }
+      E.fotosReq = {}; fotos.forEach(f => (E.fotosReq[f.requisicao_id] = E.fotosReq[f.requisicao_id] || []).push(f));
+      E.urls = await assinar(fotos.flatMap(f => [f.caminho, f.caminho_ia]).filter(Boolean));
+    } catch (e) { toast(erroMsg(e), true); }
+    E.busy = ''; render();
+  }
+
+  function cartao(p, extra) {
+    const r = p.cons_requisicoes, f = (E.fotosReq[p.requisicao_id] || [])[0];
+    const img = f ? `<img src="${esc(E.urls[f.caminho_ia || f.caminho] || '')}" alt="Foto de chegada" data-zoom="${esc(E.urls[f.caminho] || '')}">` : '';
+    return `<div class="cand ${E.escolha === p.id ? 'on' : ''}">${img}<button class="cand-b" data-act="escolher" data-id="${p.id}">
+      <span class="t">${esc(reqNome(r))} · ${esc(r.consultora)}</span>
+      <span>Peça ${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</span>
+      ${p.descricao ? `<span class="s">${esc(p.descricao)}</span>` : ''}${extra || ''}</button></div>`;
+  }
+
+  function render() {
+    const tot = logs.length, t1 = logs.filter(x => x.posicao_ia === 1).length, t3 = logs.filter(x => x.posicao_ia >= 1 && x.posicao_ia <= 3).length;
+    const grupos = {}; E.pend.forEach(p => grupos[p.grupo] = (grupos[p.grupo] || 0) + 1);
+    const doGrupo = E.pend.filter(p => p.grupo === E.grupo);
+    const esc1 = E.escolha && peca(E.escolha);
+    let h = `<div><h1>Retorno do Jonatan</h1><p class="sub">Peças que voltaram da limpeza, do banho ou do flash. Fotografe uma peça por vez e a IA indica de qual requisição ela é.</p></div>
+      ${tot ? `<div class="card s">Acerto da IA até agora: em 1º lugar <b>${t1} de ${tot}</b> · entre as 3 sugestões <b>${t3} de ${tot}</b></div>` : ''}
+      <h2>1. Lote (cor do pote)</h2>
+      ${lotes.length ? `<div class="grupos">${lotes.map(l => `<button class="chipbtn ${E.lote && E.lote.id === l.id ? 'on' : ''}" data-act="lote" data-v="${l.id}" style="display:inline-flex;align-items:center;gap:6px">${dot(l.cor_ordem)}${esc(cor(l.cor_ordem).nome)} · ${n3(l.id)} <span class="s">${l.na_fabrica + l.com_jonatan}</span></button>`).join('')}</div>` : '<p class="vazio">Nenhum lote com peças aguardando retorno.</p>'}`;
+    if (E.busy && !E.grupo) h += `<div class="ia"><i></i>${esc(E.busy)}</div>`;
+    if (E.lote && !(E.busy && !E.grupo)) {
+      h += `<h2>2. Grupo da peça</h2>${Object.keys(grupos).length ? `<div class="grupos">${Object.entries(grupos).sort((a, b) => ordemG(a[0]) - ordemG(b[0])).map(([g, n]) => `<button class="chipbtn ${E.grupo === g ? 'on' : ''}" data-act="grupo" data-v="${g}">${GNOME[g]} · ${n}</button>`).join('')}</div>` : '<p class="vazio">Todas as peças deste lote já voltaram.</p>'}`;
+    }
+    if (E.lote && E.grupo) {
+      h += `<h2>3. Foto da peça que voltou</h2>
+        <div class="dica">Uma peça por foto, sobre o tapete com a régua, celular reto, de cima.</div>
+        <div class="field"><label for="tMed">Medida (opcional, ajuda a IA)</label><input id="tMed" value="${esc(E.medida)}" placeholder="${PH[E.grupo]}"></div>
+        <div class="grid2"><label class="btn outline small" for="tCam">Tirar foto</label><label class="btn outline small" for="tGal">Da galeria</label></div>
+        <input id="tCam" type="file" accept="image/*" capture="environment" hidden><input id="tGal" type="file" accept="image/*" hidden>
+        ${E.fotoUrl ? `<img class="fotoret" src="${E.fotoUrl}" alt="Peça que voltou" data-zoom="${E.fotoUrl}">` : ''}
+        ${E.busy ? `<div class="ia"><i></i>${esc(E.busy)}</div>` : ''}`;
+      if (E.cands) {
+        h += `<h2>4. Confirme a peça</h2>${E.info ? `<p class="sub">${esc(E.info)}</p>` : ''}
+          ${E.cands.length ? E.cands.map(c => peca(c.peca_id) ? cartao(peca(c.peca_id), `<span class="s"><span class="conf">${c.confianca}%</span> · ${esc(c.motivo)}</span>`) : '').join('') : '<p class="vazio">A IA não encontrou uma peça parecida.</p>'}
+          <button class="link" data-act="manual">${E.manual ? 'Esconder a lista' : `Nenhuma destas · ver as ${doGrupo.length} peças do grupo`}</button>
+          ${E.manual ? doGrupo.map(p => cartao(p)).join('') : ''}`;
+      } else if (!E.busy) {
+        h += `<button class="link" data-act="manual">${E.manual ? 'Esconder a lista' : `Escolher sem a IA · ver as ${doGrupo.length} peças do grupo`}</button>${E.manual ? doGrupo.map(p => cartao(p)).join('') : ''}`;
+      }
+      if (esc1) {
+        h += `<div class="card stack"><b>Voltou com qual serviço?</b>
+          <div class="seg">${SERV.map(([s, n]) => `<button type="button" class="segb ${E.serv === s ? 'on' : ''}" data-act="serv" data-v="${s}">${n}</button>`).join('')}</div>
+          <button class="btn green" data-act="confirmar">Confirmar · saquinho ${esc(reqNome(esc1.cons_requisicoes))}</button></div>`;
+      }
+    }
+    $('#main').innerHTML = h;
+    if (E.lote && E.grupo) {
+      $('#tMed').oninput = e => E.medida = e.target.value;
+      $('#tCam').onchange = $('#tGal').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) identificar(f); };
+    }
+  }
+
+  async function identificar(file) {
+    Object.assign(E, {cands: null, escolha: null, manual: false, info: '', fotoUrl: URL.createObjectURL(file)});
+    const nReq = new Set(E.pend.filter(p => p.grupo === E.grupo).map(p => p.requisicao_id)).size;
+    E.busy = `A IA está comparando com ${E.pend.filter(p => p.grupo === E.grupo).length} peça(s) de ${nReq} requisição(ões)…`; render();
+    try {
+      const foto = await b64(await comprimir(file, 1600, 0.85));
+      const d = await ia({acao: 'identificar', lote_id: E.lote.id, grupo: E.grupo, medida: E.medida.trim() || null, foto});
+      E.cands = d.candidatos || []; E.info = d.aviso || '';
+      if (E.cands.length && peca(E.cands[0].peca_id)) { E.escolha = E.cands[0].peca_id; E.serv = peca(E.escolha).servico_previsto || 'limpeza'; }
+    } catch (e) { E.cands = []; toast(erroMsg(e), true); }
+    E.busy = ''; render();
+  }
+
+  ACT.lote = b => abrirLote(lotes.find(l => l.id == b.dataset.v));
+  ACT.grupo = b => { Object.assign(E, {grupo: b.dataset.v, cands: null, escolha: null, fotoUrl: '', manual: false, medida: ''}); render(); };
+  ACT.manual = () => { E.manual = !E.manual; render(); };
+  ACT.escolher = b => { E.escolha = +b.dataset.id; E.serv = peca(E.escolha).servico_previsto || 'limpeza'; render(); };
+  ACT.serv = b => { E.serv = b.dataset.v; render(); };
+  ACT.confirmar = async b => {
+    const p = peca(E.escolha); if (!p) return;
+    b.disabled = true;
+    const upd = {status: 'retornou', servico_feito: E.serv, retornou_em: new Date().toISOString()};
+    const {error} = await sb.from('cons_pecas').update(upd).eq('id', p.id);
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    if (E.cands) {
+      const pos = E.cands.findIndex(c => c.peca_id === p.id) + 1;
+      await sb.from('cons_ia_log').insert({lote_id: E.lote.id, grupo: E.grupo, candidatos: E.cands, peca_escolhida: p.id, posicao_ia: pos});
+      logs.unshift({posicao_ia: pos});
+    }
+    E.pend = E.pend.filter(x => x.id !== p.id);
+    const l = lotes.find(x => x.id === E.lote.id); if (l) { if (p.status === 'na_fabrica') l.na_fabrica--; else l.com_jonatan--; }
+    toast(`${GNOME[p.grupo]} → saquinho ${reqNome(p.cons_requisicoes)} (${SNOME[E.serv]})`);
+    Object.assign(E, {cands: null, escolha: null, fotoUrl: '', manual: false, medida: ''});
+    if (!E.pend.some(x => x.grupo === E.grupo)) E.grupo = '';
+    render();
+  };
+
+  render();
+  const ini = lotes.find(l => l.id == loteId);
+  if (ini) abrirLote(ini);
+};
+
+// ====== Usuários (gestão) ======
+R.usuarios = async () => {
+  const {data, error} = await sb.from('fab_perfis').select('*').order('criado_em');
+  if (error) throw error;
+  $('#main').innerHTML = `
+    <div><h1>Usuários</h1><p class="sub">Defina o nome e o perfil de cada login.</p></div>
+    <div class="dica"><b>Para criar um login</b><ol>
+      <li>No Supabase: Authentication → Users → Add user → Create new user.</li>
+      <li>Informe e-mail e senha e marque "Auto Confirm User".</li>
+      <li>Volte aqui, toque em "Atualizar lista" e defina o perfil.</li></ol></div>
+    <button class="btn outline small" data-ir="usuarios">Atualizar lista</button>
+    ${data.map(u => `<div class="card stack">
+      <div class="top2"><b style="word-break:break-all">${esc(u.email)}</b>${u.perfil ? '' : '<span class="pill warn">Sem perfil</span>'}</div>
+      <div class="grid2">
+        <div class="field"><label for="un${u.id}">Nome</label><input id="un${u.id}" value="${esc(u.nome)}"></div>
+        <div class="field"><label for="up${u.id}">Perfil</label><select id="up${u.id}"><option value="">Sem acesso</option>${Object.entries(PERFIL_NOME).map(([v, n]) => `<option value="${v}" ${u.perfil === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      </div>
+      <label class="check"><input type="checkbox" id="ua${u.id}" ${u.ativo ? 'checked' : ''}>Ativo</label>
+      <button class="btn small" data-act="salvarU" data-id="${u.id}">Salvar</button></div>`).join('')}`;
+  ACT.salvarU = async b => {
+    const id = b.dataset.id;
+    const {error} = await sb.from('fab_perfis').update({nome: $('#un' + id).value.trim(), perfil: $('#up' + id).value || null, ativo: $('#ua' + id).checked}).eq('id', id);
+    error ? toast(erroMsg(error), true) : toast('Salvo.');
+  };
+};
+
+iniciar();
+</script>
+</body>
+</html>
