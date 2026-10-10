@@ -150,7 +150,7 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 9';
+const VERSAO = 'Entrega 11';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -317,7 +317,7 @@ R.etapa = async k => {
   let h = `<button class="link" data-ir="home">‹ Início</button>
     <div class="stack" style="gap:4px"><span class="pill neutro" style="align-self:flex-start">Etapa ${e.n} de 6</span><h1>${e.t}</h1><p class="sub">${e.d}</p></div>`;
   if (['loja','receber','devolvidas'].includes(k)) {
-    let q = sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)');
+    let q = sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)');
     q = k === 'loja' ? q.eq('status', 'registrada') : k === 'receber' ? q.in('status', ['enviada','registrada']) : q.eq('status', 'devolvida').gte('devolvida_em', iso7());
     const {data, error} = await q.order('id', {ascending: false}).limit(500);
     if (error) throw error;
@@ -374,7 +374,8 @@ function cardReq(r) {
   const busca = `${r.numero_formulario || ''} r-${r.id} ${r.consultora}`.toLowerCase();
   const ex = r.fab_perfis ? esc(r.fab_perfis.nome) + ' · ' : '';
   const lt = r.cons_lotes ? dot(r.cons_lotes.cor_ordem) + ' ' : '';
-  return `<button class="row" data-ir="req" data-p="${r.id}" data-busca="${esc(busca)}"><div><div class="t">${lt}${esc(reqNome(r))} · ${esc(r.consultora)}</div><div class="s">${ex}recebida ${fmt(r.data_recebimento)} · entregar até ${fmt(r.data_promessa)}</div></div>${pillReq(r)}</button>`;
+  const difQtd = r.ia_qtd_foto && r.cons_pecas && r.ia_qtd_foto > r.cons_pecas.length;
+  return `<button class="row" data-ir="req" data-p="${r.id}" data-busca="${esc(busca)}"><div><div class="t">${lt}${esc(reqNome(r))} · ${esc(r.consultora)}</div><div class="s">${ex}recebida ${fmt(r.data_recebimento)} · entregar até ${fmt(r.data_promessa)}</div>${difQtd ? `<div class="flag" style="font-size:13px">Foto com ${r.ia_qtd_foto} peças, ${r.cons_pecas.length} lançadas</div>` : ''}</div>${pillReq(r)}</button>`;
 }
 const lista = (arr, vazio) => arr.length ? arr.map(cardReq).join('') : `<p class="vazio">${vazio}</p>`;
 function infoHoje(ult, abertos) {
@@ -388,7 +389,7 @@ function infoHoje(ult, abertos) {
 
 R.home = async () => {
   if (S.perfil === 'executiva') {
-    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').order('id', {ascending: false}).limit(80);
+    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').order('id', {ascending: false}).limit(80);
     if (error) throw error;
     const naLoja = data.filter(r => r.status === 'registrada'), outras = data.filter(r => r.status !== 'registrada');
     const nPec = naLoja.reduce((s, r) => s + (r.cons_pecas || []).length, 0);
@@ -420,7 +421,7 @@ R.home = async () => {
     return;
   }
   const [q1, q2, q3] = await Promise.all([
-    sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,modo_devolucao,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').in('status', ['registrada','enviada','na_fabrica']).order('id'),
+    sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,modo_devolucao,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').in('status', ['registrada','enviada','na_fabrica']).order('id'),
     sb.from('cons_lotes_resumo').select('*').eq('status', 'aberto').order('id'),
     sb.from('cons_lotes').select('id,cor_ordem,data_entrada,status').gt('cor_ordem', 0).order('id', {ascending: false}).limit(1)
   ]);
@@ -467,14 +468,40 @@ R.nova = async () => {
     if (error) throw error; execs = data;
   }
   const hoje = hojeISO(); let pecas = [], fotos = [], seq = 0;
+  const IA = {estado: '', total: 0, modo: '', exemplos: 0};   // estado: '' | analisando | ok | erro ; modo: pergunta | ajustando | conferido
+  const NOMES = {corrente: ['corrente', 'correntes'], anel: ['anel', 'anéis'], pingente: ['pingente', 'pingentes'], pulseira: ['pulseira', 'pulseiras'],
+    tornozeleira: ['tornozeleira', 'tornozeleiras'], brinco: ['par de brincos', 'pares de brincos'], outro: ['outra peça', 'outras peças']};
+  const resumo = () => { const c = {}; pecas.forEach(p => c[p.grupo] = (c[p.grupo] || 0) + 1);
+    return GRUPOS.map(([g]) => g).filter(g => c[g]).map(g => `${c[g]} ${NOMES[g][c[g] > 1 ? 1 : 0]}`).join(', '); };
+
   $('#main').innerHTML = `
-  <div><h1>Nova requisição</h1><p class="sub">Dados do formulário de conserto.</p></div>
+  <div><h1>Nova requisição</h1><p class="sub">Comece pela foto. A IA identifica e descreve as peças, e você confere.</p></div>
   <form id="fReq" class="stack">
     <div class="card stack">
+      <h2 style="margin:0">1. Foto das peças</h2>
+      <div class="dica"><b>Padrão da foto</b><ol>
+        <li>Régua esticada na parte de baixo.</li>
+        <li>De cima para baixo: correntes (esticadas), anéis e pingentes, pulseiras, brincos.</li>
+        <li>Brinco: um em pé, cravado no tapete, e o par deitado ao lado.</li>
+        <li>Celular reto, de cima, sem sol direto.</li></ol></div>
+      <div class="grid2"><label class="btn outline small" for="rCam">Tirar foto</label><label class="btn outline small" for="rGal">Da galeria</label></div>
+      <input id="rCam" type="file" accept="image/*" capture="environment" hidden>
+      <input id="rGal" type="file" accept="image/*" multiple hidden>
+      <div id="rPrev"></div>
+    </div>
+    <div class="card stack">
+      <h2 style="margin:0">2. Peças</h2>
+      <div id="rIA"></div>
+      <div id="rPecas" class="stack"></div>
+      <span class="lbl">Adicionar peça manualmente</span>
+      <div class="grupos">${GRUPOS.map(([g, n]) => `<button type="button" class="chipbtn" data-act="add" data-v="${g}">+ ${n}</button>`).join('')}</div>
+    </div>
+    <div class="card stack">
+      <h2 style="margin:0">3. Dados da requisição</h2>
       ${S.perfil !== 'executiva' ? `<div class="field"><label for="rExec">Loja</label><select id="rExec"><option value="">${execs.length ? 'Escolha a loja' : 'Nenhuma loja cadastrada'}</option>${execs.map(x => `<option value="${x.id}">${esc(x.nome)}</option>`).join('')}</select></div>` : ''}
       <div class="grid2">
         <div class="field"><label for="rNum">Nº da requisição *</label><input id="rNum" inputmode="numeric" required placeholder="ex.: 069733"></div>
-        <div class="field"><label for="rCons">Consultora</label><input id="rCons" required autocomplete="off"></div>
+        <div class="field"><label for="rCons">Consultora *</label><input id="rCons" required autocomplete="off"></div>
       </div>
       <div class="grid2">
         <div class="field"><label for="rRec">Recebido em</label><input id="rRec" type="date" value="${hoje}" required></div>
@@ -484,67 +511,86 @@ R.nova = async () => {
         <div class="seg two"><label><input type="radio" name="rModo" value="completa" checked>Completa</label><label><input type="radio" name="rModo" value="parcial">Parcial</label></div></div>
       <div class="field"><label for="rObs">Observação</label><textarea id="rObs" rows="2" placeholder="ex.: banho dourado"></textarea></div>
     </div>
-    <div class="card stack">
-      <h2 style="margin:0">Foto das peças</h2>
-      <div class="dica"><b>Padrão da foto</b><ol>
-        <li>Régua esticada na parte de baixo.</li>
-        <li>De cima para baixo: correntes (esticadas), anéis e pingentes, pulseiras, brincos.</li>
-        <li>Brinco: um em pé, cravado no tapete, e o par deitado ao lado.</li>
-        <li>Celular reto, de cima, sem sol direto.</li></ol></div>
-      <div class="grid2">
-        <label class="btn outline small" for="rCam">Tirar foto</label>
-        <label class="btn outline small" for="rGal">Da galeria</label>
-      </div>
-      <input id="rCam" type="file" accept="image/*" capture="environment" hidden>
-      <input id="rGal" type="file" accept="image/*" multiple hidden>
-      <div id="rPrev"></div>
-    </div>
-    <div class="card stack">
-      <h2 style="margin:0">Peças</h2>
-      <p class="sub">Toque no grupo de cada peça. O app coloca na ordem da foto.</p>
-      <div class="grupos">${GRUPOS.map(([g, n]) => `<button type="button" class="chipbtn" data-act="add" data-v="${g}">+ ${n}</button>`).join('')}</div>
-      <div id="rPecas" class="stack"></div>
-    </div>
     <button class="btn" type="submit" id="rSalvar">Salvar requisição</button>
   </form>`;
 
   const renderFotos = () => {
-    $('#rPrev').innerHTML = fotos.length ? `<div class="thumbs">${fotos.map((f, i) => `<div class="th"><img src="${f.url}" alt="Foto ${i + 1}" data-zoom="${f.url}"><button type="button" class="x" data-act="rmFoto" data-i="${i}" aria-label="Remover foto">×</button></div>`).join('')}</div>` : '<p class="vazio">Nenhuma foto ainda.</p>';
+    $('#rPrev').innerHTML = fotos.length ? `<div class="thumbs">${fotos.map((f, i) => `<div class="th"><img src="${f.url}" alt="Foto ${i + 1}" data-zoom="${f.url}"><button type="button" class="x" data-act="rmFoto" data-i="${i}" aria-label="Remover foto">×</button></div>`).join('')}</div>
+      ${IA.estado !== 'analisando' ? `<button type="button" class="btn dark small" data-act="analisar">${IA.estado === 'ok' ? 'Identificar de novo com a IA' : 'Identificar peças com a IA'}</button>` : ''}` : '<p class="vazio">Nenhuma foto ainda.</p>';
+  };
+  const renderIA = () => {
+    const box = $('#rIA');
+    if (IA.estado === 'analisando') { box.innerHTML = '<div class="ia"><i></i>A IA está identificando as peças da foto…</div>'; return; }
+    if (IA.estado === 'erro') { box.innerHTML = '<p class="sub">A IA não conseguiu analisar a foto. Lance as peças manualmente abaixo ou tente de novo.</p>'; return; }
+    if (IA.estado !== 'ok') { box.innerHTML = fotos.length ? '' : '<p class="sub">Tire a foto primeiro. As peças aparecem aqui.</p>'; return; }
+    const txt = pecas.length ? `<b>${pecas.length} peça(s)</b>: ${esc(resumo())}` : '<b>nenhuma peça</b>';
+    if (IA.modo === 'conferido') box.innerHTML = `<div class="result">Conferido: ${txt}.</div>`;
+    else if (IA.modo === 'ajustando') box.innerHTML = `<div class="card stack" style="gap:8px;background:var(--warn-soft)"><span>Ajuste a lista: remova o que não existe, corrija o grupo ou adicione a peça que faltou.</span>
+      <span>Agora são ${txt}.</span><button type="button" class="btn green small" data-act="confSim">Agora confere</button></div>`;
+    else box.innerHTML = `<div class="card stack" style="gap:8px;background:var(--rose-soft)"><span>A IA encontrou ${txt}${IA.total > pecas.length ? ` <span class="flag">(contou ${IA.total} na foto)</span>` : ''}.</span>
+      <b>Confere com as peças que você tem em mãos?</b>
+      <div class="grid2"><button type="button" class="btn green small" data-act="confSim">Sim, confere</button><button type="button" class="btn outline small" data-act="confNao">Não, vou ajustar</button></div></div>`;
   };
   const renderPecas = () => {
     pecas.sort((a, b) => ordemG(a.grupo) - ordemG(b.grupo) || a.k - b.k);
-    $('#rPecas').innerHTML = pecas.length ? pecas.map((p, i) => `
-      <div class="peca"><div class="top2"><b>${i + 1} · ${GNOME[p.grupo]}</b><button type="button" class="link" data-act="del" data-k="${p.k}">Remover</button></div>
-      <div class="grid2">
-        <div class="field"><label for="m${p.k}">Medida</label><input id="m${p.k}" data-k="${p.k}" data-f="medida" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
-        <div class="field"><label for="d${p.k}">Observação (opcional)</label><input id="d${p.k}" data-k="${p.k}" data-f="descricao" value="${esc(p.descricao)}"></div>
-      </div></div>`).join('') : '<p class="vazio">Nenhuma peça adicionada.</p>';
+    $('#rPecas').innerHTML = pecas.map((p, i) => `
+      <div class="peca"><div class="top2"><b>${i + 1} · ${GNOME[p.grupo]}${p.ia ? ' <span class="pill info">IA</span>' : ' <span class="pill warn">manual</span>'}</b><button type="button" class="link" data-act="del" data-k="${p.k}">Remover</button></div>
+        <div class="field"><label for="d${p.k}">Descrição</label><textarea id="d${p.k}" rows="2" data-k="${p.k}" data-f="descricao">${esc(p.descricao)}</textarea></div>
+        <div class="grid2">
+          <div class="field"><label for="g${p.k}">Grupo</label><select id="g${p.k}" data-k="${p.k}" data-f="grupo">${GRUPOS.map(([g, n]) => `<option value="${g}" ${p.grupo === g ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+          <div class="field"><label for="m${p.k}">Medida</label><input id="m${p.k}" data-k="${p.k}" data-f="medida" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
+        </div></div>`).join('');
+    renderIA();
   };
+  const mudou = () => { if (IA.estado === 'ok' && IA.modo === 'conferido') IA.modo = 'ajustando'; };
   renderFotos(); renderPecas();
 
-  const addFotos = e => { [...e.target.files].forEach(f => fotos.push({file: f, url: URL.createObjectURL(f)})); e.target.value = ''; renderFotos(); };
+  async function analisar() {
+    if (!fotos.length) return;
+    IA.estado = 'analisando'; renderFotos(); renderIA();
+    try {
+      const imgs = [];
+      for (const f of fotos.slice(0, 6)) imgs.push(await b64(await comprimir(f.file, 1600, 0.85)));
+      const d = await ia({acao: 'analisar', fotos: imgs});
+      pecas = d.pecas.map(p => ({k: ++seq, grupo: p.grupo, medida: p.medida_estimada ? '≈ ' + p.medida_estimada : '', descricao: p.descricao, descricao_ia: p.descricao, ia: true}));
+      Object.assign(IA, {estado: 'ok', total: d.total_na_foto, modo: 'pergunta', exemplos: d.exemplos || 0});
+    } catch (e) { IA.estado = 'erro'; toast(erroMsg(e), true); }
+    renderFotos(); renderPecas();
+  }
+
+  const addFotos = e => { const novas = [...e.target.files]; novas.forEach(f => fotos.push({file: f, url: URL.createObjectURL(f)})); e.target.value = '';
+    renderFotos(); if (novas.length && IA.estado === '') analisar(); else renderIA(); };
   $('#rCam').onchange = addFotos; $('#rGal').onchange = addFotos;
   $('#rRec').onchange = e => { if (e.target.value) $('#rProm').value = addDias(e.target.value, 30); };
-  $('#rPecas').oninput = e => { const p = pecas.find(x => x.k == e.target.dataset.k); if (p) p[e.target.dataset.f] = e.target.value; };
-  ACT.add = b => { pecas.push({k: ++seq, grupo: b.dataset.v, medida: '', descricao: ''}); renderPecas(); };
-  ACT.del = b => { pecas = pecas.filter(x => x.k != b.dataset.k); renderPecas(); };
-  ACT.rmFoto = b => { fotos.splice(+b.dataset.i, 1); renderFotos(); };
+  $('#rPecas').oninput = e => { const p = pecas.find(x => x.k == e.target.dataset.k); if (p && e.target.dataset.f !== 'grupo') p[e.target.dataset.f] = e.target.value; };
+  $('#rPecas').onchange = e => { if (e.target.dataset.f !== 'grupo') return; const p = pecas.find(x => x.k == e.target.dataset.k); if (p) { p.grupo = e.target.value; mudou(); renderPecas(); } };
+  ACT.analisar = () => analisar();
+  ACT.confSim = () => { IA.modo = 'conferido'; renderIA(); };
+  ACT.confNao = () => { IA.modo = 'ajustando'; renderIA(); };
+  ACT.add = b => { pecas.push({k: ++seq, grupo: b.dataset.v, medida: '', descricao: '', descricao_ia: null, ia: false}); mudou(); renderPecas();
+    const el = document.getElementById('d' + seq); if (el) el.focus(); };
+  ACT.del = b => { pecas = pecas.filter(x => x.k != b.dataset.k); mudou(); renderPecas(); };
+  ACT.rmFoto = b => { fotos.splice(+b.dataset.i, 1); renderFotos(); renderIA(); };
 
   $('#fReq').onsubmit = async e => {
     e.preventDefault(); const b = $('#rSalvar');
-    if (!$('#rNum').value.trim()) return toast('Informe o número da requisição.', true);
-    if (!pecas.length) return toast('Adicione ao menos uma peça.', true);
     if (!fotos.length) return toast('Tire ao menos uma foto das peças.', true);
+    if (!pecas.length) return toast('Nenhuma peça na lista. Use a IA ou adicione manualmente.', true);
+    if (IA.estado === 'ok' && IA.modo !== 'conferido') { $('#rIA').scrollIntoView({behavior: 'smooth'}); return toast('Confira a quantidade de peças (passo 2) antes de salvar.', true); }
+    if (!$('#rNum').value.trim()) return toast('Informe o número da requisição.', true);
+    if (!$('#rCons').value.trim()) return toast('Informe a consultora.', true);
     const execId = S.perfil === 'executiva' ? S.user.id : ($('#rExec').value || null);
     b.disabled = true; b.textContent = 'Salvando…';
     try {
       const {data: r, error} = await sb.from('cons_requisicoes').insert({
-        numero_formulario: $('#rNum').value.trim() || null, executiva_id: execId, consultora: $('#rCons').value.trim(),
+        numero_formulario: $('#rNum').value.trim(), executiva_id: execId, consultora: $('#rCons').value.trim(),
         data_recebimento: $('#rRec').value, data_promessa: $('#rProm').value,
-        modo_devolucao: document.querySelector('input[name=rModo]:checked').value, observacao: $('#rObs').value.trim() || null
+        modo_devolucao: document.querySelector('input[name=rModo]:checked').value, observacao: $('#rObs').value.trim() || null,
+        ia_qtd_foto: IA.estado === 'ok' ? IA.total : null
       }).select('id').single();
       if (error) throw error;
-      const {error: ep} = await sb.from('cons_pecas').insert(pecas.map((p, i) => ({requisicao_id: r.id, posicao: i + 1, grupo: p.grupo, medida: p.medida.trim() || null, obs_loja: p.descricao.trim() || null})));
+      const {error: ep} = await sb.from('cons_pecas').insert(pecas.map((p, i) => ({requisicao_id: r.id, posicao: i + 1, grupo: p.grupo,
+        medida: p.medida.trim() || null, descricao: p.descricao.trim() || null, descricao_ia: p.descricao_ia || null})));
       if (ep) throw ep;
       for (let i = 0; i < fotos.length; i++) {
         b.textContent = `Enviando foto ${i + 1} de ${fotos.length}…`;
@@ -557,15 +603,18 @@ R.nova = async () => {
         const {error: ef} = await sb.from('cons_fotos').insert({requisicao_id: r.id, caminho: base + '.jpg', caminho_ia: base + '-ia.jpg', tipo: 'chegada'});
         if (ef) throw ef;
       }
-      b.textContent = 'A IA está descrevendo as peças…';
-      try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`Requisição salva. A IA descreveu ${d.gravadas} peça(s)${d.exemplos ? `, usando ${d.exemplos} correção(ões) da equipe` : ''}.`); }
-      catch (e2) { toast('Requisição salva, mas a IA não descreveu: ' + erroMsg(e2), true); }
+      if (IA.estado !== 'ok') {
+        b.textContent = 'A IA está descrevendo as peças…';
+        try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`Requisição salva. A IA descreveu ${d.gravadas} peça(s).`); }
+        catch (e2) { toast('Requisição salva, mas a IA não descreveu: ' + erroMsg(e2), true); }
+      } else toast(`Requisição salva com ${pecas.length} peça(s) conferidas.`);
       ir('req', r.id);
     } catch (err) { toast(erroMsg(err), true); b.disabled = false; b.textContent = 'Salvar requisição'; }
   };
 };
 
 // ====== Requisição ======
+let ABRIR_ADD = false;
 R.req = async id => {
   const q = await sb.from('cons_requisicoes').select('*,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem)').eq('id', id).single();
   if (q.error) throw q.error;
@@ -580,6 +629,7 @@ R.req = async id => {
   const fab = S.perfil !== 'executiva', conferir = fab && ['registrada','enviada'].includes(r.status);
   const volt = pecas.filter(p => p.status === 'retornou'), falta = pecas.filter(p => !['retornou','devolvida'].includes(p.status));
   const podeExcluir = S.perfil === 'gestao' || (r.status === 'registrada' && (fab || r.executiva_id === S.user.id));
+  const podeAdd = r.status !== 'devolvida' && (fab || r.status === 'registrada');
 
   const linha = p => `<div class="peca"><div class="top2"><b>${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</b><span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span></div>
     ${p.descricao ? `<div>${esc(p.descricao)}</div>` : ''}
@@ -617,11 +667,50 @@ R.req = async id => {
       </dl>
     </div>
     <h2>Fotos</h2>${thumbs(fotos, urls)}
+    ${r.ia_qtd_foto && r.ia_qtd_foto > pecas.length ? `<div class="card alerta stack" style="gap:6px"><b>A IA contou ${r.ia_qtd_foto} peças na foto, mas há ${pecas.length} lançadas.</b>
+      ${r.ia_aviso ? `<span>Possível peça fora da lista: ${esc(r.ia_aviso)}</span>` : ''}<span class="s">Confira a foto e, se faltar, use "+ Adicionar peça".</span></div>` : ''}
     <h2>Peças (${pecas.length})</h2>
     ${conferir ? `<p class="sub">Confira a medida, a descrição e o serviço de cada peça.</p>${pecas.map(conf).join('')}<button class="btn" data-act="receber">Conferido · receber no lote de hoje</button>` : pecas.map(linha).join('')}
     ${dev}
     ${fotos.length && (r.status === 'registrada' || fab) && r.status !== 'devolvida' ? `<button class="btn outline" data-act="descrever">Descrever de novo com a IA</button>` : ''}
+    ${podeAdd ? `<button class="btn outline" data-act="addAbrir">+ Adicionar peça</button><div id="addBox"></div>` : ''}
     ${podeExcluir ? `<button class="btn outline" data-act="excluir">Excluir requisição</button>` : ''}`;
+  const A = {grupo: '', medida: '', descricao: '', prev: 'limpeza', onde: 'com_jonatan', feito: 'banho'};
+  function renderAdd() {
+    const box = $('#addBox'); if (!box) return;
+    const seg = (act, opts, atual) => `<div class="seg">${opts.map(([v, n]) => `<button type="button" class="segb ${atual === v ? 'on' : ''}" data-act="${act}" data-v="${v}">${n}</button>`).join('')}</div>`;
+    box.innerHTML = `<div class="card stack">
+      <h2 style="margin:0">Adicionar peça à ${esc(reqNome(r))}</h2>
+      <div class="field"><span class="lbl">Grupo</span><div class="grupos">${GRUPOS.map(([g, n]) => `<button type="button" class="chipbtn ${A.grupo === g ? 'on' : ''}" data-act="addG" data-v="${g}">${n}</button>`).join('')}</div></div>
+      <div class="field"><label for="aDesc">Descrição</label><textarea id="aDesc" rows="3">${esc(A.descricao)}</textarea></div>
+      <div class="field" style="max-width:220px"><label for="aMed">Medida</label><input id="aMed" value="${esc(A.medida)}" placeholder="${A.grupo ? PH[A.grupo] : ''}"></div>
+      <div class="field"><span class="lbl">Serviço previsto</span>${seg('addPrev', SERV, A.prev)}</div>
+      ${r.status === 'na_fabrica' ? `<div class="field"><span class="lbl">Onde a peça está agora?</span>${seg('addOnde', [['na_fabrica','Na fábrica'],['com_jonatan','Com o Jonatan'],['retornou','Já voltou']], A.onde)}</div>
+        ${A.onde === 'retornou' ? `<div class="field"><span class="lbl">Serviço feito</span>${seg('addFeito', SERV, A.feito)}</div>` : ''}` : ''}
+      <button type="button" class="btn" data-act="addSalvar">Salvar peça</button></div>`;
+    $('#aDesc').oninput = e => A.descricao = e.target.value;
+    $('#aMed').oninput = e => A.medida = e.target.value;
+  }
+  ACT.addAbrir = b => { b.hidden = true; renderAdd(); $('#addBox').scrollIntoView({behavior: 'smooth'}); };
+  ACT.addG = b => { A.grupo = b.dataset.v; renderAdd(); };
+  ACT.addPrev = b => { A.prev = b.dataset.v; renderAdd(); };
+  ACT.addOnde = b => { A.onde = b.dataset.v; renderAdd(); };
+  ACT.addFeito = b => { A.feito = b.dataset.v; renderAdd(); };
+  ACT.addSalvar = async b => {
+    if (!A.grupo) return toast('Escolha o grupo da peça.', true);
+    b.disabled = true;
+    const agora = new Date().toISOString();
+    const status = r.status === 'na_fabrica' ? A.onde : 'registrada';
+    const nova = {requisicao_id: r.id, posicao: Math.max(0, ...pecas.map(p => p.posicao)) + 1, grupo: A.grupo,
+      medida: A.medida.trim() || null, descricao: A.descricao.trim() || null, servico_previsto: A.prev, status, lote_id: r.lote_id || null};
+    if (status === 'com_jonatan' || status === 'retornou') nova.enviada_em = agora;
+    if (status === 'retornou') { nova.servico_feito = A.feito; nova.retornou_em = agora; }
+    const {error} = await sb.from('cons_pecas').insert(nova);
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    toast(`Peça adicionada à ${reqNome(r)}.`); ir('req', r.id);
+  };
+  if (ABRIR_ADD && podeAdd) { ABRIR_ADD = false; A.onde = 'retornou'; const bt = document.querySelector('[data-act=addAbrir]'); if (bt) ACT.addAbrir(bt); }
+  ABRIR_ADD = false;
 
   ACT.receber = async b => {
     b.disabled = true; b.textContent = 'Recebendo…';
@@ -807,6 +896,8 @@ R.retorno = async loteId => {
       if (ids.length) { const qf = await sb.from('cons_fotos').select('*').in('requisicao_id', ids).eq('tipo', 'chegada').order('id'); if (qf.error) throw qf.error; fotos = qf.data; }
       E.fotosReq = {}; fotos.forEach(f => (E.fotosReq[f.requisicao_id] = E.fotosReq[f.requisicao_id] || []).push(f));
       E.urls = await assinar(fotos.flatMap(f => [f.caminho, f.caminho_ia]).filter(Boolean));
+      const qr = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora').eq('lote_id', l.id).order('id');
+      E.reqsLote = qr.data || [];
     } catch (e) { toast(erroMsg(e), true); }
     E.busy = ''; render();
   }
@@ -876,6 +967,11 @@ R.retorno = async loteId => {
           <button class="btn green" data-act="gconfirmar" ${n ? '' : 'disabled'}>Confirmar ${n} peça(s)</button>`;
       }
     }
+    if (E.lote && !E.busy) {
+      h += `<div class="card stack" style="gap:8px"><button type="button" class="link" data-act="faltou">${E.faltou ? 'Fechar' : 'Peça não aparece na lista? Adicionar a uma requisição'}</button>
+        ${E.faltou ? `<p class="sub">Escolha a requisição da peça (pelo formulário ou saquinho). Ela será adicionada já como "voltou".</p>
+          ${(E.reqsLote || []).map(rq => `<button type="button" class="row" data-act="addreq" data-p="${rq.id}"><span class="t">${esc(reqNome(rq))} · ${esc(rq.consultora)}</span><span class="pill neutro">Adicionar</span></button>`).join('') || '<p class="vazio">Nenhuma requisição neste lote.</p>'}` : ''}</div>`;
+    }
     $('#main').innerHTML = h;
     if (E.lote && E.grupo) {
       const med = $('#tMed'); if (med) med.oninput = e => E.medida = e.target.value;
@@ -943,6 +1039,8 @@ R.retorno = async loteId => {
   ACT.lote = b => abrirLote(lotes.find(l => l.id == b.dataset.v));
   ACT.grupo = b => { Object.assign(E, {grupo: b.dataset.v, cands: null, escolha: null, fotoUrl: '', manual: false, medida: ''}); render(); };
   ACT.manual = () => { E.manual = !E.manual; render(); };
+  ACT.faltou = () => { E.faltou = !E.faltou; render(); };
+  ACT.addreq = b => { ABRIR_ADD = true; ir('req', b.dataset.p); };
   ACT.escolher = b => { E.escolha = +b.dataset.id; E.serv = peca(E.escolha).servico_previsto || 'limpeza'; render(); };
   ACT.serv = b => { E.serv = b.dataset.v; render(); };
   ACT.modo = b => { Object.assign(E, {modo: b.dataset.v, cands: null, escolha: null, gres: null, gsel: {}, gserv: {}, resumo: null, fotoUrl: '', manual: false}); render(); };
