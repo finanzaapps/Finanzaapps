@@ -128,7 +128,8 @@ dl.info dd{margin:0;font-weight:600}
 const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const VERSAO = 'Entrega 2';
+const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
+const VERSAO = 'Entrega 2.1';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -194,7 +195,7 @@ const thumbs = (fotos, urls) => fotos.length
   : '<p class="vazio">Sem fotos.</p>';
 
 async function ia(body) { // chama a IA pelo Supabase (a chave fica guardada lá)
-  const {data, error} = await sb.functions.invoke('cons-ia', {body});
+  const {data, error} = await sb.functions.invoke(FUNCAO_IA, {body});
   if (error) { let m = error.message; try { const j = await error.context.json(); m = j.erro || m; } catch (_) {} throw new Error(m); }
   if (data && data.erro) throw new Error(data.erro);
   return data;
