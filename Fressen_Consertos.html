@@ -129,7 +129,7 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 3';
+const VERSAO = 'Entrega 3.1';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -488,10 +488,9 @@ R.req = async id => {
     ${p.descricao_ia && p.descricao_ia !== p.descricao ? `<div class="s">IA: ${esc(p.descricao_ia)}</div>` : ''}
     <div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div></div>`;
   const conf = p => `<div class="peca"><b>${p.posicao} · ${GNOME[p.grupo]}</b>
-    <div class="grid2">
-      <div class="field"><label for="m${p.id}">Medida</label><input id="m${p.id}" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
-      <div class="field"><label for="d${p.id}">Descrição</label><input id="d${p.id}" value="${esc(p.descricao || p.descricao_ia)}"></div>
-    </div>
+    <div class="field"><label for="d${p.id}">Descrição${p.descricao_ia && !p.descricao ? ' (sugerida pela IA)' : ''}</label><textarea id="d${p.id}" rows="4">${esc(p.descricao || p.descricao_ia)}</textarea></div>
+    ${p.descricao_ia && p.descricao && p.descricao_ia !== p.descricao ? `<div class="s">IA: ${esc(p.descricao_ia)}</div>` : ''}
+    <div class="field" style="max-width:220px"><label for="m${p.id}">Medida</label><input id="m${p.id}" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
     <div class="field"><span class="lbl">Serviço previsto</span><div class="seg">${SERV.map(([s, n]) => `<label><input type="radio" name="s${p.id}" value="${s}" ${(p.servico_previsto || 'limpeza') === s ? 'checked' : ''}>${n}</label>`).join('')}</div></div></div>`;
   let dev = '';
   if (fab && r.status === 'na_fabrica') {
