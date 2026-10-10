@@ -129,7 +129,7 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 3.1';
+const VERSAO = 'Entrega 4';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -215,8 +215,9 @@ async function ir(v, p) {
 function renderNav() {
   const n = $('#nav');
   if (!S.perfil) { n.hidden = true; return; }
-  const itens = [['home','Início'], ['nova','Nova']];
-  if (S.perfil !== 'executiva') itens.push(['retorno','Retorno'], ['lotes','Lotes']);
+  const itens = [['home','Início']];
+  if (S.perfil === 'executiva') itens.push(['nova','Nova requisição']);
+  else itens.push(['retorno','Retorno'], ['lotes','Lotes']);
   if (S.perfil === 'gestao') itens.push(['usuarios','Usuários']);
   n.hidden = false;
   n.innerHTML = itens.map(([v, t]) => `<button data-ir="${v}" class="${rota.v === v ? 'on' : ''}">${t}</button>`).join('');
@@ -376,7 +377,7 @@ R.nova = async () => {
     <div class="card stack">
       ${S.perfil !== 'executiva' ? `<div class="field"><label for="rExec">Executiva</label><select id="rExec"><option value="">${execs.length ? 'Escolha a executiva' : 'Nenhuma executiva cadastrada'}</option>${execs.map(x => `<option value="${x.id}">${esc(x.nome)}</option>`).join('')}</select></div>` : ''}
       <div class="grid2">
-        <div class="field"><label for="rNum">Nº do formulário</label><input id="rNum" inputmode="numeric" placeholder="se houver"></div>
+        <div class="field"><label for="rNum">Nº da requisição *</label><input id="rNum" inputmode="numeric" required placeholder="ex.: 069733"></div>
         <div class="field"><label for="rCons">Consultora</label><input id="rCons" required autocomplete="off"></div>
       </div>
       <div class="grid2">
@@ -435,6 +436,7 @@ R.nova = async () => {
 
   $('#fReq').onsubmit = async e => {
     e.preventDefault(); const b = $('#rSalvar');
+    if (!$('#rNum').value.trim()) return toast('Informe o número da requisição.', true);
     if (!pecas.length) return toast('Adicione ao menos uma peça.', true);
     if (!fotos.length) return toast('Tire ao menos uma foto das peças.', true);
     const execId = S.perfil === 'executiva' ? S.user.id : ($('#rExec').value || null);
@@ -692,7 +694,8 @@ R.retorno = async loteId => {
   if (ql.error) throw ql.error;
   const lotes = ql.data.filter(l => l.na_fabrica + l.com_jonatan > 0);
   const logs = qlog.data || [];
-  const E = {lote: null, pend: [], fotosReq: {}, urls: {}, grupo: '', medida: '', fotoUrl: '', busy: '', cands: null, info: '', manual: false, escolha: null, serv: 'limpeza'};
+  const E = {lote: null, pend: [], fotosReq: {}, urls: {}, grupo: '', medida: '', fotoUrl: '', busy: '', cands: null, info: '', manual: false, escolha: null, serv: 'limpeza',
+    modo: 'peca', qtd: '', gres: null, gsel: {}, gserv: {}, resumo: null};
   const peca = id => E.pend.find(p => p.id === id);
 
   async function abrirLote(l) {
@@ -733,7 +736,11 @@ R.retorno = async loteId => {
       h += `<h2>2. Grupo da peça</h2>${Object.keys(grupos).length ? `<div class="grupos">${Object.entries(grupos).sort((a, b) => ordemG(a[0]) - ordemG(b[0])).map(([g, n]) => `<button class="chipbtn ${E.grupo === g ? 'on' : ''}" data-act="grupo" data-v="${g}">${GNOME[g]} · ${n}</button>`).join('')}</div>` : '<p class="vazio">Todas as peças deste lote já voltaram.</p>'}`;
     }
     if (E.lote && E.grupo) {
-      h += `<h2>3. Foto da peça que voltou</h2>
+      h += `<h2>3. Como fotografar</h2><div class="seg two"><button type="button" class="segb ${E.modo === 'peca' ? 'on' : ''}" data-act="modo" data-v="peca">Peça por peça</button><button type="button" class="segb ${E.modo === 'grupo' ? 'on' : ''}" data-act="modo" data-v="grupo">Em grupo</button></div>`;
+      if (E.resumo) h += `<div class="card stack" style="gap:6px;background:var(--ok-soft)"><b>Registradas. Coloque cada peça no saquinho:</b>${E.resumo.map(x => `<span>Posição ${x.pos} → <b>${esc(x.req)}</b> · ${esc(x.serv)}</span>`).join('')}</div>`;
+    }
+    if (E.lote && E.grupo && E.modo === 'peca') {
+      h += `<h2>4. Foto da peça que voltou</h2>
         <div class="dica">Uma peça por foto, sobre o tapete com a régua, celular reto, de cima.</div>
         <div class="field"><label for="tMed">Medida (opcional, ajuda a IA)</label><input id="tMed" value="${esc(E.medida)}" placeholder="${PH[E.grupo]}"></div>
         <div class="grid2"><label class="btn outline small" for="tCam">Tirar foto</label><label class="btn outline small" for="tGal">Da galeria</label></div>
@@ -741,7 +748,7 @@ R.retorno = async loteId => {
         ${E.fotoUrl ? `<img class="fotoret" src="${E.fotoUrl}" alt="Peça que voltou" data-zoom="${E.fotoUrl}">` : ''}
         ${E.busy ? `<div class="ia"><i></i>${esc(E.busy)}</div>` : ''}`;
       if (E.cands) {
-        h += `<h2>4. Confirme a peça</h2>${E.info ? `<p class="sub">${esc(E.info)}</p>` : ''}
+        h += `<h2>5. Confirme a peça</h2>${E.info ? `<p class="sub">${esc(E.info)}</p>` : ''}
           ${E.cands.length ? E.cands.map(c => peca(c.peca_id) ? cartao(peca(c.peca_id), `<span class="s"><span class="conf">${c.confianca}%</span> · ${esc(c.motivo)}</span>`) : '').join('') : '<p class="vazio">A IA não encontrou uma peça parecida.</p>'}
           <button class="link" data-act="manual">${E.manual ? 'Esconder a lista' : `Nenhuma destas · ver as ${doGrupo.length} peças do grupo`}</button>
           ${E.manual ? doGrupo.map(p => cartao(p)).join('') : ''}`;
@@ -754,11 +761,72 @@ R.retorno = async loteId => {
           <button class="btn green" data-act="confirmar">Confirmar · saquinho ${esc(reqNome(esc1.cons_requisicoes))}</button></div>`;
       }
     }
+    if (E.lote && E.grupo && E.modo === 'grupo') {
+      const doG = E.pend.filter(p => p.grupo === E.grupo);
+      h += `<h2>4. Foto do grupo</h2>
+        <div class="dica">Coloque até 12 peças deste grupo no tapete, cada uma ao lado de um número (1, 2, 3…), com a régua embaixo. Correntes: no máximo 6, esticadas.</div>
+        <div class="field" style="max-width:240px"><label for="gQtd">Quantas peças na foto?</label><input id="gQtd" type="number" min="1" max="15" inputmode="numeric" value="${esc(E.qtd)}" placeholder="ex.: 8"></div>
+        <div class="grid2"><label class="btn outline small" for="tCam">Tirar foto</label><label class="btn outline small" for="tGal">Da galeria</label></div>
+        <input id="tCam" type="file" accept="image/*" capture="environment" hidden><input id="tGal" type="file" accept="image/*" hidden>
+        ${E.fotoUrl ? `<img class="fotoret" src="${E.fotoUrl}" alt="Grupo que voltou" data-zoom="${E.fotoUrl}">` : ''}
+        ${E.busy ? `<div class="ia"><i></i>${esc(E.busy)}</div>` : ''}`;
+      if (E.gres) {
+        const cont = {}; Object.values(E.gsel).forEach(v => { if (v) cont[v] = (cont[v] || 0) + 1; });
+        const dup = new Set(Object.keys(cont).filter(k => cont[k] > 1).map(Number));
+        const n = Object.values(E.gsel).filter(Boolean).length;
+        h += `<h2>5. Confira cada posição</h2>${E.gres.map(pos => cartaoPos(pos, dup, doG)).join('')}
+          <button class="btn green" data-act="gconfirmar" ${n ? '' : 'disabled'}>Confirmar ${n} peça(s)</button>`;
+      }
+    }
     $('#main').innerHTML = h;
     if (E.lote && E.grupo) {
-      $('#tMed').oninput = e => E.medida = e.target.value;
-      $('#tCam').onchange = $('#tGal').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) identificar(f); };
+      const med = $('#tMed'); if (med) med.oninput = e => E.medida = e.target.value;
+      const q = $('#gQtd'); if (q) q.oninput = e => E.qtd = e.target.value;
+      $('#tCam').onchange = $('#tGal').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) (E.modo === 'grupo' ? identificarGrupo(f) : identificar(f)); };
+      document.querySelectorAll('select[data-gpos]').forEach(sel => sel.onchange = () => {
+        const pos = sel.dataset.gpos, v = +sel.value || null; E.gsel[pos] = v;
+        if (v && !E.gserv[pos]) E.gserv[pos] = peca(v).servico_previsto || 'limpeza';
+        render();
+      });
     }
+  }
+
+  function cartaoPos(pos, dup, doG) {
+    const sel = E.gsel[pos.posicao] || null, p = sel ? peca(sel) : null;
+    const cands = pos.candidatos.filter(c => peca(c.peca_id));
+    const opt = (q, extra) => `<option value="${q.id}" ${sel === q.id ? 'selected' : ''}>${esc(reqNome(q.cons_requisicoes))} · peça ${q.posicao}${q.medida ? ' · ' + esc(q.medida) : ''}${extra || ''}</option>`;
+    const outras = doG.filter(q => !cands.some(c => c.peca_id === q.id));
+    const opts = cands.map(c => opt(peca(c.peca_id), ` · ${c.confianca}%`)).join('')
+      + (outras.length ? `<optgroup label="Outras peças do grupo">${outras.map(q => opt(q)).join('')}</optgroup>` : '')
+      + `<option value="" ${!sel ? 'selected' : ''}>Deixar para depois</option>`;
+    const c1 = cands.find(c => c.peca_id === sel), f = p ? (E.fotosReq[p.requisicao_id] || [])[0] : null;
+    return `<div class="card stack" style="gap:8px${dup.has(sel) ? ';border-color:var(--bad)' : ''}">
+      <div class="top2"><b>Posição ${pos.posicao}</b>${!cands.length ? '<span class="pill warn">IA sem sugestão</span>' : ''}</div>
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        ${f ? `<img src="${esc(E.urls[f.caminho_ia || f.caminho] || '')}" alt="Foto de chegada" data-zoom="${esc(E.urls[f.caminho] || '')}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;cursor:zoom-in;flex-shrink:0">` : ''}
+        <div class="stack" style="gap:6px;flex:1;min-width:0">
+          <select id="gp${pos.posicao}" data-gpos="${pos.posicao}" aria-label="Requisição da posição ${pos.posicao}">${opts}</select>
+          ${p && p.descricao ? `<span class="s">${esc(p.descricao)}</span>` : ''}${c1 && c1.motivo ? `<span class="s">IA: ${esc(c1.motivo)}</span>` : ''}
+        </div></div>
+      ${p ? `<div class="seg">${SERV.map(([sv, n]) => `<button type="button" class="segb ${E.gserv[pos.posicao] === sv ? 'on' : ''}" data-act="gserv" data-pos="${pos.posicao}" data-v="${sv}">${n}</button>`).join('')}</div>` : ''}
+      ${dup.has(sel) ? '<span class="flag">Mesma peça escolhida em outra posição</span>' : ''}</div>`;
+  }
+
+  async function identificarGrupo(file) {
+    const qtd = parseInt(E.qtd, 10);
+    if (!(qtd >= 1 && qtd <= 15)) return toast('Informe quantas peças há na foto (1 a 15).', true);
+    const nPend = E.pend.filter(p => p.grupo === E.grupo).length;
+    Object.assign(E, {gres: null, gsel: {}, gserv: {}, resumo: null, fotoUrl: URL.createObjectURL(file), busy: `A IA está comparando ${qtd} peça(s) com ${nPend} pendente(s) do grupo…`});
+    render();
+    try {
+      const foto = await b64(await comprimir(file, 2000, 0.85));
+      const d = await ia({acao: 'identificar_grupo', lote_id: E.lote.id, grupo: E.grupo, foto, quantidade: qtd});
+      E.gres = d.posicoes || []; if (d.aviso) toast(d.aviso, true);
+      const usados = new Set();
+      E.gres.forEach(pp => { const c = pp.candidatos.find(c => peca(c.peca_id) && !usados.has(c.peca_id));
+        if (c) { E.gsel[pp.posicao] = c.peca_id; usados.add(c.peca_id); E.gserv[pp.posicao] = peca(c.peca_id).servico_previsto || 'limpeza'; } });
+    } catch (e) { E.gres = null; toast(erroMsg(e), true); }
+    E.busy = ''; render();
   }
 
   async function identificar(file) {
@@ -779,6 +847,31 @@ R.retorno = async loteId => {
   ACT.manual = () => { E.manual = !E.manual; render(); };
   ACT.escolher = b => { E.escolha = +b.dataset.id; E.serv = peca(E.escolha).servico_previsto || 'limpeza'; render(); };
   ACT.serv = b => { E.serv = b.dataset.v; render(); };
+  ACT.modo = b => { Object.assign(E, {modo: b.dataset.v, cands: null, escolha: null, gres: null, gsel: {}, gserv: {}, resumo: null, fotoUrl: '', manual: false}); render(); };
+  ACT.gserv = b => { E.gserv[b.dataset.pos] = b.dataset.v; render(); };
+  ACT.gconfirmar = async b => {
+    const itens = Object.entries(E.gsel).filter(([, v]) => v);
+    const ids = itens.map(([, v]) => v);
+    if (!itens.length) return toast('Nenhuma peça escolhida.', true);
+    if (new Set(ids).size !== ids.length) return toast('A mesma peça está em duas posições. Corrija antes de confirmar.', true);
+    b.disabled = true; const resumo = [];
+    try {
+      for (const [pos, id] of itens) {
+        const p = peca(id), serv = E.gserv[pos] || p.servico_previsto || 'limpeza';
+        const {error} = await sb.from('cons_pecas').update({status: 'retornou', servico_feito: serv, retornou_em: new Date().toISOString()}).eq('id', id);
+        if (error) throw error;
+        const pp = E.gres.find(x => x.posicao == pos), rank = pp.candidatos.findIndex(c => c.peca_id === id) + 1;
+        await sb.from('cons_ia_log').insert({lote_id: E.lote.id, grupo: E.grupo, candidatos: pp.candidatos, peca_escolhida: id, posicao_ia: rank});
+        logs.unshift({posicao_ia: rank});
+        const l = lotes.find(x => x.id === E.lote.id); if (l) { if (p.status === 'na_fabrica') l.na_fabrica--; else l.com_jonatan--; }
+        E.pend = E.pend.filter(x => x.id !== id);
+        resumo.push({pos, req: reqNome(p.cons_requisicoes), serv: SNOME[serv]});
+      }
+      toast(`${resumo.length} peça(s) registradas.`);
+    } catch (e) { toast(erroMsg(e), true); }
+    Object.assign(E, {gres: null, gsel: {}, gserv: {}, fotoUrl: '', qtd: '', resumo: resumo.length ? resumo : null});
+    render();
+  };
   ACT.confirmar = async b => {
     const p = peca(E.escolha); if (!p) return;
     b.disabled = true;
