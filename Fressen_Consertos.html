@@ -105,6 +105,13 @@ dl.info dd{margin:0;font-weight:600}
 .ia{display:flex;gap:10px;align-items:center;background:var(--rose-ink);color:#fff;border-radius:12px;padding:14px;font-weight:600}
 .ia i{width:18px;height:18px;border-radius:50%;border:3px solid var(--rose);border-top-color:transparent;animation:gira 1s linear infinite;flex-shrink:0}
 @keyframes gira{to{transform:rotate(360deg)}}
+
+.hbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;font-size:14px}
+.hbar .trilho{grid-column:1/-1;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.hbar .trilho i{display:block;height:100%;background:var(--terra);border-radius:99px}
+.hbar b{font-variant-numeric:tabular-nums}
+.pct{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.segp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:max-content;max-width:92%;background:var(--rose-ink);color:#fff;padding:12px 16px;border-radius:12px;font-weight:600;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 #toast.erro{background:var(--bad)}
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:60;padding:12px}
@@ -129,7 +136,7 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 4';
+const VERSAO = 'Entrega 6';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -139,7 +146,7 @@ const SERV = [['limpeza','Limpeza'],['banho','Banho'],['flash','Flash']];
 const SNOME = Object.fromEntries(SERV);
 const ST = {registrada:['A conferir','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Com Jonatan','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
 const PH = {corrente:'ex.: 45 cm', pulseira:'ex.: 19 cm', tornozeleira:'ex.: 24 cm', anel:'ex.: aro 16', brinco:'ex.: Ø 2 cm', pingente:'ex.: 2 cm', outro:''};
-const PERFIL_NOME = {executiva:'Executiva', fabrica:'Fábrica', gestao:'Gestão'};
+const PERFIL_NOME = {executiva:'Loja', fabrica:'Fábrica', gestao:'Gestão'};
 const S = {user:null, perfil:null, nome:'', cores:{}, nCores:12};
 let ACT = {}, rota = {v:'', p:null};
 const R = {};
@@ -217,7 +224,7 @@ function renderNav() {
   if (!S.perfil) { n.hidden = true; return; }
   const itens = [['home','Início']];
   if (S.perfil === 'executiva') itens.push(['nova','Nova requisição']);
-  else itens.push(['retorno','Retorno'], ['lotes','Lotes']);
+  else itens.push(['retorno','Retorno'], ['lotes','Lotes'], ['painel','Painel']);
   if (S.perfil === 'gestao') itens.push(['usuarios','Usuários']);
   n.hidden = false;
   n.innerHTML = itens.map(([v, t]) => `<button data-ir="${v}" class="${rota.v === v ? 'on' : ''}">${t}</button>`).join('');
@@ -375,7 +382,7 @@ R.nova = async () => {
   <div><h1>Nova requisição</h1><p class="sub">Dados do formulário de conserto.</p></div>
   <form id="fReq" class="stack">
     <div class="card stack">
-      ${S.perfil !== 'executiva' ? `<div class="field"><label for="rExec">Executiva</label><select id="rExec"><option value="">${execs.length ? 'Escolha a executiva' : 'Nenhuma executiva cadastrada'}</option>${execs.map(x => `<option value="${x.id}">${esc(x.nome)}</option>`).join('')}</select></div>` : ''}
+      ${S.perfil !== 'executiva' ? `<div class="field"><label for="rExec">Loja</label><select id="rExec"><option value="">${execs.length ? 'Escolha a loja' : 'Nenhuma loja cadastrada'}</option>${execs.map(x => `<option value="${x.id}">${esc(x.nome)}</option>`).join('')}</select></div>` : ''}
       <div class="grid2">
         <div class="field"><label for="rNum">Nº da requisição *</label><input id="rNum" inputmode="numeric" required placeholder="ex.: 069733"></div>
         <div class="field"><label for="rCons">Consultora</label><input id="rCons" required autocomplete="off"></div>
@@ -421,7 +428,7 @@ R.nova = async () => {
       <div class="peca"><div class="top2"><b>${i + 1} · ${GNOME[p.grupo]}</b><button type="button" class="link" data-act="del" data-k="${p.k}">Remover</button></div>
       <div class="grid2">
         <div class="field"><label for="m${p.k}">Medida</label><input id="m${p.k}" data-k="${p.k}" data-f="medida" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
-        <div class="field"><label for="d${p.k}">Descrição (opcional)</label><input id="d${p.k}" data-k="${p.k}" data-f="descricao" value="${esc(p.descricao)}"></div>
+        <div class="field"><label for="d${p.k}">Observação (opcional)</label><input id="d${p.k}" data-k="${p.k}" data-f="descricao" value="${esc(p.descricao)}"></div>
       </div></div>`).join('') : '<p class="vazio">Nenhuma peça adicionada.</p>';
   };
   renderFotos(); renderPecas();
@@ -448,7 +455,7 @@ R.nova = async () => {
         modo_devolucao: document.querySelector('input[name=rModo]:checked').value, observacao: $('#rObs').value.trim() || null
       }).select('id').single();
       if (error) throw error;
-      const {error: ep} = await sb.from('cons_pecas').insert(pecas.map((p, i) => ({requisicao_id: r.id, posicao: i + 1, grupo: p.grupo, medida: p.medida.trim() || null, descricao: p.descricao.trim() || null})));
+      const {error: ep} = await sb.from('cons_pecas').insert(pecas.map((p, i) => ({requisicao_id: r.id, posicao: i + 1, grupo: p.grupo, medida: p.medida.trim() || null, obs_loja: p.descricao.trim() || null})));
       if (ep) throw ep;
       for (let i = 0; i < fotos.length; i++) {
         b.textContent = `Enviando foto ${i + 1} de ${fotos.length}…`;
@@ -487,11 +494,13 @@ R.req = async id => {
 
   const linha = p => `<div class="peca"><div class="top2"><b>${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</b><span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span></div>
     ${p.descricao ? `<div>${esc(p.descricao)}</div>` : ''}
-    ${p.descricao_ia && p.descricao_ia !== p.descricao ? `<div class="s">IA: ${esc(p.descricao_ia)}</div>` : ''}
+    ${!p.descricao && p.descricao_ia ? `<div>${esc(p.descricao_ia)}</div>` : ''}
+    ${p.obs_loja ? `<div class="s">Obs. da loja: ${esc(p.obs_loja)}</div>` : ''}
     <div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div></div>`;
   const conf = p => `<div class="peca"><b>${p.posicao} · ${GNOME[p.grupo]}</b>
-    <div class="field"><label for="d${p.id}">Descrição${p.descricao_ia && !p.descricao ? ' (sugerida pela IA)' : ''}</label><textarea id="d${p.id}" rows="4">${esc(p.descricao || p.descricao_ia)}</textarea></div>
-    ${p.descricao_ia && p.descricao && p.descricao_ia !== p.descricao ? `<div class="s">IA: ${esc(p.descricao_ia)}</div>` : ''}
+    ${p.obs_loja ? `<div class="s">Obs. da loja: <b>${esc(p.obs_loja)}</b></div>` : ''}
+    <div class="field"><label for="d${p.id}">Descrição${p.descricao_ia && (!p.descricao || p.descricao === p.descricao_ia) ? ' (sugerida pela IA, pode editar)' : ''}</label><textarea id="d${p.id}" rows="4">${esc(p.descricao || p.descricao_ia)}</textarea></div>
+    ${p.descricao_ia && p.descricao && p.descricao_ia !== p.descricao ? `<div class="s">Texto original da IA: ${esc(p.descricao_ia)}</div>` : ''}
     <div class="field" style="max-width:220px"><label for="m${p.id}">Medida</label><input id="m${p.id}" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
     <div class="field"><span class="lbl">Serviço previsto</span><div class="seg">${SERV.map(([s, n]) => `<label><input type="radio" name="s${p.id}" value="${s}" ${(p.servico_previsto || 'limpeza') === s ? 'checked' : ''}>${n}</label>`).join('')}</div></div></div>`;
   let dev = '';
@@ -500,7 +509,7 @@ R.req = async id => {
     dev = volt.length ? `<div class="card stack"><h2 style="margin:0">Devolução</h2>
       ${volt.map(p => `<label class="check"><input type="checkbox" name="dev" value="${p.id}" checked>${p.posicao} · ${GNOME[p.grupo]} · ${SNOME[p.servico_feito] || ''}</label>`).join('')}
       ${bloq ? `<p class="sub">Devolução completa: ainda faltam ${falta.length} peça(s).</p>` : ''}
-      <button class="btn green" data-act="devolver" ${bloq ? 'disabled' : ''}>Registrar devolução${r.fab_perfis ? ' à ' + esc(primeiro(r.fab_perfis.nome)) : ''}</button></div>`
+      <button class="btn green" data-act="devolver" ${bloq ? 'disabled' : ''}>Registrar devolução${r.fab_perfis ? ' · ' + esc(r.fab_perfis.nome) : ' à loja'}</button></div>`
       : `<div class="card"><p class="sub">Nenhuma peça voltou ainda. ${falta.length} em processo.</p></div>`;
   }
 
@@ -511,7 +520,7 @@ R.req = async id => {
       ${r.cons_lotes ? `<button class="link" data-ir="lote" data-p="${r.cons_lotes.id}">${corChip(r.cons_lotes.cor_ordem, loteNome(r.cons_lotes))}</button>` : ''}
       <dl class="info">
         <div><dt>Consultora</dt><dd>${esc(r.consultora)}</dd></div>
-        <div><dt>Executiva</dt><dd>${esc(r.fab_perfis ? r.fab_perfis.nome : '—')}</dd></div>
+        <div><dt>Loja</dt><dd>${esc(r.fab_perfis ? r.fab_perfis.nome : '—')}</dd></div>
         <div><dt>Recebido em</dt><dd>${fmtA(r.data_recebimento)}</dd></div>
         <div><dt>Entregar até</dt><dd>${fmtA(r.data_promessa)}</dd></div>
         <div><dt>Devolução</dt><dd>${r.modo_devolucao === 'parcial' ? 'Parcial' : 'Completa'}</dd></div>
@@ -894,6 +903,57 @@ R.retorno = async loteId => {
   render();
   const ini = lotes.find(l => l.id == loteId);
   if (ini) abrirLote(ini);
+};
+
+// ====== Painel (fábrica) e Dashboard (gestão) ======
+let PERIODO = 30;
+R.painel = async () => {
+  const {data: d, error} = await sb.rpc('cons_painel', {p_dias: PERIODO});
+  if (error) throw error;
+  const g = S.perfil === 'gestao', t = d.tempos || {};
+  const dias = v => v == null ? '—' : String(v).replace('.', ',') + ' dia' + (Number(v) === 1 ? '' : 's');
+  const barras = (lista, rotulo, valor, sufixo) => {
+    const max = Math.max(1, ...lista.map(valor)), tot = lista.reduce((a, x) => a + valor(x), 0) || 1;
+    return lista.length ? lista.map(x => `<div class="hbar"><span>${esc(rotulo(x))}</span><b>${valor(x)}${sufixo ? ' ' + sufixo : ''} <span class="s">· ${Math.round(100 * valor(x) / tot)}%</span></b><div class="trilho"><i style="width:${Math.round(100 * valor(x) / max)}%"></i></div></div>`).join('') : '<p class="vazio">Sem dados no período.</p>';
+  };
+  const cardLotePct = l => {
+    const conc = l.prontas + l.devolvidas, pct = l.total ? Math.round(100 * conc / l.total) : 0;
+    const anda = l.total - conc - l.a_receber, du = diaUtil(l.data_entrada);
+    return `<button class="row" data-ir="lote" data-p="${l.id}" style="align-items:center">
+      <div style="display:flex;gap:12px;align-items:center;min-width:0;flex:1">${dot(l.cor_ordem, true)}
+        <div class="stack" style="gap:5px;flex:1;min-width:0">
+          <div class="top2"><span class="t">${esc(loteNome(l))}</span><span class="s ${du > 12 ? 'flag' : ''}">dia ${du} de 12</span></div>
+          <div class="bar"><i style="width:${pct}%"></i></div>
+          <div class="s">${l.prontas} pronta(s) · ${l.devolvidas} devolvida(s) · ${anda} em andamento${l.a_receber ? ' · ' + l.a_receber + ' a receber' : ''} · ${l.total} requisição(ões)</div>
+        </div></div>
+      <span class="pct" style="color:${pct === 100 ? 'var(--ok)' : 'var(--ink)'}">${pct}%</span></button>`;
+  };
+  $('#main').innerHTML = `
+    <div><h1>${g ? 'Painel de gestão' : 'Painel da fábrica'}</h1><p class="sub">Andamento dos lotes e tempo de cada etapa.</p></div>
+    <div class="segp">${[[30,'30 dias'],[90,'90 dias'],[0,'Tudo']].map(([v, n]) => `<button type="button" class="segb ${PERIODO === v ? 'on' : ''}" data-act="periodo" data-v="${v}">${n}</button>`).join('')}</div>
+
+    <h2>Andamento dos lotes</h2>
+    <p class="sub">% = requisições prontas ou devolvidas sobre o total do lote.</p>
+    ${d.lotes.length ? d.lotes.map(cardLotePct).join('') : '<p class="vazio">Nenhum lote aberto.</p>'}
+
+    <h2>Tempo de cada etapa</h2>
+    <p class="sub">Requisições devolvidas no período (${t.devolvidas || 0}).</p>
+    <div class="kpis">
+      <div class="kpi"><b>${dias(t.total)}</b><span>tempo total médio · da abertura da requisição até a devolução</span></div>
+      <div class="kpi"><b>${dias(t.fabrica)}</b><span>tempo na fábrica · do aceite da Fran até a devolução</span></div>
+      <div class="kpi"><b>${dias(t.loja_ate_aceite)}</b><span>da abertura na loja até o aceite da fábrica</span></div>
+      <div class="kpi"><b style="color:${t.atrasadas ? 'var(--bad)' : 'inherit'}">${t.atrasadas || 0}</b><span>requisições que passaram da data prometida</span></div>
+    </div>
+    <div class="card s">Em andamento agora: <b>${t.abertas || 0}</b> requisição(ões), abertas há <b>${dias(t.idade_aberta)}</b> em média · na fábrica há <b>${dias(t.idade_fabrica)}</b> em média.</div>
+
+    ${g ? `
+    <h2>Top consultoras em consertos</h2>
+    <div class="card stack">${barras(d.consultoras, x => x.consultora, x => x.requisicoes, 'req.')}</div>
+    <h2>Grupos de peças com mais consertos</h2>
+    <div class="card stack">${barras(d.grupos, x => GNOME[x.grupo] || x.grupo, x => x.pecas, 'pç')}</div>
+    <h2>Serviços realizados</h2>
+    <div class="card stack">${barras(d.servicos, x => SNOME[x.servico] || x.servico, x => x.pecas, 'pç')}</div>` : ''}`;
+  ACT.periodo = b => { PERIODO = +b.dataset.v; ir('painel'); };
 };
 
 // ====== Usuários (gestão) ======
