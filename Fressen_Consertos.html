@@ -126,6 +126,11 @@ dl.info dd{margin:0;font-weight:600}
 .trilha5 b{display:block;font-size:20px;font-weight:800}
 .trilha5 span{font-size:11px;color:var(--muted);line-height:1.2;display:block}
 .lotehead{display:flex;gap:10px;align-items:center}
+
+.okbtn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:10px;border:2px solid var(--ok);background:#fff;color:var(--ok);font-size:15px;font-weight:700;cursor:pointer;width:100%}
+.okbtn.on{background:var(--ok);color:#fff}
+.card.posok{background:var(--ok-soft);border:2px solid var(--ok)}
+.contador{position:sticky;top:0;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-weight:700}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:max-content;max-width:92%;background:var(--rose-ink);color:#fff;padding:12px 16px;border-radius:12px;font-weight:600;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 #toast.erro{background:var(--bad)}
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:60;padding:12px}
@@ -150,7 +155,7 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 11';
+const VERSAO = 'Entrega 12';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -882,7 +887,7 @@ R.retorno = async loteId => {
   const lotes = ql.data.filter(l => l.na_fabrica + l.com_jonatan > 0);
   const logs = qlog.data || [];
   const E = {lote: null, pend: [], fotosReq: {}, urls: {}, grupo: '', medida: '', fotoUrl: '', busy: '', cands: null, info: '', manual: false, escolha: null, serv: 'limpeza',
-    modo: 'peca', qtd: '', gres: null, gsel: {}, gserv: {}, resumo: null};
+    modo: 'peca', qtd: '', gres: null, gsel: {}, gserv: {}, gok: {}, resumo: null};
   const peca = id => E.pend.find(p => p.id === id);
 
   async function abrirLote(l) {
@@ -963,8 +968,12 @@ R.retorno = async loteId => {
         const cont = {}; Object.values(E.gsel).forEach(v => { if (v) cont[v] = (cont[v] || 0) + 1; });
         const dup = new Set(Object.keys(cont).filter(k => cont[k] > 1).map(Number));
         const n = Object.values(E.gsel).filter(Boolean).length;
-        h += `<h2>5. Confira cada posição</h2>${E.gres.map(pos => cartaoPos(pos, dup, doG)).join('')}
-          <button class="btn green" data-act="gconfirmar" ${n ? '' : 'disabled'}>Confirmar ${n} peça(s)</button>`;
+        const nok = E.gres.filter(pos => E.gok[pos.posicao] && E.gsel[pos.posicao]).length;
+        h += `<h2>5. Confira cada posição</h2>
+          <p class="sub">Toque em "No saquinho" quando a peça já estiver no saquinho certo. As que ficarem em dúvida continuam aqui.</p>
+          <div class="contador"><span>${nok} de ${E.gres.length} no saquinho</span><button type="button" class="link" data-act="gtodas">${nok === n && n ? 'Desmarcar todas' : 'Marcar todas'}</button></div>
+          ${E.gres.map(pos => cartaoPos(pos, dup, doG)).join('')}
+          <button class="btn green" data-act="gconfirmar" ${nok ? '' : 'disabled'}>Registrar ${nok} peça(s) no saquinho</button>`;
       }
     }
     if (E.lote && !E.busy) {
@@ -978,7 +987,7 @@ R.retorno = async loteId => {
       const q = $('#gQtd'); if (q) q.oninput = e => E.qtd = e.target.value;
       $('#tCam').onchange = $('#tGal').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) (E.modo === 'grupo' ? identificarGrupo(f) : identificar(f)); };
       document.querySelectorAll('select[data-gpos]').forEach(sel => sel.onchange = () => {
-        const pos = sel.dataset.gpos, v = +sel.value || null; E.gsel[pos] = v;
+        const pos = sel.dataset.gpos, v = +sel.value || null; E.gsel[pos] = v; E.gok[pos] = false;
         if (v && !E.gserv[pos]) E.gserv[pos] = peca(v).servico_previsto || 'limpeza';
         render();
       });
@@ -994,8 +1003,10 @@ R.retorno = async loteId => {
       + (outras.length ? `<optgroup label="Outras peças do grupo">${outras.map(q => opt(q)).join('')}</optgroup>` : '')
       + `<option value="" ${!sel ? 'selected' : ''}>Deixar para depois</option>`;
     const c1 = cands.find(c => c.peca_id === sel), f = p ? (E.fotosReq[p.requisicao_id] || [])[0] : null;
-    return `<div class="card stack" style="gap:8px${dup.has(sel) ? ';border-color:var(--bad)' : ''}">
-      <div class="top2"><b>Posição ${pos.posicao}</b>${!cands.length ? '<span class="pill warn">IA sem sugestão</span>' : ''}</div>
+    const ok = !!(E.gok[pos.posicao] && sel);
+    const chk = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+    return `<div class="card stack ${ok ? 'posok' : ''}" style="gap:8px${dup.has(sel) ? ';border-color:var(--bad)' : ''}">
+      <div class="top2"><b>Posição ${pos.posicao}${ok ? ' · no saquinho ' + esc(reqNome(p.cons_requisicoes)) : ''}</b>${!cands.length ? '<span class="pill warn">IA sem sugestão</span>' : ''}</div>
       <div style="display:flex;gap:10px;align-items:flex-start">
         ${f ? `<img src="${esc(E.urls[f.caminho_ia || f.caminho] || '')}" alt="Foto de chegada" data-zoom="${esc(E.urls[f.caminho] || '')}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;cursor:zoom-in;flex-shrink:0">` : ''}
         <div class="stack" style="gap:6px;flex:1;min-width:0">
@@ -1003,14 +1014,15 @@ R.retorno = async loteId => {
           ${p && p.descricao ? `<span class="s">${esc(p.descricao)}</span>` : ''}${c1 && c1.motivo ? `<span class="s">IA: ${esc(c1.motivo)}</span>` : ''}
         </div></div>
       ${p ? `<div class="seg">${SERV.map(([sv, n]) => `<button type="button" class="segb ${E.gserv[pos.posicao] === sv ? 'on' : ''}" data-act="gserv" data-pos="${pos.posicao}" data-v="${sv}">${n}</button>`).join('')}</div>` : ''}
-      ${dup.has(sel) ? '<span class="flag">Mesma peça escolhida em outra posição</span>' : ''}</div>`;
+      ${dup.has(sel) ? '<span class="flag">Mesma peça escolhida em outra posição</span>' : ''}
+      ${p ? `<button type="button" class="okbtn ${ok ? 'on' : ''}" data-act="gok" data-pos="${pos.posicao}" aria-pressed="${ok}">${chk}${ok ? 'No saquinho' : 'Marcar: está no saquinho'}</button>` : ''}</div>`;
   }
 
   async function identificarGrupo(file) {
     const qtd = parseInt(E.qtd, 10);
     if (!(qtd >= 1 && qtd <= 15)) return toast('Informe quantas peças há na foto (1 a 15).', true);
     const nPend = E.pend.filter(p => p.grupo === E.grupo).length;
-    Object.assign(E, {gres: null, gsel: {}, gserv: {}, resumo: null, fotoUrl: URL.createObjectURL(file), busy: `A IA está comparando ${qtd} peça(s) com ${nPend} pendente(s) do grupo…`});
+    Object.assign(E, {gres: null, gsel: {}, gserv: {}, gok: {}, resumo: null, fotoUrl: URL.createObjectURL(file), busy: `A IA está comparando ${qtd} peça(s) com ${nPend} pendente(s) do grupo…`});
     render();
     try {
       const foto = await b64(await comprimir(file, 2000, 0.85));
@@ -1045,11 +1057,14 @@ R.retorno = async loteId => {
   ACT.serv = b => { E.serv = b.dataset.v; render(); };
   ACT.modo = b => { Object.assign(E, {modo: b.dataset.v, cands: null, escolha: null, gres: null, gsel: {}, gserv: {}, resumo: null, fotoUrl: '', manual: false}); render(); };
   ACT.gserv = b => { E.gserv[b.dataset.pos] = b.dataset.v; render(); };
+  ACT.gok = b => { const pos = b.dataset.pos; E.gok[pos] = !E.gok[pos]; render(); };
+  ACT.gtodas = () => { const comSel = E.gres.filter(x => E.gsel[x.posicao]); const todas = comSel.every(x => E.gok[x.posicao]);
+    comSel.forEach(x => E.gok[x.posicao] = !todas); render(); };
   ACT.gconfirmar = async b => {
-    const itens = Object.entries(E.gsel).filter(([, v]) => v);
+    const itens = Object.entries(E.gsel).filter(([pos, v]) => v && E.gok[pos]);
     const ids = itens.map(([, v]) => v);
-    if (!itens.length) return toast('Nenhuma peça escolhida.', true);
-    if (new Set(ids).size !== ids.length) return toast('A mesma peça está em duas posições. Corrija antes de confirmar.', true);
+    if (!itens.length) return toast('Marque as peças que já estão no saquinho.', true);
+    if (new Set(ids).size !== ids.length) return toast('A mesma peça está em duas posições. Corrija antes de registrar.', true);
     b.disabled = true; const resumo = [];
     try {
       for (const [pos, id] of itens) {
@@ -1065,7 +1080,14 @@ R.retorno = async loteId => {
       }
       toast(`${resumo.length} peça(s) registradas.`);
     } catch (e) { toast(erroMsg(e), true); }
-    Object.assign(E, {gres: null, gsel: {}, gserv: {}, fotoUrl: '', qtd: '', resumo: resumo.length ? resumo : null});
+    const feitas = new Set(resumo.map(x => String(x.pos)));
+    const restantes = (E.gres || []).filter(x => !feitas.has(String(x.posicao)));
+    feitas.forEach(pos => { delete E.gsel[pos]; delete E.gserv[pos]; delete E.gok[pos]; });
+    const pendIds = new Set(E.pend.map(x => x.id));
+    restantes.forEach(x => { if (E.gsel[x.posicao] && !pendIds.has(E.gsel[x.posicao])) { E.gsel[x.posicao] = null; E.gok[x.posicao] = false; } });
+    if (restantes.length) Object.assign(E, {gres: restantes, resumo: resumo.length ? resumo : null});
+    else Object.assign(E, {gres: null, gsel: {}, gserv: {}, gok: {}, fotoUrl: '', qtd: '', resumo: resumo.length ? resumo : null});
+    if (restantes.length && resumo.length) toast(`${resumo.length} registradas. ${restantes.length} posição(ões) continuam para conferir.`);
     render();
   };
   ACT.confirmar = async b => {
