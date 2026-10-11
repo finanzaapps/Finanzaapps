@@ -1307,17 +1307,54 @@ function prodEmPromo(id) {
   });
 }
 
+function _selectSegmento(id, label, valor, lista) {
+  const temValor = valor && !lista.includes(valor);
+  const opts = lista.map(v => `<option value="${esc(v)}" ${v===valor?'selected':''}>${esc(v)}</option>`).join('');
+  return `<div class="field">
+    <label>${label}</label>
+    <select id="${id}-sel" onchange="_onSegChange('${id}')"
+      style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:10px;font-size:14px;appearance:auto">
+      <option value="">— Selecionar —</option>
+      ${opts}
+      <option value="__novo__">✏️ Digitar novo...</option>
+    </select>
+    <input id="${id}-inp" placeholder="Digite o nome..." value="${temValor ? esc(valor) : ''}"
+      style="margin-top:6px;display:${(temValor || !valor) && valor==='' ? 'none' : (lista.includes(valor) ? 'none' : 'block')}">
+  </div>`;
+}
+
+function _onSegChange(id) {
+  const sel = document.getElementById(id+'-sel');
+  const inp = document.getElementById(id+'-inp');
+  if (sel.value === '__novo__') {
+    inp.style.display = 'block';
+    inp.focus();
+    sel.value = '__novo__';
+  } else {
+    inp.style.display = 'none';
+    inp.value = '';
+  }
+}
+
+function _getSegVal(id) {
+  const sel = document.getElementById(id+'-sel');
+  const inp = document.getElementById(id+'-inp');
+  if (sel.value === '__novo__') return (inp.value||'').trim();
+  return sel.value || '';
+}
+
 function abrirModalProduto(id) {
   const p = id ? S.produtos.find(x=>x.id===id) : null;
-  const deptos = [...new Set(S.produtos.map(x=>x.depto).filter(Boolean))];
-  const fams   = [...new Set(S.produtos.map(x=>x.familia).filter(Boolean))];
+  const deptos = [...new Set(S.produtos.map(x=>x.depto).filter(Boolean))].sort();
+  const fams   = [...new Set(S.produtos.map(x=>x.familia).filter(Boolean))].sort();
+
   abrirModal(`
     <button class="modal-close" onclick="fecharModal()">×</button>
     <div class="modal-title">${p?'Editar produto':'Novo produto'}</div>
     <div class="field"><label>Nome *</label><input id="p-nome" value="${esc(p?.nome||'')}" placeholder="Ex: Perfume Floratta 75ml"></div>
     <div class="field-row">
-      <div class="field"><label>Departamento</label><input id="p-depto" value="${esc(p?.depto||'')}" placeholder="Ex: Cosméticos" list="dl-dep"><datalist id="dl-dep">${deptos.map(d=>`<option value="${esc(d)}">`).join('')}</datalist></div>
-      <div class="field"><label>Família</label><input id="p-fam" value="${esc(p?.familia||'')}" placeholder="Ex: Perfumaria" list="dl-fam"><datalist id="dl-fam">${fams.map(f=>`<option value="${esc(f)}">`).join('')}</datalist></div>
+      ${_selectSegmento('p-depto','Departamento', p?.depto||'', deptos)}
+      ${_selectSegmento('p-fam','Família', p?.familia||'', fams)}
     </div>
     <div class="field-row">
       <div class="field"><label>Ref / Código</label><input id="p-ref" value="${esc(p?.ref||'')}" placeholder="opcional"></div>
@@ -1338,6 +1375,17 @@ function abrirModalProduto(id) {
       <button class="btn btn-grad" onclick="salvarProduto('${p?.id||''}')">${p?'Salvar':'Cadastrar'}</button>
     </div>
   `);
+  // Pré-selecionar valor existente
+  if (p?.depto) {
+    const s = document.getElementById('p-depto-sel');
+    if (deptos.includes(p.depto)) s.value = p.depto;
+    else { s.value = '__novo__'; document.getElementById('p-depto-inp').style.display='block'; }
+  }
+  if (p?.familia) {
+    const s = document.getElementById('p-fam-sel');
+    if (fams.includes(p.familia)) s.value = p.familia;
+    else { s.value = '__novo__'; document.getElementById('p-fam-inp').style.display='block'; }
+  }
   document.getElementById('p-usa-esq').onchange = function() {
     document.getElementById('p-esq-wrap').style.display = this.checked ? 'block' : 'none';
   };
@@ -1351,8 +1399,8 @@ async function salvarProduto(id) {
   const usaEst = document.getElementById('p-usa-esq').checked;
   const row = {
     user_id: S.user.id, nome,
-    depto:   (document.getElementById('p-depto').value||'').trim(),
-    familia: (document.getElementById('p-fam').value||'').trim(),
+    depto:   _getSegVal('p-depto'),
+    familia: _getSegVal('p-fam'),
     ref:     (document.getElementById('p-ref').value||'').trim(),
     preco, custo: Number(document.getElementById('p-custo').value||0),
     usa_estoque: usaEst,
