@@ -3365,7 +3365,10 @@ async function renderResultado() {
       return `<div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-2);font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">${esc(cat)}<span style="color:var(--danger)">${fmtBRL(tot)}</span></div>
         ${items.map(d=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-          <span style="font-size:13px;color:var(--text)">${esc(d.descricao||d.categoria)}</span>
+          <div>
+            <span style="font-size:13px;color:var(--text)">${esc(d.descricao||d.categoria)}</span>
+            ${d.data ? `<div style="font-size:11px;color:var(--text-2)">${d.data.split('-').reverse().join('/')}</div>` : ''}
+          </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:13px;font-weight:600">${fmtBRL(Number(d.valor||0))}</span>
             <button onclick="excluirDespesa('${d.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:0 2px">×</button>
@@ -3392,33 +3395,51 @@ function _nomeMes(ym) {
   return names[+m-1] + ' de ' + y;
 }
 
+function _catsDisponiveisDesp() {
+  // Padrão + qualquer categoria já usada pelo usuário (sem duplicar)
+  const usadas = [...new Set(S.despesas.map(d => d.categoria).filter(Boolean))];
+  const todas  = [...new Set([...CATS_DESPESA, ...usadas])];
+  return todas;
+}
+
 function abrirModalDespesa() {
-  const mes = document.getElementById('res-mes')?.value || new Date().toISOString().slice(0,7);
+  const mesSel = document.getElementById('res-mes')?.value || new Date().toISOString().slice(0,7);
+  const hoje   = new Date().toISOString().slice(0,10);
+  // Data padrão: primeiro dia do mês selecionado (se retroativo) ou hoje
+  const mesAtual = new Date().toISOString().slice(0,7);
+  const dataDefault = mesSel === mesAtual ? hoje : mesSel + '-01';
+  const cats = _catsDisponiveisDesp();
+
   abrirModal(`
     <button class="modal-close" onclick="fecharModal()">×</button>
     <div class="modal-title">Nova Despesa</div>
-    <div style="font-size:12px;color:var(--text-2);margin-bottom:12px">Mês: <strong>${_nomeMes(mes)}</strong></div>
-    <div class="field">
-      <label>Categoria *</label>
-      <select id="desp-cat" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:10px;font-size:14px">
-        ${CATS_DESPESA.map(c=>`<option>${c}</option>`).join('')}
-        <option value="_outro">Outra (digitar)</option>
-      </select>
+    <div class="field-row">
+      <div class="field" style="flex:2">
+        <label>Categoria *</label>
+        <select id="desp-cat" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:10px;font-size:14px">
+          ${cats.map(c=>`<option>${esc(c)}</option>`).join('')}
+          <option value="_outro">+ Nova categoria</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1">
+        <label>Data *</label>
+        <input id="desp-data" type="date" value="${dataDefault}" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:10px;font-size:14px">
+      </div>
     </div>
     <div class="field" id="desp-outro-wrap" style="display:none">
-      <label>Nome da categoria</label>
-      <input id="desp-outro" placeholder="Ex: Hospedagem site">
+      <label>Nome da nova categoria</label>
+      <input id="desp-outro" placeholder="Ex: Hospedagem site, Seguro, Contador...">
     </div>
     <div class="field">
       <label>Descrição (opcional)</label>
-      <input id="desp-desc" placeholder="Ex: Conta de energia janeiro">
+      <input id="desp-desc" placeholder="Ex: Conta de energia out/2026">
     </div>
     <div class="field">
       <label>Valor *</label>
       <input id="desp-valor" type="number" step="0.01" min="0" placeholder="0,00">
     </div>
     <div class="btn-row mt-12">
-      <button class="btn btn-grad" onclick="salvarDespesa('${mes}')">Salvar</button>
+      <button class="btn btn-grad" onclick="salvarDespesa()">Salvar</button>
     </div>
   `);
   document.getElementById('desp-cat').onchange = function() {
@@ -3426,17 +3447,22 @@ function abrirModalDespesa() {
   };
 }
 
-async function salvarDespesa(mes) {
+async function salvarDespesa() {
   const catSel = document.getElementById('desp-cat').value;
   const cat    = catSel === '_outro' ? (document.getElementById('desp-outro').value||'').trim() : catSel;
   const desc   = (document.getElementById('desp-desc').value||'').trim();
   const valor  = Number(document.getElementById('desp-valor').value||0);
-  if (!cat) { toast('Informe a categoria','warn'); return; }
+  const data   = document.getElementById('desp-data').value || new Date().toISOString().slice(0,10);
+  const mes    = data.slice(0,7); // Deriva o mês automaticamente da data
+  if (!cat || cat === '_outro') { toast('Informe o nome da categoria','warn'); return; }
   if (!valor || valor <= 0) { toast('Informe o valor','warn'); return; }
-  const row = { user_id: S.user.id, mes, categoria: cat, descricao: desc||cat, valor };
+  const row = { user_id: S.user.id, mes, categoria: cat, descricao: desc||cat, valor, data };
   const novo = await dbInsert('finanza_autonomo_despesas', row);
   if (novo) {
     S.despesas.unshift(novo);
+    // Sincroniza o seletor de mês para o mês da despesa recém-lançada
+    const selMes = document.getElementById('res-mes');
+    if (selMes) { _popularSelectMes(); selMes.value = mes; }
     fecharModal();
     renderResultado();
     toast('Despesa registrada','success');
