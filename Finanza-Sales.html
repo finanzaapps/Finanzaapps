@@ -311,6 +311,10 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
       <button class="auth-btn" id="li-btn" onclick="fazerLogin()">Entrar</button>
       <div class="auth-link">Não tem conta? <a onclick="mostrarForm('cadastro')">Criar grátis</a></div>
       <div class="auth-recup"><a onclick="mostrarForm('recuperar')">Esqueci minha senha</a></div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08);text-align:center">
+        <button type="button" onclick="window.open(KIWIFY_CHECKOUT_URL, '_blank')" style="width:100%;padding:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#10D9A0,#2D7FF9 55%,#7B3FF2);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">💎 Assinar Premium — R$ 29,90/mês</button>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">Use no pagamento o mesmo e-mail do seu cadastro<br>para liberar o Premium automaticamente.</div>
+      </div>
     </div>
     <div id="cadastro-form" class="auth-card" style="display:none">
       <h2>Criar conta grátis</h2>
@@ -393,6 +397,14 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 
 <!-- INÍCIO -->
 <section id="page-inicio" class="page active">
+  <!-- Banner de upgrade: aparece só para usuários FREE -->
+  <button id="inicio-upgrade" onclick="abrirUpgrade()" style="display:none;width:100%;margin-bottom:16px;padding:14px 16px;border:none;border-radius:14px;background:linear-gradient(135deg,#10D9A0,#2D7FF9 55%,#7B3FF2);color:#fff;cursor:pointer;text-align:left;font-family:inherit;align-items:center;justify-content:space-between;gap:12px">
+    <span>
+      <span style="display:block;font-size:15px;font-weight:800">💎 Seja Premium</span>
+      <span style="display:block;font-size:12px;opacity:.9;margin-top:2px">Vendas ilimitadas, Resultado do Mês e mais — R$ 29,90/mês</span>
+    </span>
+    <span style="font-size:13px;font-weight:800;background:rgba(255,255,255,0.22);padding:8px 14px;border-radius:10px;white-space:nowrap">Assinar →</span>
+  </button>
   <div class="inicio-saudacao" id="inicio-saudacao">Olá 👋</div>
   <div class="inicio-sub" id="inicio-sub">O que vamos fazer hoje?</div>
   <div class="inicio-grid">
@@ -433,7 +445,6 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
 
   <div style="margin-top:18px;display:flex;gap:8px">
     <button class="btn btn-ghost btn-sm" style="flex:1" onclick="carregarTudo().then(()=>{renderInicio();toast('Dados atualizados','success')})">🔄 Atualizar</button>
-    <button class="btn btn-ghost btn-sm" style="flex:1" onclick="irPara('mais')">⚙️ Config</button>
     <button class="btn btn-sm" style="background:rgba(255,71,87,0.12);color:var(--danger);border:1px solid rgba(255,71,87,0.2);flex:1" onclick="logout()">⏏ Sair</button>
   </div>
 </section>
@@ -1175,6 +1186,9 @@ function renderInicio() {
   const nome = (S.user?.nome || '').split(' ')[0] || '';
   document.getElementById('inicio-saudacao').innerHTML = sauda + (nome ? ', <strong>' + esc(nome) + '</strong>' : '') + ' 👋';
   document.getElementById('inicio-sub').textContent = 'O que vamos fazer hoje?';
+  // Banner de upgrade (só FREE)
+  const bannerUp = document.getElementById('inicio-upgrade');
+  if (bannerUp) bannerUp.style.display = ((S.user?.plano || 'free') === 'premium') ? 'none' : 'flex';
   // Badge carrinho
   const cartBadge = document.getElementById('inicio-cart-badge');
   if (cartBadge) { const n = S.cart.length; cartBadge.textContent = n; cartBadge.style.display = n ? 'inline-block' : 'none'; }
@@ -3970,6 +3984,8 @@ async function _conferirPlano() {
     if (novoPlano !== S.user.plano) {
       const virouPremium = S.user.plano === 'free' && (novoPlano === 'premium' || novoPlano === 'trial');
       S.user.plano = novoPlano;
+      const bUp = document.getElementById('inicio-upgrade');
+      if (bUp) bUp.style.display = (novoPlano === 'premium') ? 'none' : 'flex';
       // Atualiza badges e telas
       const badge = document.getElementById('hdr-plano');
       if (badge) {
