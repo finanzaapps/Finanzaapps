@@ -324,10 +324,15 @@ label{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;displa
     </div>
     <div id="recuperar-form" class="auth-card" style="display:none">
       <h2>Recuperar senha</h2>
-      <p class="auth-sub">Enviaremos um link de redefinição.</p>
+      <p class="auth-sub" id="re-sub">Enviaremos um código de verificação para o seu e-mail.</p>
       <div class="auth-field"><label>E-mail</label><input type="email" id="re-email" autocapitalize="off" placeholder="seu@email.com"></div>
+      <div id="re-passo2" style="display:none">
+        <div class="auth-field"><label>Código recebido por e-mail</label><input type="text" id="re-codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Digite o código"></div>
+        <div class="auth-field"><label>Nova senha (mín. 6)</label><input type="password" id="re-nova" autocomplete="new-password" placeholder="Digite sua nova senha"></div>
+        <div class="auth-field"><label>Confirmar senha</label><input type="password" id="re-confirma" autocomplete="new-password" placeholder="Repita a senha"></div>
+      </div>
       <div id="re-msg" class="auth-msg"></div>
-      <button class="auth-btn" id="re-btn" onclick="fazerRecuperar()">Enviar link</button>
+      <button class="auth-btn" id="re-btn" onclick="fazerRecuperar()">Enviar código</button>
       <div class="auth-link"><a onclick="mostrarForm('login')">← Voltar ao login</a></div>
     </div>
   </div>
@@ -931,16 +936,52 @@ async function fazerCadastro() {
   finally { btn.disabled = false; btn.textContent = 'Criar conta grátis'; }
 }
 
+// Recuperação de senha por CÓDIGO (imune a robôs de e-mail que consomem links)
+// Passo 1: envia o código. Passo 2: valida código + define nova senha.
 async function fazerRecuperar() {
-  const email = (document.getElementById('re-email').value || '').trim();
+  const email = (document.getElementById('re-email').value || '').trim().toLowerCase();
   if (!email) return authMsg('re-msg', 'Informe o e-mail.');
+  const passo2 = document.getElementById('re-passo2').style.display !== 'none';
   const btn = document.getElementById('re-btn');
-  btn.disabled = true; btn.textContent = 'Enviando...';
+
+  // PASSO 1 — pedir o código
+  if (!passo2) {
+    btn.disabled = true; btn.textContent = 'Enviando...';
+    try {
+      await sbReq('POST', '/auth/v1/recover', { email });
+      document.getElementById('re-passo2').style.display = 'block';
+      document.getElementById('re-email').readOnly = true;
+      document.getElementById('re-sub').textContent = 'Digite o código que enviamos e escolha a nova senha.';
+      btn.textContent = 'Salvar nova senha';
+      authMsg('re-msg', 'Código enviado! Verifique seu e-mail (e o spam).', true);
+    } catch(e) { authMsg('re-msg', 'Erro ao enviar.'); btn.textContent = 'Enviar código'; }
+    finally { btn.disabled = false; }
+    return;
+  }
+
+  // PASSO 2 — validar código e trocar a senha
+  const codigo = (document.getElementById('re-codigo').value || '').replace(/\s/g, '');
+  const nova   = (document.getElementById('re-nova').value || '').trim();
+  const conf   = (document.getElementById('re-confirma').value || '').trim();
+  if (!codigo)         return authMsg('re-msg', 'Digite o código do e-mail.');
+  if (nova.length < 6) return authMsg('re-msg', 'Senha mínima de 6 caracteres.');
+  if (nova !== conf)   return authMsg('re-msg', 'As senhas não conferem.');
+  btn.disabled = true; btn.textContent = 'Salvando...';
   try {
-    await sbReq('POST', '/auth/v1/recover', { email, redirect_to: window.location.origin + window.location.pathname });
-    authMsg('re-msg', 'Link enviado! Verifique seu e-mail.', true);
-  } catch(e) { authMsg('re-msg', 'Erro ao enviar.'); }
-  finally { btn.disabled = false; btn.textContent = 'Enviar link'; }
+    const v = await sbReq('POST', '/auth/v1/verify', { type: 'recovery', email, token: codigo });
+    if (!v.ok || !v.data?.access_token) {
+      authMsg('re-msg', 'Código inválido ou expirado. Peça um novo.');
+      return;
+    }
+    const u = await sbReq('PUT', '/auth/v1/user', { password: nova }, v.data.access_token);
+    if (!u.ok) {
+      authMsg('re-msg', u.data?.msg || u.data?.error_description || 'Erro ao salvar senha.');
+      return;
+    }
+    await iniciarSessao({ access_token: v.data.access_token, refresh_token: v.data.refresh_token, user: u.data });
+    toast('Senha atualizada com sucesso!', 'success');
+  } catch(e) { authMsg('re-msg', 'Erro de conexão. Tente novamente.'); }
+  finally { btn.disabled = false; btn.textContent = 'Salvar nova senha'; }
 }
 
 async function iniciarSessao(data) {
