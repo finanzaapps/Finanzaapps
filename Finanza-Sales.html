@@ -917,7 +917,7 @@ async function fazerCadastro() {
   const btn = document.getElementById('ca-btn');
   btn.disabled = true; btn.textContent = 'Criando...';
   try {
-    const r = await sbReq('POST', '/auth/v1/signup', { email, password: senha, data: { nome } });
+    const r = await sbReq('POST', '/auth/v1/signup', { email, password: senha, data: { nome, app: 'finanza' } });
     if (!r.ok) {
       const m = r.data.error_description || r.data.msg || 'Falha no cadastro.';
       return authMsg('ca-msg', m.includes('already registered') ? 'E-mail já cadastrado.' : m);
@@ -946,10 +946,14 @@ async function fazerRecuperar() {
 async function iniciarSessao(data) {
   S.session = data;
   const userId = data.user?.id;
-  // Busca perfil
-  const r = await sbReq('GET', `/rest/v1/finanza_autonomo_perfis?id=eq.${userId}&select=*`, null, data.access_token);
-  const perfil = r.ok && r.data[0] ? r.data[0] : { nome: data.user?.user_metadata?.nome || '', plano: 'free' };
-  S.user = { id: userId, email: data.user?.email || '', nome: perfil.nome, plano: perfil.plano };
+  // Busca nome no perfil antigo (compatibilidade)
+  const rPerfil = await sbReq('GET', `/rest/v1/finanza_autonomo_perfis?id=eq.${userId}&select=nome`, null, data.access_token);
+  const nomeBase = (rPerfil.ok && rPerfil.data[0]) ? rPerfil.data[0].nome : (data.user?.user_metadata?.nome || '');
+  // Busca plano na nova tabela de licenças (integração Kiwify)
+  const rLic = await sbReq('GET', `/rest/v1/finanza_licencas?id=eq.${userId}&select=plano,status,validade`, null, data.access_token);
+  const licenca = rLic.ok && rLic.data[0] ? rLic.data[0] : null;
+  const planoAtivo = (licenca && licenca.status === 'ativo') ? (licenca.plano || 'free') : 'free';
+  S.user = { id: userId, email: data.user?.email || '', nome: nomeBase, plano: planoAtivo };
   // Salva sessão
   try { localStorage.setItem('finanza_sess', JSON.stringify({ access_token: data.access_token, refresh_token: data.refresh_token, user: data.user })); } catch(e) {}
   document.getElementById('tela-login').style.display = 'none';
@@ -1168,7 +1172,11 @@ function showPage(p) {
   else if (p==='promocoes') renderPromocoes();
   else if (p==='metas') renderMetas();
   else if (p==='lembretes') renderLembretes();
-  else if (p==='resultado') renderResultado();
+  else if (p==='resultado') {
+    // Resultado do Mês exclusivo Premium
+    if ((S.user.plano || 'free') !== 'premium') { abrirUpgrade(); irPara('home'); return; }
+    renderResultado();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3908,7 +3916,32 @@ function renderMais(){
   document.getElementById('ms-metas').textContent=S.metas.length+' metas';
   document.getElementById('ms-lemb').textContent=S.lembretes.filter(l=>l.status!=='Concluido').length+' pendentes';
 }
-const KIWIFY_CHECKOUT_URL = 'https://kiwify.com.br/COLE_AQUI_URL_DO_PRODUTO'; // ⚠️ substituir pela URL real do produto no Kiwify
+const KIWIFY_CHECKOUT_URL = 'https://pay.kiwify.com.br/tKQ0rl5';
+
+// ─── VERIFICAÇÃO DE PLANO (Kiwify) ───────────────────────────────────────────
+async function _conferirPlano() {
+  if (!S.session || !S.user) return;
+  try {
+    const r = await sbReq('POST', '/rest/v1/rpc/finanza_plano_efetivo', {}, S.session.access_token);
+    if (!r.ok || r.data === undefined || r.data === null) return;
+    const novoPlano = r.data; // 'premium' | 'trial' | 'free' | 'bloqueado'
+    if (novoPlano === 'bloqueado') { logout(); return; }
+    if (novoPlano !== S.user.plano) {
+      const virouPremium = S.user.plano === 'free' && (novoPlano === 'premium' || novoPlano === 'trial');
+      S.user.plano = novoPlano;
+      // Atualiza badges e telas
+      const badge = document.getElementById('hdr-plano');
+      if (badge) {
+        badge.textContent = novoPlano === 'premium' ? 'PREMIUM' : 'FREE';
+        badge.className = 'plano-badge ' + (novoPlano === 'premium' ? 'premium' : 'free');
+      }
+      if (virouPremium) toast('💎 Premium ativado! Todos os recursos liberados.', 'success');
+    }
+  } catch(e) {}
+}
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible') _conferirPlano();
+});
 
 function abrirUpgrade(){
   abrirModal(`
