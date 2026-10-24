@@ -157,7 +157,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
 const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
 let RECUPERANDO = /type=recovery/.test(location.hash);
-const VERSAO = 'Entrega 14.5';
+const VERSAO = 'Entrega 15';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -165,6 +165,9 @@ const GNOME = Object.fromEntries(GRUPOS);
 const ordemG = g => GRUPOS.findIndex(x => x[0] === g);
 const SERV = [['limpeza','Limpeza'],['banho','Banho'],['flash','Flash']];
 const SNOME = Object.fromEntries(SERV);
+const NF = 'Não é Fressen';
+const stP = p => p.nao_fressen && p.status === 'retornou' ? [NF + ' · no saquinho', 'warn'] : ST[p.status];
+const feitoTxt = p => p.nao_fressen ? NF : (SNOME[p.servico_feito] || '');
 const ST = {registrada:['A conferir','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Em manutenção','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
 const PH = {corrente:'ex.: 45 cm', pulseira:'ex.: 19 cm', tornozeleira:'ex.: 24 cm', anel:'ex.: aro 16', brinco:'ex.: Ø 2 cm', pingente:'ex.: 2 cm', outro:''};
 const PERFIL_NOME = {executiva:'Loja', fabrica:'Fábrica', gestao:'Gestão'};
@@ -392,7 +395,7 @@ R.etapa = async k => {
     $('#main').innerHTML = h; return;
   }
   const st = {conferidas: 'na_fabrica', jonatan: 'com_jonatan', voltaram: 'retornou'}[k];
-  const {data: pecas, error} = await sb.from('cons_pecas').select('id,posicao,grupo,medida,status,enviada_em,retornou_em,servico_previsto,servico_feito,lote_id,requisicao_id,cons_requisicoes(id,numero_formulario,consultora,data_promessa)').eq('status', st).order('lote_id').order('requisicao_id').order('posicao').limit(1000);
+  const {data: pecas, error} = await sb.from('cons_pecas').select('id,posicao,grupo,medida,status,nao_fressen,enviada_em,retornou_em,servico_previsto,servico_feito,lote_id,requisicao_id,cons_requisicoes(id,numero_formulario,consultora,data_promessa)').eq('status', st).order('lote_id').order('requisicao_id').order('posicao').limit(1000);
   if (error) throw error;
   const ids = [...new Set(pecas.map(p => p.lote_id).filter(Boolean))];
   let lotes = [];
@@ -411,7 +414,7 @@ R.etapa = async k => {
       ${acao}
       ${Object.values(porReq).map(rs => { const r = rs[0].cons_requisicoes; return `<div class="pecarow">
         <button class="link" data-ir="req" data-p="${r.id}" style="padding:0">${esc(reqNome(r))} · ${esc(r.consultora)}</button>
-        ${rs.map(p => `<span class="s">${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''} · ${k === 'voltaram' ? 'feito: ' + (SNOME[p.servico_feito] || '—') : 'previsto: ' + (SNOME[p.servico_previsto] || '—')}</span>`).join('')}</div>`; }).join('')}
+        ${rs.map(p => `<span class="s">${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''} · ${k === 'voltaram' ? 'feito: ' + (feitoTxt(p) || '—') : 'previsto: ' + (SNOME[p.servico_previsto] || '—')}</span>`).join('')}</div>`; }).join('')}
     </div>`;
   }
   $('#main').innerHTML = h;
@@ -707,26 +710,27 @@ R.req = async id => {
   const btnDel = p => podeDelPeca(p) ? `<button type="button" class="link" style="color:#b3261e" data-act="delPeca" data-id="${p.id}">Excluir esta peça (lançada por engano)</button>` : '';
 
   // Fran pode corrigir medida/descrição/serviço depois da conferência, enquanto a peça está na fábrica (antes da manutenção)
-  const podeEditar = p => fab && r.status === 'na_fabrica' && p.status === 'na_fabrica';
-  const linha = p => `<div class="peca" id="pc${p.id}"><div class="top2"><b>${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</b><span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span></div>
+  const podeEditar = p => fab && r.status === 'na_fabrica' && (p.status === 'na_fabrica' || (p.nao_fressen && p.status === 'retornou'));
+  const linha = p => `<div class="peca" id="pc${p.id}"><div class="top2"><b>${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</b><span class="pill ${stP(p)[1]}">${stP(p)[0]}</span></div>
     ${p.descricao ? `<div>${esc(p.descricao)}</div>` : ''}
     ${!p.descricao && p.descricao_ia ? `<div>${esc(p.descricao_ia)}</div>` : ''}
     ${p.obs_loja ? `<div class="s">Obs. da loja: ${esc(p.obs_loja)}</div>` : ''}
-    <div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div>
-    ${p.consumo_ml != null || p.custo != null ? `<div class="s">${p.consumo_ml != null ? 'Ouro: ' + ml(p.consumo_ml) : ''}${p.consumo_ml != null && p.custo != null ? ' · ' : ''}${p.custo != null ? 'Custo: <b>' + brl(p.custo) + '</b>' : ''}</div>` : ''}${podeEditar(p) ? `<button type="button" class="link" data-act="editPeca" data-id="${p.id}">Editar medida, descrição ou serviço</button>` : ''}${btnDel(p)}</div>`;
+    ${p.nao_fressen ? `<div class="flag" style="font-size:13px">${NF} · foi direto para o saquinho, sem serviço</div>` : `<div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div>`}
+    ${p.consumo_ml != null || p.custo != null ? `<div class="s">${p.consumo_ml != null ? 'Ouro: ' + ml(p.consumo_ml) : ''}${p.consumo_ml != null && p.custo != null ? ' · ' : ''}${p.custo != null ? 'Custo: <b>' + brl(p.custo) + '</b>' : ''}</div>` : ''}${podeEditar(p) ? `<button type="button" class="link" data-act="editPeca" data-id="${p.id}">Editar medida, descrição, serviço ou "${NF}"</button>` : ''}${btnDel(p)}</div>`;
   const conf = p => `<div class="peca"><b>${p.posicao} · ${GNOME[p.grupo]}</b>
     ${p.obs_loja ? `<div class="s">Obs. da loja: <b>${esc(p.obs_loja)}</b></div>` : ''}
     <div class="field"><label for="d${p.id}">Descrição${p.descricao_ia && (!p.descricao || p.descricao === p.descricao_ia) ? ' (sugerida pela IA, pode editar)' : ''}</label><textarea id="d${p.id}" rows="4">${esc(p.descricao || p.descricao_ia)}</textarea></div>
     ${p.descricao_ia && p.descricao && p.descricao_ia !== p.descricao ? `<div class="s">Texto original da IA: ${esc(p.descricao_ia)}</div>` : ''}
     <div class="field" style="max-width:220px"><label for="m${p.id}">Medida</label><input id="m${p.id}" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
-    <div class="field"><span class="lbl">Serviço previsto</span><div class="seg">${SERV.map(([s, n]) => `<label><input type="radio" name="s${p.id}" value="${s}" ${(p.servico_previsto || 'limpeza') === s ? 'checked' : ''}>${n}</label>`).join('')}</div></div>${btnDel(p)}</div>`;
+    <div class="field"><span class="lbl">Serviço previsto</span><div class="seg">${SERV.map(([s, n]) => `<label><input type="radio" name="s${p.id}" value="${s}" ${(p.servico_previsto || 'limpeza') === s ? 'checked' : ''}>${n}</label>`).join('')}</div></div>
+    <label class="check"><input type="checkbox" id="nf${p.id}" ${p.nao_fressen ? 'checked' : ''}><span><b>${NF}</b> · vai direto para o saquinho, sem passar pela manutenção</span></label>${btnDel(p)}</div>`;
   const totalCusto = pecas.reduce((s, p) => s + Number(p.custo || 0), 0);
   const totalOuro = pecas.reduce((s, p) => s + Number(p.consumo_ml || 0), 0);
   const podeCusto = fab && ['na_fabrica','devolvida'].includes(r.status) && pecas.some(p => ['retornou','devolvida'].includes(p.status));
   const custos = podeCusto ? `<div class="card stack"><h2 style="margin:0">Custo do conserto</h2>
       <p class="sub">Informe o valor de cada peça que teve custo. Deixe vazio se não houver.</p>
       ${pecas.filter(p => ['retornou','devolvida'].includes(p.status)).map(p => `<div class="grid2" style="align-items:end">
-        <div><b>${p.posicao} · ${GNOME[p.grupo]}</b><div class="s">${SNOME[p.servico_feito] || ''}${p.consumo_ml != null ? ' · ouro ' + ml(p.consumo_ml) : ''}</div></div>
+        <div><b>${p.posicao} · ${GNOME[p.grupo]}</b><div class="s">${feitoTxt(p)}${p.consumo_ml != null ? ' · ouro ' + ml(p.consumo_ml) : ''}</div></div>
         <div class="field"><label for="c${p.id}">Valor (R$)</label><input id="c${p.id}" inputmode="decimal" value="${p.custo != null ? String(p.custo).replace('.', ',') : ''}" placeholder="0,00"></div></div>`).join('')}
       <div class="top2"><span>Total da requisição</span><b>${brl(totalCusto)}</b></div>
       <button class="btn outline small" data-act="salvarCustos">Salvar custos</button></div>`
@@ -747,7 +751,7 @@ R.req = async id => {
   if (fab && r.status === 'na_fabrica') {
     const bloq = r.modo_devolucao === 'completa' && falta.length > 0;
     dev = volt.length ? `<div class="card stack"><h2 style="margin:0">Devolução</h2>
-      ${volt.map(p => `<label class="check"><input type="checkbox" name="dev" value="${p.id}" checked>${p.posicao} · ${GNOME[p.grupo]} · ${SNOME[p.servico_feito] || ''}</label>`).join('')}
+      ${volt.map(p => `<label class="check"><input type="checkbox" name="dev" value="${p.id}" checked>${p.posicao} · ${GNOME[p.grupo]} · ${feitoTxt(p)}</label>`).join('')}
       ${bloq ? `<p class="sub">Devolução completa: ainda faltam ${falta.length} peça(s).</p>` : ''}
       <button class="btn green" data-act="devolver" ${bloq ? 'disabled' : ''}>Registrar devolução${r.fab_perfis ? ' · ' + esc(r.fab_perfis.nome) : ' à loja'}</button></div>`
       : `<div class="card"><p class="sub">Nenhuma peça voltou ainda. ${falta.length} em processo.</p></div>`;
@@ -778,7 +782,7 @@ R.req = async id => {
     ${fotos.length && (r.status === 'registrada' || fab) && r.status !== 'devolvida' ? `<button class="btn outline" data-act="descrever">Descrever de novo com a IA</button>` : ''}
     ${podeAdd ? `<button class="btn outline" data-act="addAbrir">+ Adicionar peça</button><div id="addBox"></div>` : ''}
     ${podeExcluir ? `<button class="btn outline" data-act="excluir">Excluir requisição</button>` : ''}`;
-  const A = {grupo: '', medida: '', descricao: '', prev: 'limpeza', onde: 'com_jonatan', feito: 'banho'};
+  const A = {grupo: '', medida: '', descricao: '', prev: 'limpeza', onde: 'com_jonatan', feito: 'banho', nf: false};
   function renderAdd() {
     const box = $('#addBox'); if (!box) return;
     const seg = (act, opts, atual) => `<div class="seg">${opts.map(([v, n]) => `<button type="button" class="segb ${atual === v ? 'on' : ''}" data-act="${act}" data-v="${v}">${n}</button>`).join('')}</div>`;
@@ -788,9 +792,11 @@ R.req = async id => {
       <div class="field"><label for="aDesc">Descrição</label><textarea id="aDesc" rows="3">${esc(A.descricao)}</textarea></div>
       <div class="field" style="max-width:220px"><label for="aMed">Medida</label><input id="aMed" value="${esc(A.medida)}" placeholder="${A.grupo ? PH[A.grupo] : ''}"></div>
       <div class="field"><span class="lbl">Serviço previsto</span>${seg('addPrev', SERV, A.prev)}</div>
-      ${r.status === 'na_fabrica' ? `<div class="field"><span class="lbl">Onde a peça está agora?</span>${seg('addOnde', [['na_fabrica','Na fábrica'],['com_jonatan','Em manutenção'],['retornou','Já voltou']], A.onde)}</div>
+      ${r.status === 'na_fabrica' && !A.nf ? `<div class="field"><span class="lbl">Onde a peça está agora?</span>${seg('addOnde', [['na_fabrica','Na fábrica'],['com_jonatan','Em manutenção'],['retornou','Já voltou']], A.onde)}</div>
         ${A.onde === 'retornou' ? `<div class="field"><span class="lbl">Serviço feito</span>${seg('addFeito', SERV, A.feito)}</div>` : ''}` : ''}
+      <label class="check"><input type="checkbox" id="aNf" ${A.nf ? 'checked' : ''}><span><b>${NF}</b> · vai direto para o saquinho</span></label>
       <button type="button" class="btn" data-act="addSalvar">Salvar peça</button></div>`;
+    $('#aNf').onchange = e => { A.nf = e.target.checked; renderAdd(); };
     $('#aDesc').oninput = e => A.descricao = e.target.value;
     $('#aMed').oninput = e => A.medida = e.target.value;
   }
@@ -802,6 +808,7 @@ R.req = async id => {
       const sel = document.querySelector(`input[name=s${p.id}]:checked`);
       const upd = {medida: m.value.trim() || null, descricao: d.value.trim() || null};
       if (sel) upd.servico_previsto = sel.value;
+      const nf = document.getElementById('nf' + p.id); if (nf) upd.nao_fressen = nf.checked;
       const {error} = await sb.from('cons_pecas').update(upd).eq('id', p.id);
       if (error) throw error;
     }
@@ -827,9 +834,9 @@ R.req = async id => {
     b.disabled = true;
     try { await salvarDigitado(); } catch (e) { b.disabled = false; return toast(erroMsg(e), true); }
     const agora = new Date().toISOString();
-    const status = r.status === 'na_fabrica' ? A.onde : 'registrada';
+    const status = r.status === 'na_fabrica' ? (A.nf ? 'na_fabrica' : A.onde) : 'registrada';
     const nova = {requisicao_id: r.id, posicao: Math.max(0, ...pecas.map(p => p.posicao)) + 1, grupo: A.grupo,
-      medida: A.medida.trim() || null, descricao: A.descricao.trim() || null, servico_previsto: A.prev, status, lote_id: r.lote_id || null};
+      medida: A.medida.trim() || null, descricao: A.descricao.trim() || null, servico_previsto: A.prev, status, lote_id: r.lote_id || null, nao_fressen: A.nf};
     if (status === 'com_jonatan' || status === 'retornou') nova.enviada_em = agora;
     if (status === 'retornou') { nova.servico_feito = A.feito; nova.retornou_em = agora; }
     const {error} = await sb.from('cons_pecas').insert(nova);
@@ -845,7 +852,8 @@ R.req = async id => {
       for (const p of pecas) {
         const {error} = await sb.from('cons_pecas').update({
           medida: $('#m' + p.id).value.trim() || null, descricao: $('#d' + p.id).value.trim() || null,
-          servico_previsto: document.querySelector(`input[name=s${p.id}]:checked`).value
+          servico_previsto: document.querySelector(`input[name=s${p.id}]:checked`).value,
+          nao_fressen: $('#nf' + p.id).checked
         }).eq('id', p.id);
         if (error) throw error;
       }
@@ -981,6 +989,7 @@ R.lote = async id => {
     const linhaP = p => {
       let acao;
       if (fab && emProc(p) && aberto) acao = `<span class="lbl">Voltou com:</span><div class="acoes3">${SERV.map(([s, n]) => `<button data-act="voltou" data-id="${p.id}" data-v="${s}">${n}</button>`).join('')}</div>`;
+      else if (p.status === 'retornou' && p.nao_fressen) acao = `<span class="pill warn" style="align-self:flex-start">${NF} · no saquinho</span>`;
       else if (p.status === 'retornou') acao = `<div class="top2"><span class="pill ok">Voltou · ${SNOME[p.servico_feito] || ''}</span>${fab ? `<button class="link" data-act="desfazer" data-id="${p.id}">Desfazer</button>` : ''}</div>`;
       else acao = `<span class="pill ${ST[p.status][1]}" style="align-self:flex-start">${ST[p.status][0]}</span>`;
       return `<div class="pecarow"><div><b>${p.posicao} · ${GNOME[p.grupo]}</b>${p.medida ? ' · ' + esc(p.medida) : ''}${emProc(p) ? ` <span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span>` : ''}
