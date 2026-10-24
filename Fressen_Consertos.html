@@ -121,7 +121,7 @@ dl.info dd{margin:0;font-weight:600}
 .etapa.foco{border:2px solid var(--info);background:var(--info-soft)}
 .etapa.foco .en{background:var(--info);color:#fff}
 .etapa.zero{opacity:.55}
-.trilha5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;text-align:center}
+.trilha5{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}
 .trilha5 div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 2px}
 .trilha5 b{display:block;font-size:20px;font-weight:800}
 .trilha5 span{font-size:11px;color:var(--muted);line-height:1.2;display:block}
@@ -141,7 +141,7 @@ dl.info dd{margin:0;font-weight:600}
 <div id="app">
   <header class="top">
     <img alt="Fressen" src="data:image/png;base64,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">
-    <div class="who"><span id="quem"></span><button id="sair" class="link" hidden>Sair</button></div>
+    <div class="who"><span id="quem"></span><button id="minhaSenha" class="link" hidden>Senha</button><button id="sair" class="link" hidden>Sair</button></div>
   </header>
   <nav id="nav" hidden></nav>
   <main id="main"><p class="vazio">Carregando…</p></main>
@@ -155,7 +155,9 @@ const SUPABASE_URL = 'https://hvqourjuxyyonxjifrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cW91cmp1eHl5b254amlmcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1ODUzMjQsImV4cCI6MjEwNzE2MTMyNH0.hqH8OTfmJ-nrZi0ga8WPAtoB2uW4FC1HxH536vW9Ojo';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
-const VERSAO = 'Entrega 12';
+const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
+let RECUPERANDO = /type=recovery/.test(location.hash);
+const VERSAO = 'Entrega 14.2';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -166,7 +168,11 @@ const SNOME = Object.fromEntries(SERV);
 const ST = {registrada:['A conferir','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Com Jonatan','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
 const PH = {corrente:'ex.: 45 cm', pulseira:'ex.: 19 cm', tornozeleira:'ex.: 24 cm', anel:'ex.: aro 16', brinco:'ex.: Ø 2 cm', pingente:'ex.: 2 cm', outro:''};
 const PERFIL_NOME = {executiva:'Loja', fabrica:'Fábrica', gestao:'Gestão'};
-const S = {user:null, perfil:null, nome:'', cores:{}, nCores:12};
+const S = {user:null, perfil:null, nome:'', cores:{}, nCores:12, consumo:{}};
+const brl = v => Number(v || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+const ml = v => (Math.round(Number(v || 0) * 100) / 100).toLocaleString('pt-BR') + ' ml';
+const lerValor = v => { const n = parseFloat(String(v || '').replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')); return isNaN(n) ? null : Math.round(n * 100) / 100; };
+const consumoTxt = (g, sv) => (sv === 'banho' || sv === 'flash') && S.consumo[g + '|' + sv] != null ? `Consumo de ouro: ${ml(S.consumo[g + '|' + sv])}` : '';
 let ACT = {}, rota = {v:'', p:null};
 const R = {};
 
@@ -226,6 +232,12 @@ async function ia(body) { // chama a IA pelo Supabase (a chave fica guardada lá
   if (data && data.erro) throw new Error(data.erro);
   return data;
 }
+async function usr(body) { // gestão de usuários pela função do Supabase
+  const {data, error} = await sb.functions.invoke(FUNCAO_USUARIOS, {body});
+  if (error) { let m = error.message; try { const j = await error.context.json(); m = j.erro || m; } catch (_) {} throw new Error(m); }
+  if (data && data.erro) throw new Error(data.erro);
+  return data;
+}
 const b64 = blob => new Promise((ok, falha) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = falha; r.readAsDataURL(blob); });
 
 // ====== Navegação ======
@@ -244,7 +256,7 @@ function renderNav() {
   const itens = [['home','Início']];
   if (S.perfil === 'executiva') itens.push(['nova','Nova requisição']);
   else itens.push(['retorno','Retorno'], ['lotes','Lotes'], ['painel','Painel']);
-  if (S.perfil === 'gestao') itens.push(['usuarios','Usuários']);
+  if (S.perfil === 'gestao') itens.push(['consumo','Banho/Flash'], ['usuarios','Usuários']);
   n.hidden = false;
   n.innerHTML = itens.map(([v, t]) => `<button data-ir="${v}" class="${rota.v === v ? 'on' : ''}">${t}</button>`).join('');
 }
@@ -260,15 +272,30 @@ document.addEventListener('click', e => {
 
 // ====== Login ======
 function telaLogin() {
-  S.perfil = null; renderNav(); $('#sair').hidden = true; $('#quem').textContent = '';
+  S.perfil = null; renderNav(); $('#sair').hidden = true; $('#minhaSenha').hidden = true; $('#quem').textContent = '';
   $('#main').innerHTML = `
   <form id="fLogin" class="card stack login">
     <h1>Consertos</h1><p class="sub">Entre com o login criado pela gestão.</p>
     <div class="field"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" required></div>
     <div class="field"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
     <button class="btn" type="submit">Entrar</button>
+    <button type="button" class="link" id="lEsqueci" style="align-self:center">Esqueci minha senha</button>
+    <div id="lReset" class="stack" hidden>
+      <p class="sub">Digite o seu e-mail. Você vai receber um link para criar uma senha nova.</p>
+      <button type="button" class="btn outline small" id="lEnviar">Enviar link para o e-mail</button>
+    </div>
     <p class="s" style="text-align:center">${VERSAO}</p>
   </form>`;
+  $('#lEsqueci').onclick = () => { $('#lReset').hidden = false; $('#lSenha').required = false; $('#lEmail').focus(); };
+  $('#lEnviar').onclick = async e => {
+    const email = $('#lEmail').value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Digite o seu e-mail no campo acima.', true);
+    e.target.disabled = true;
+    const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
+    e.target.disabled = false;
+    if (error) return toast('Não foi possível enviar agora: ' + erroMsg(error), true);
+    toast('Se o e-mail estiver cadastrado, o link chega em alguns minutos. Confira também o spam.');
+  };
   $('#fLogin').onsubmit = async e => {
     e.preventDefault(); const b = e.target.querySelector('button'); b.disabled = true; b.textContent = 'Entrando…';
     const {error} = await sb.auth.signInWithPassword({email: $('#lEmail').value.trim(), password: $('#lSenha').value});
@@ -278,14 +305,46 @@ function telaLogin() {
   };
 }
 $('#sair').onclick = async () => { await sb.auth.signOut(); telaLogin(); };
+$('#minhaSenha').onclick = () => telaNovaSenha('trocar');
+sb.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') { RECUPERANDO = false; telaNovaSenha('recuperar'); } });
+
+function telaNovaSenha(modo) { // modo: primeiro | recuperar | trocar
+  if (modo !== 'trocar') { S.perfil = null; renderNav(); }
+  const titulo = {primeiro: 'Crie a sua senha', recuperar: 'Defina uma senha nova', trocar: 'Trocar minha senha'}[modo];
+  const texto = {primeiro: 'Este é o seu primeiro acesso. Troque a senha provisória por uma senha só sua.',
+    recuperar: 'Digite a senha nova que você quer usar a partir de agora.', trocar: 'Digite a senha nova duas vezes.'}[modo];
+  $('#main').innerHTML = `
+    <form id="fSenha" class="card stack login">
+      <h1>${titulo}</h1><p class="sub">${texto}</p>
+      <div class="field"><label for="sNova">Senha nova</label><input id="sNova" type="password" autocomplete="new-password" required minlength="6"></div>
+      <div class="field"><label for="sConf">Repita a senha nova</label><input id="sConf" type="password" autocomplete="new-password" required minlength="6"></div>
+      <button class="btn" type="submit">Salvar senha</button>
+      ${modo === 'trocar' ? '<button type="button" class="link" data-ir="home" style="align-self:center">Cancelar</button>' : ''}
+    </form>`;
+  $('#fSenha').onsubmit = async e => {
+    e.preventDefault();
+    const a = $('#sNova').value, c = $('#sConf').value;
+    if (a.length < 6) return toast('A senha precisa ter pelo menos 6 caracteres.', true);
+    if (a !== c) return toast('As duas senhas não são iguais.', true);
+    const b = e.target.querySelector('button[type=submit]'); b.disabled = true;
+    const {error} = await sb.auth.updateUser({password: a});
+    if (error) { b.disabled = false; return toast(/same|different/i.test(error.message) ? 'A senha nova precisa ser diferente da atual.' : erroMsg(error), true); }
+    await sb.rpc('fab_senha_trocada');
+    if (location.hash) history.replaceState(null, '', location.pathname);
+    toast('Senha salva.');
+    iniciar();
+  };
+}
 
 async function iniciar() {
   try {
     const {data: {session}} = await sb.auth.getSession();
     if (!session) return telaLogin();
-    S.user = session.user; $('#sair').hidden = false;
-    const {data: p, error} = await sb.from('fab_perfis').select('nome,perfil,ativo').eq('id', S.user.id).maybeSingle();
+    S.user = session.user; $('#sair').hidden = false; $('#minhaSenha').hidden = false;
+    if (RECUPERANDO) { RECUPERANDO = false; return telaNovaSenha('recuperar'); }
+    const {data: p, error} = await sb.from('fab_perfis').select('nome,perfil,ativo,troca_senha').eq('id', S.user.id).maybeSingle();
     if (error) throw error;
+    if (p && p.ativo && p.troca_senha) return telaNovaSenha('primeiro');
     if (!p || !p.perfil || !p.ativo) {
       S.perfil = null; renderNav(); $('#quem').textContent = S.user.email;
       $('#main').innerHTML = `<div class="card stack"><h1>Acesso aguardando liberação</h1><p class="sub">Seu login (${esc(S.user.email)}) existe, mas a gestão ainda não definiu o seu perfil.</p></div>`;
@@ -297,6 +356,8 @@ async function iniciar() {
     if (ec) throw ec;
     S.cores = {}; cores.forEach(c => S.cores[c.ordem] = c);
     S.nCores = cores.filter(c => c.ordem > 0).length || 12;
+    const qc = await sb.from('cons_consumo').select('grupo,servico,ml');
+    S.consumo = {}; (qc.data || []).forEach(c => S.consumo[c.grupo + '|' + c.servico] = Number(c.ml));
     ir('home');
   } catch (e) { toast(erroMsg(e), true); telaLogin(); }
 }
@@ -372,7 +433,8 @@ function pronta(r) {
 function pillReq(r) {
   const p = r.cons_pecas || [];
   if (r.status === 'na_fabrica') { const ok = p.filter(x => ['retornou','devolvida'].includes(x.status)).length; return `<span class="pill ${ok === p.length ? 'ok' : 'info'}">${ok} de ${p.length}</span>`; }
-  const st = {registrada:['Na loja','warn'], enviada:['Enviada','info'], devolvida:['Devolvida','ok']}[r.status] || ['?','neutro'];
+  if (r.status === 'devolvida' && r.entregue_em) return '<span class="pill ok">Entregue</span>';
+  const st = {registrada:['Na loja','warn'], enviada:['Enviada','info'], devolvida:[S.perfil === 'executiva' ? 'A entregar' : 'Devolvida', S.perfil === 'executiva' ? 'warn' : 'ok']}[r.status] || ['?','neutro'];
   return `<span class="pill ${st[1]}">${st[0]}</span>`;
 }
 function cardReq(r) {
@@ -394,22 +456,26 @@ function infoHoje(ult, abertos) {
 
 R.home = async () => {
   if (S.perfil === 'executiva') {
-    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').order('id', {ascending: false}).limit(80);
+    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,entregue_em,cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').order('id', {ascending: false}).limit(150);
     if (error) throw error;
-    const naLoja = data.filter(r => r.status === 'registrada'), outras = data.filter(r => r.status !== 'registrada');
+    const naLoja = data.filter(r => r.status === 'registrada');
+    const aEntregar = data.filter(r => r.status === 'devolvida' && !r.entregue_em);
+    const outras = data.filter(r => r.status !== 'registrada' && !(r.status === 'devolvida' && !r.entregue_em)).slice(0, 60);
     const nPec = naLoja.reduce((s, r) => s + (r.cons_pecas || []).length, 0);
     const conta = f => data.filter(f).length;
     const mini = [['Na loja', conta(r => r.status === 'registrada')], ['Enviadas', conta(r => r.status === 'enviada')],
-      ['Na fábrica', conta(r => r.status === 'na_fabrica' && !pronta(r))], ['Prontas', conta(r => r.status === 'na_fabrica' && pronta(r))], ['Devolvidas', conta(r => r.status === 'devolvida')]];
+      ['Na fábrica', conta(r => r.status === 'na_fabrica' && !pronta(r))], ['Prontas na fábrica', conta(r => r.status === 'na_fabrica' && pronta(r))], ['A entregar à consultora', aEntregar.length], ['Entregues', conta(r => !!r.entregue_em)]];
     $('#main').innerHTML = `
       <h1>Olá, ${esc(primeiro(S.nome))}</h1>
       <button class="btn" data-ir="nova">+ Nova requisição</button>
       <div class="trilha5">${mini.map(([t, n]) => `<div><b>${n}</b><span>${t}</span></div>`).join('')}</div>
+      ${aEntregar.length ? `<h2>Voltaram da fábrica · entregar à consultora (${aEntregar.length})</h2>
+        <p class="sub">Entregue as peças e fotografe a comanda assinada pela consultora para finalizar.</p>${lista(aEntregar, '')}` : ''}
       <h2>Na loja, ainda não enviadas (${naLoja.length})</h2>
       ${naLoja.length ? `<div class="card stack"><p class="sub">Ao final do dia, finalize a remessa. Todas estas requisições vão para a fábrica no lote/cor de hoje.</p>
         <button class="btn dark" data-act="finalizar">Finalizar remessa do dia · ${naLoja.length} requisição(ões) · ${nPec} peça(s)</button></div>` : ''}
       ${lista(naLoja, 'Nenhuma requisição na loja.')}
-      <h2>Enviadas e em conserto</h2>${lista(outras, 'Nada enviado ainda.')}`;
+      <h2>Enviadas, em conserto e entregues</h2>${lista(outras, 'Nada enviado ainda.')}`;
     ACT.finalizar = async b => {
       if (!confirma(b)) return;
       b.disabled = true;
@@ -629,7 +695,7 @@ R.req = async id => {
     sb.from('cons_fotos').select('*').eq('requisicao_id', id).order('id')
   ]);
   if (qp.error) throw qp.error; if (qf.error) throw qf.error;
-  const pecas = qp.data, fotos = qf.data, urls = await assinar(fotos.map(f => f.caminho));
+  const pecas = qp.data, fotos = qf.data, urls = await assinar(fotos.map(f => f.caminho).concat(r.comprovante ? [r.comprovante] : []));
   r.cons_pecas = pecas;
   const fab = S.perfil !== 'executiva', conferir = fab && ['registrada','enviada'].includes(r.status);
   const volt = pecas.filter(p => p.status === 'retornou'), falta = pecas.filter(p => !['retornou','devolvida'].includes(p.status));
@@ -640,13 +706,37 @@ R.req = async id => {
     ${p.descricao ? `<div>${esc(p.descricao)}</div>` : ''}
     ${!p.descricao && p.descricao_ia ? `<div>${esc(p.descricao_ia)}</div>` : ''}
     ${p.obs_loja ? `<div class="s">Obs. da loja: ${esc(p.obs_loja)}</div>` : ''}
-    <div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div></div>`;
+    <div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div>
+    ${p.consumo_ml != null || p.custo != null ? `<div class="s">${p.consumo_ml != null ? 'Ouro: ' + ml(p.consumo_ml) : ''}${p.consumo_ml != null && p.custo != null ? ' · ' : ''}${p.custo != null ? 'Custo: <b>' + brl(p.custo) + '</b>' : ''}</div>` : ''}</div>`;
   const conf = p => `<div class="peca"><b>${p.posicao} · ${GNOME[p.grupo]}</b>
     ${p.obs_loja ? `<div class="s">Obs. da loja: <b>${esc(p.obs_loja)}</b></div>` : ''}
     <div class="field"><label for="d${p.id}">Descrição${p.descricao_ia && (!p.descricao || p.descricao === p.descricao_ia) ? ' (sugerida pela IA, pode editar)' : ''}</label><textarea id="d${p.id}" rows="4">${esc(p.descricao || p.descricao_ia)}</textarea></div>
     ${p.descricao_ia && p.descricao && p.descricao_ia !== p.descricao ? `<div class="s">Texto original da IA: ${esc(p.descricao_ia)}</div>` : ''}
     <div class="field" style="max-width:220px"><label for="m${p.id}">Medida</label><input id="m${p.id}" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
     <div class="field"><span class="lbl">Serviço previsto</span><div class="seg">${SERV.map(([s, n]) => `<label><input type="radio" name="s${p.id}" value="${s}" ${(p.servico_previsto || 'limpeza') === s ? 'checked' : ''}>${n}</label>`).join('')}</div></div></div>`;
+  const totalCusto = pecas.reduce((s, p) => s + Number(p.custo || 0), 0);
+  const totalOuro = pecas.reduce((s, p) => s + Number(p.consumo_ml || 0), 0);
+  const podeCusto = fab && ['na_fabrica','devolvida'].includes(r.status) && pecas.some(p => ['retornou','devolvida'].includes(p.status));
+  const custos = podeCusto ? `<div class="card stack"><h2 style="margin:0">Custo do conserto</h2>
+      <p class="sub">Informe o valor de cada peça que teve custo. Deixe vazio se não houver.</p>
+      ${pecas.filter(p => ['retornou','devolvida'].includes(p.status)).map(p => `<div class="grid2" style="align-items:end">
+        <div><b>${p.posicao} · ${GNOME[p.grupo]}</b><div class="s">${SNOME[p.servico_feito] || ''}${p.consumo_ml != null ? ' · ouro ' + ml(p.consumo_ml) : ''}</div></div>
+        <div class="field"><label for="c${p.id}">Valor (R$)</label><input id="c${p.id}" inputmode="decimal" value="${p.custo != null ? String(p.custo).replace('.', ',') : ''}" placeholder="0,00"></div></div>`).join('')}
+      <div class="top2"><span>Total da requisição</span><b>${brl(totalCusto)}</b></div>
+      <button class="btn outline small" data-act="salvarCustos">Salvar custos</button></div>`
+    : (totalCusto ? `<div class="card top2"><span>Valor do conserto</span><b>${brl(totalCusto)}</b></div>` : '');
+  let entrega = '';
+  if (r.status === 'devolvida') {
+    if (r.entregue_em) entrega = `<div class="card stack"><h2 style="margin:0">Entregue à consultora</h2><p class="sub">Em ${fmtA(r.entregue_em.slice(0, 10))}. Comprovante assinado:</p>
+      ${r.comprovante && urls[r.comprovante] ? `<img class="fotoret" src="${esc(urls[r.comprovante])}" alt="Comanda assinada" data-zoom="${esc(urls[r.comprovante])}">` : ''}</div>`;
+    else if (S.perfil !== 'fabrica') entrega = `<div class="card stack" style="border:2px solid var(--rose)"><h2 style="margin:0">Entregar à consultora</h2>
+      <p class="sub">Entregue as peças a ${esc(r.consultora)} e fotografe a comanda assinada por ela. Isso finaliza o conserto.</p>
+      <div class="grid2"><label class="btn outline small" for="eCam">Fotografar comanda</label><label class="btn outline small" for="eGal">Da galeria</label></div>
+      <input id="eCam" type="file" accept="image/*" capture="environment" hidden><input id="eGal" type="file" accept="image/*" hidden>
+      <div id="ePrev"></div>
+      <button class="btn green" data-act="entregar" id="bEntregar" disabled>Registrar entrega</button></div>`;
+    else entrega = '<div class="card"><p class="sub">Aguardando a loja registrar a entrega à consultora.</p></div>';
+  }
   let dev = '';
   if (fab && r.status === 'na_fabrica') {
     const bloq = r.modo_devolucao === 'completa' && falta.length > 0;
@@ -676,7 +766,9 @@ R.req = async id => {
       ${r.ia_aviso ? `<span>Possível peça fora da lista: ${esc(r.ia_aviso)}</span>` : ''}<span class="s">Confira a foto e, se faltar, use "+ Adicionar peça".</span></div>` : ''}
     <h2>Peças (${pecas.length})</h2>
     ${conferir ? `<p class="sub">Confira a medida, a descrição e o serviço de cada peça.</p>${pecas.map(conf).join('')}<button class="btn" data-act="receber">Conferido · receber no lote de hoje</button>` : pecas.map(linha).join('')}
+    ${custos}
     ${dev}
+    ${entrega}
     ${fotos.length && (r.status === 'registrada' || fab) && r.status !== 'devolvida' ? `<button class="btn outline" data-act="descrever">Descrever de novo com a IA</button>` : ''}
     ${podeAdd ? `<button class="btn outline" data-act="addAbrir">+ Adicionar peça</button><div id="addBox"></div>` : ''}
     ${podeExcluir ? `<button class="btn outline" data-act="excluir">Excluir requisição</button>` : ''}`;
@@ -740,6 +832,35 @@ R.req = async id => {
     b.disabled = true; b.textContent = 'A IA está descrevendo…';
     try { const d = await ia({acao: 'descrever', requisicao_id: r.id}); toast(`A IA descreveu ${d.gravadas} peça(s)${d.exemplos ? `, usando ${d.exemplos} correção(ões) da equipe` : ''}.`); ir('req', r.id); }
     catch (e) { b.disabled = false; b.textContent = 'Descrever de novo com a IA'; toast(erroMsg(e), true); }
+  };
+  ACT.salvarCustos = async b => {
+    b.disabled = true;
+    try {
+      for (const p of pecas.filter(p => document.getElementById('c' + p.id))) {
+        const v = lerValor($('#c' + p.id).value);
+        if (v !== (p.custo == null ? null : Number(p.custo))) {
+          const {error} = await sb.from('cons_pecas').update({custo: v}).eq('id', p.id);
+          if (error) throw error;
+        }
+      }
+      toast('Custos salvos.'); ir('req', r.id);
+    } catch (e) { b.disabled = false; toast(erroMsg(e), true); }
+  };
+  let comp = null;
+  const escolherComp = e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; comp = f;
+    $('#ePrev').innerHTML = `<img class="fotoret" src="${URL.createObjectURL(f)}" alt="Comanda assinada">`; $('#bEntregar').disabled = false; };
+  if ($('#eCam')) { $('#eCam').onchange = escolherComp; $('#eGal').onchange = escolherComp; }
+  ACT.entregar = async b => {
+    if (!comp) return toast('Fotografe a comanda assinada.', true);
+    b.disabled = true; b.textContent = 'Enviando comprovante…';
+    try {
+      const caminho = `comprovante/${r.id}/${Date.now()}.jpg`;
+      const {error: eu} = await sb.storage.from('consertos').upload(caminho, await comprimir(comp, 1600, 0.8), {contentType: 'image/jpeg'});
+      if (eu) throw eu;
+      const {error} = await sb.rpc('cons_registrar_entrega', {p_req: r.id, p_caminho: caminho});
+      if (error) throw error;
+      toast('Entrega registrada. Conserto finalizado.'); ir('req', r.id);
+    } catch (e) { b.disabled = false; b.textContent = 'Registrar entrega'; toast(erroMsg(e), true); }
   };
   ACT.devolver = async b => {
     const ids = [...document.querySelectorAll('input[name=dev]:checked')].map(x => +x.value);
@@ -952,6 +1073,7 @@ R.retorno = async loteId => {
       if (esc1) {
         h += `<div class="card stack"><b>Voltou com qual serviço?</b>
           <div class="seg">${SERV.map(([s, n]) => `<button type="button" class="segb ${E.serv === s ? 'on' : ''}" data-act="serv" data-v="${s}">${n}</button>`).join('')}</div>
+          ${consumoTxt(esc1.grupo, E.serv) ? `<span class="s">${consumoTxt(esc1.grupo, E.serv)}</span>` : ''}
           <button class="btn green" data-act="confirmar">Confirmar · saquinho ${esc(reqNome(esc1.cons_requisicoes))}</button></div>`;
       }
     }
@@ -1013,7 +1135,8 @@ R.retorno = async loteId => {
           <select id="gp${pos.posicao}" data-gpos="${pos.posicao}" aria-label="Requisição da posição ${pos.posicao}">${opts}</select>
           ${p && p.descricao ? `<span class="s">${esc(p.descricao)}</span>` : ''}${c1 && c1.motivo ? `<span class="s">IA: ${esc(c1.motivo)}</span>` : ''}
         </div></div>
-      ${p ? `<div class="seg">${SERV.map(([sv, n]) => `<button type="button" class="segb ${E.gserv[pos.posicao] === sv ? 'on' : ''}" data-act="gserv" data-pos="${pos.posicao}" data-v="${sv}">${n}</button>`).join('')}</div>` : ''}
+      ${p ? `<div class="seg">${SERV.map(([sv, n]) => `<button type="button" class="segb ${E.gserv[pos.posicao] === sv ? 'on' : ''}" data-act="gserv" data-pos="${pos.posicao}" data-v="${sv}">${n}</button>`).join('')}</div>
+        ${consumoTxt(p.grupo, E.gserv[pos.posicao]) ? `<span class="s">${consumoTxt(p.grupo, E.gserv[pos.posicao])}</span>` : ''}` : ''}
       ${dup.has(sel) ? '<span class="flag">Mesma peça escolhida em outra posição</span>' : ''}
       ${p ? `<button type="button" class="okbtn ${ok ? 'on' : ''}" data-act="gok" data-pos="${pos.posicao}" aria-pressed="${ok}">${chk}${ok ? 'No saquinho' : 'Marcar: está no saquinho'}</button>` : ''}</div>`;
   }
@@ -1121,11 +1244,11 @@ const PER = (() => { const h = new Date(); return {...mesDe(h.getFullYear(), h.g
 R.painel = async () => {
   const {data: d, error} = await sb.rpc('cons_painel_periodo', {p_ini: PER.ini, p_fim: PER.fim});
   if (error) throw error;
-  const g = S.perfil === 'gestao', t = d.tempos || {};
+  const g = S.perfil === 'gestao', t = d.tempos || {}, c = d.consumo || {}, vv = d.valores || {};
   const dias = v => v == null ? '—' : String(v).replace('.', ',') + ' dia' + (Number(v) === 1 ? '' : 's');
-  const barras = (lista, rotulo, valor, sufixo) => {
+  const barras = (lista, rotulo, valor, sufixo, fv) => {
     const max = Math.max(1, ...lista.map(valor)), tot = lista.reduce((a, x) => a + valor(x), 0) || 1;
-    return lista.length ? lista.map(x => `<div class="hbar"><span>${esc(rotulo(x))}</span><b>${valor(x)}${sufixo ? ' ' + sufixo : ''} <span class="s">· ${Math.round(100 * valor(x) / tot)}%</span></b><div class="trilho"><i style="width:${Math.round(100 * valor(x) / max)}%"></i></div></div>`).join('') : '<p class="vazio">Sem dados no período.</p>';
+    return lista.length ? lista.map(x => `<div class="hbar"><span>${esc(rotulo(x))}</span><b>${fv ? fv(valor(x)) : valor(x)}${sufixo ? ' ' + sufixo : ''} <span class="s">· ${Math.round(100 * valor(x) / tot)}%</span></b><div class="trilho"><i style="width:${Math.round(100 * valor(x) / max)}%"></i></div></div>`).join('') : '<p class="vazio">Sem dados no período.</p>';
   };
   const cardLotePct = l => {
     const conc = l.prontas + l.devolvidas, pct = l.total ? Math.round(100 * conc / l.total) : 0;
@@ -1163,10 +1286,26 @@ R.painel = async () => {
       <div class="kpi"><b>${dias(t.fabrica)}</b><span>tempo na fábrica · do aceite da Fran até a devolução</span></div>
       <div class="kpi"><b>${dias(t.loja_ate_aceite)}</b><span>da abertura na loja até o aceite da fábrica</span></div>
       <div class="kpi"><b style="color:${t.atrasadas ? 'var(--bad)' : 'inherit'}">${t.atrasadas || 0}</b><span>requisições que passaram da data prometida</span></div>
+      <div class="kpi"><b>${dias(t.ate_consultora)}</b><span>da abertura até a entrega à consultora (${t.entregues || 0} entregues)</span></div>
+      <div class="kpi"><b style="color:${t.a_entregar ? 'var(--warn)' : 'inherit'}">${t.a_entregar || 0}</b><span>voltaram da fábrica e aguardam entrega à consultora</span></div>
     </div>
     <div class="card s">Em andamento agora: <b>${t.abertas || 0}</b> requisição(ões), abertas há <b>${dias(t.idade_aberta)}</b> em média · na fábrica há <b>${dias(t.idade_fabrica)}</b> em média.</div>
 
+    <h2>Consumo de ouro</h2><p class="sub">Peças que voltaram com banho ou flash no período, pela tabela de consumo.</p>
+    <div class="kpis">
+      <div class="kpi"><b>${ml(c.banho_ml)}</b><span>no banho · ${c.pecas_banho || 0} peça(s)</span></div>
+      <div class="kpi"><b>${ml(c.flash_ml)}</b><span>no flash · ${c.pecas_flash || 0} peça(s)</span></div>
+    </div>
+    ${(d.consumo_grupos || []).length ? `<div class="card stack">${d.consumo_grupos.map(x => `<div class="top2"><span>${esc(GNOME[x.grupo] || x.grupo)}</span><span class="s">banho <b>${ml(x.banho_ml)}</b> (${x.pecas_banho} pç) · flash <b>${ml(x.flash_ml)}</b> (${x.pecas_flash} pç)</span></div>`).join('')}</div>` : ''}
+
     ${g ? `
+    <h2>Valores dos consertos</h2><p class="sub">Peças que voltaram no período e tiveram custo informado.</p>
+    <div class="kpis">
+      <div class="kpi"><b>${brl(vv.total)}</b><span>total em consertos</span></div>
+      <div class="kpi"><b>${brl(vv.media)}</b><span>média por peça · ${vv.pecas_com_custo || 0} peça(s) com custo</span></div>
+    </div>
+    <div class="card stack"><b>Por consultora</b>${barras(d.valores_consultoras || [], x => x.consultora, x => Number(x.valor), '', brl)}</div>
+    <div class="card stack"><b>Por grupo de peça</b>${barras(d.valores_grupos || [], x => GNOME[x.grupo] || x.grupo, x => Number(x.valor), '', brl)}</div>
     <h2>Top consultoras em consertos</h2><p class="sub">Requisições abertas no período.</p>
     <div class="card stack">${barras(d.consultoras, x => x.consultora, x => x.requisicoes, 'req.')}</div>
     <h2>Grupos de peças com mais consertos</h2>
@@ -1190,30 +1329,113 @@ R.painel = async () => {
   };
 };
 
+// ====== Cadastro de consumo de ouro (gestão) ======
+R.consumo = async () => {
+  const {data, error} = await sb.from('cons_consumo').select('*');
+  if (error) throw error;
+  const v = {}; data.forEach(x => v[x.grupo + '|' + x.servico] = x);
+  const val = (g, s) => v[g + '|' + s] ? String(Number(v[g + '|' + s].ml)).replace('.', ',') : '0';
+  $('#main').innerHTML = `
+    <div><h1>Consumo de banho e flash</h1><p class="sub">Quantos ml de ouro cada tipo de peça gasta. Quando a Fran marca Banho ou Flash no retorno, o app grava o consumo da tabela daquele dia.</p></div>
+    <div class="card stack">
+      <div class="grid2" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr)"><b>Grupo</b><b>Banho (ml)</b><b>Flash (ml)</b></div>
+      ${GRUPOS.map(([g, n]) => `<div class="grid2" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);align-items:center">
+        <span>${n}</span>
+        <input id="cb_${g}" inputmode="decimal" value="${val(g, 'banho')}" aria-label="${n} banho ml">
+        <input id="cf_${g}" inputmode="decimal" value="${val(g, 'flash')}" aria-label="${n} flash ml"></div>`).join('')}
+      <button class="btn" data-act="salvarConsumo">Salvar tabela</button>
+      <p class="s" style="margin:0">Mudanças valem para os próximos retornos. O que já foi registrado não muda.</p>
+    </div>`;
+  ACT.salvarConsumo = async b => {
+    b.disabled = true;
+    try {
+      for (const [g] of GRUPOS) for (const [sv, pre] of [['banho', 'cb_'], ['flash', 'cf_']]) {
+        const n = lerValor($('#' + pre + g).value) || 0;
+        const {error: e} = await sb.from('cons_consumo').update({ml: n, atualizado_em: new Date().toISOString()}).eq('grupo', g).eq('servico', sv);
+        if (e) throw e;
+        S.consumo[g + '|' + sv] = n;
+      }
+      toast('Tabela de consumo salva.');
+    } catch (e) { toast(erroMsg(e), true); }
+    b.disabled = false;
+  };
+};
+
 // ====== Usuários (gestão) ======
 R.usuarios = async () => {
-  const {data, error} = await sb.from('fab_perfis').select('*').order('criado_em');
+  const {data, error} = await sb.from('fab_perfis').select('*').order('nome');
   if (error) throw error;
-  $('#main').innerHTML = `
-    <div><h1>Usuários</h1><p class="sub">Defina o nome e o perfil de cada login.</p></div>
-    <div class="dica"><b>Para criar um login</b><ol>
-      <li>No Supabase: Authentication → Users → Add user → Create new user.</li>
-      <li>Informe e-mail e senha e marque "Auto Confirm User".</li>
-      <li>Volte aqui, toque em "Atualizar lista" e defina o perfil.</li></ol></div>
-    <button class="btn outline small" data-ir="usuarios">Atualizar lista</button>
-    ${data.map(u => `<div class="card stack">
-      <div class="top2"><b style="word-break:break-all">${esc(u.email)}</b>${u.perfil ? '' : '<span class="pill warn">Sem perfil</span>'}</div>
-      <div class="grid2">
-        <div class="field"><label for="un${u.id}">Nome</label><input id="un${u.id}" value="${esc(u.nome)}"></div>
-        <div class="field"><label for="up${u.id}">Perfil</label><select id="up${u.id}"><option value="">Sem acesso</option>${Object.entries(PERFIL_NOME).map(([v, n]) => `<option value="${v}" ${u.perfil === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
-      </div>
-      <label class="check"><input type="checkbox" id="ua${u.id}" ${u.ativo ? 'checked' : ''}>Ativo</label>
-      <button class="btn small" data-act="salvarU" data-id="${u.id}">Salvar</button></div>`).join('')}`;
-  ACT.salvarU = async b => {
-    const id = b.dataset.id;
-    const {error} = await sb.from('fab_perfis').update({nome: $('#un' + id).value.trim(), perfil: $('#up' + id).value || null, ativo: $('#ua' + id).checked}).eq('id', id);
-    error ? toast(erroMsg(error), true) : toast('Salvo.');
+  const ativos = data.filter(u => u.ativo), inativos = data.filter(u => !u.ativo);
+  const opts = sel => Object.entries(PERFIL_NOME).map(([v, n]) => `<option value="${v}" ${sel === v ? 'selected' : ''}>${n}</option>`).join('');
+  const cartao = u => {
+    const eu = u.id === S.user.id;
+    return `<div class="card stack" style="gap:10px${u.ativo ? '' : ';opacity:.75'}">
+      <div class="top2"><div style="min-width:0"><b>${esc(u.nome || '—')}</b><div class="s" style="word-break:break-all">${esc(u.email)}</div></div>
+        <span class="pill ${!u.ativo ? 'bad' : !u.perfil ? 'warn' : 'ok'}">${!u.ativo ? 'Desativado' : u.perfil ? PERFIL_NOME[u.perfil] : 'Sem perfil'}</span></div>
+      ${u.troca_senha && u.ativo ? '<span class="s">Ainda não trocou a senha provisória.</span>' : ''}
+      ${u.ativo ? `<div class="grid2">
+          <div class="field"><label for="un${u.id}">Nome</label><input id="un${u.id}" value="${esc(u.nome)}"></div>
+          <div class="field"><label for="up${u.id}">Perfil</label><select id="up${u.id}" ${eu ? 'disabled' : ''}><option value="">Escolha</option>${opts(u.perfil)}</select></div>
+        </div>
+        <div class="field"><label for="ue${u.id}">E-mail (login)</label><input id="ue${u.id}" type="email" value="${esc(u.email)}" autocomplete="off"></div>
+        <button class="btn outline small" data-act="uSalvar" data-id="${u.id}">Salvar cadastro</button>
+        <div class="grid2" style="align-items:end">
+          <div class="field"><label for="us${u.id}">Nova senha provisória</label><input id="us${u.id}" type="text" autocomplete="off" placeholder="mín. 6 caracteres"></div>
+          <button class="btn outline small" data-act="uSenha" data-id="${u.id}">Redefinir senha</button>
+        </div>
+        ${eu ? '<p class="s" style="margin:0">Este é o seu usuário.</p>' : `<div class="grid2">
+          <button class="btn outline small" data-act="uDesativar" data-id="${u.id}">Desativar</button>
+          <button class="btn outline small" data-act="uExcluir" data-id="${u.id}" style="border-color:var(--bad);color:var(--bad)">Excluir</button></div>`}`
+      : `<p class="s" style="margin:0">Desativado${u.desativado_em ? ' em ' + fmtA(u.desativado_em.slice(0, 10)) : ''}. O histórico continua guardado.</p>
+        <div class="grid2"><button class="btn outline small" data-act="uReativar" data-id="${u.id}">Reativar</button>
+          <button class="btn outline small" data-act="uExcluir" data-id="${u.id}" style="border-color:var(--bad);color:var(--bad)">Excluir</button></div>`}
+    </div>`;
   };
+  $('#main').innerHTML = `
+    <div><h1>Usuários</h1><p class="sub">Crie e gerencie os acessos da loja, da fábrica e da gestão.</p></div>
+    <div class="dica stack" style="gap:6px">
+      <b>Desativar ou excluir?</b>
+      <span><b>Desativar:</b> para quem saiu da empresa ou não deve mais acessar. O acesso é bloqueado na hora e todo o histórico fica guardado. Pode ser reativado.</span>
+      <span><b>Excluir:</b> somente para quem <b>nunca trabalhou na Fressen</b>, como um cadastro feito por engano. Quem já trabalhou não deve ser excluído, para manter os registros. O app bloqueia a exclusão de quem já tem registros.</span>
+    </div>
+    <form id="fNovo" class="card stack">
+      <h2 style="margin:0">Novo usuário</h2>
+      <div class="field"><label for="nNome">Nome</label><input id="nNome" required autocomplete="off"></div>
+      <div class="field"><label for="nEmail">E-mail</label><input id="nEmail" type="email" required autocomplete="off" placeholder="a pessoa recebe aqui o link se esquecer a senha"></div>
+      <div class="grid2">
+        <div class="field"><label for="nSenha">Senha provisória</label><input id="nSenha" type="text" required autocomplete="off" placeholder="mín. 6 caracteres"></div>
+        <div class="field"><label for="nPerfil">Perfil</label><select id="nPerfil" required><option value="">Escolha</option>${opts('')}</select></div>
+      </div>
+      <p class="s" style="margin:0">No primeiro acesso, a pessoa entra com a senha provisória e o app pede para ela criar a própria senha.</p>
+      <button class="btn" type="submit" id="nCriar">Criar usuário</button>
+    </form>
+    <h2>Ativos (${ativos.length})</h2>${ativos.map(cartao).join('') || '<p class="vazio">Nenhum usuário ativo.</p>'}
+    ${inativos.length ? `<h2>Desativados (${inativos.length})</h2>${inativos.map(cartao).join('')}` : ''}`;
+
+  const acao = async (b, corpo, ok) => {
+    b.disabled = true;
+    try { await usr(corpo); toast(ok); ir('usuarios'); }
+    catch (e) { b.disabled = false; toast(erroMsg(e), true); }
+  };
+  $('#fNovo').onsubmit = async e => {
+    e.preventDefault();
+    const nome = $('#nNome').value.trim(), email = $('#nEmail').value.trim(), senha = $('#nSenha').value, perfil = $('#nPerfil').value;
+    if (senha.length < 6) return toast('A senha provisória precisa ter pelo menos 6 caracteres.', true);
+    if (!perfil) return toast('Escolha o perfil.', true);
+    await acao($('#nCriar'), {acao: 'criar', nome, email, senha, perfil}, `Usuário criado. Passe para ${primeiro(nome)} o e-mail e a senha provisória.`);
+  };
+  ACT.uSalvar = b => { const id = b.dataset.id, perfil = $('#up' + id).value;
+    if (!perfil) return toast('Escolha o perfil.', true);
+    const email = $('#ue' + id).value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('E-mail inválido.', true);
+    acao(b, {acao: 'atualizar', id, nome: $('#un' + id).value.trim(), perfil, email}, 'Cadastro salvo. Se o e-mail mudou, a pessoa passa a entrar com o e-mail novo.'); };
+  ACT.uSenha = b => { const id = b.dataset.id, senha = $('#us' + id).value;
+    if (senha.length < 6) return toast('A senha precisa ter pelo menos 6 caracteres.', true);
+    if (!confirma(b)) return;
+    acao(b, {acao: 'senha', id, senha}, 'Senha redefinida. No próximo acesso a pessoa cria a própria senha.'); };
+  ACT.uDesativar = b => { if (!confirma(b)) return; acao(b, {acao: 'desativar', id: b.dataset.id}, 'Usuário desativado. O acesso foi bloqueado.'); };
+  ACT.uReativar = b => acao(b, {acao: 'reativar', id: b.dataset.id}, 'Usuário reativado.');
+  ACT.uExcluir = b => { if (!confirma(b)) return; acao(b, {acao: 'excluir', id: b.dataset.id}, 'Usuário excluído.'); };
 };
 
 iniciar();
