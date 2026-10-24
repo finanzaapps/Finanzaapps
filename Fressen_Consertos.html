@@ -157,7 +157,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
 const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
 let RECUPERANDO = /type=recovery/.test(location.hash);
-const VERSAO = 'Entrega 14.3';
+const VERSAO = 'Entrega 14.4';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -701,19 +701,23 @@ R.req = async id => {
   const volt = pecas.filter(p => p.status === 'retornou'), falta = pecas.filter(p => !['retornou','devolvida'].includes(p.status));
   const podeExcluir = S.perfil === 'gestao' || (r.status === 'registrada' && (fab || r.executiva_id === S.user.id));
   const podeAdd = r.status !== 'devolvida' && (fab || r.status === 'registrada');
+  // Excluir peça lançada por engano: fábrica/gestão enquanto a requisição não foi devolvida; a loja só antes de enviar.
+  // Precisa sobrar pelo menos uma peça ainda em processo (senão, exclua a requisição inteira).
+  const podeDelPeca = p => podeAdd && p.status !== 'devolvida' && pecas.some(q => q.id !== p.id && q.status !== 'devolvida');
+  const btnDel = p => podeDelPeca(p) ? `<button type="button" class="link" style="color:#b3261e" data-act="delPeca" data-id="${p.id}">Excluir esta peça (lançada por engano)</button>` : '';
 
   const linha = p => `<div class="peca"><div class="top2"><b>${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</b><span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span></div>
     ${p.descricao ? `<div>${esc(p.descricao)}</div>` : ''}
     ${!p.descricao && p.descricao_ia ? `<div>${esc(p.descricao_ia)}</div>` : ''}
     ${p.obs_loja ? `<div class="s">Obs. da loja: ${esc(p.obs_loja)}</div>` : ''}
     <div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div>
-    ${p.consumo_ml != null || p.custo != null ? `<div class="s">${p.consumo_ml != null ? 'Ouro: ' + ml(p.consumo_ml) : ''}${p.consumo_ml != null && p.custo != null ? ' · ' : ''}${p.custo != null ? 'Custo: <b>' + brl(p.custo) + '</b>' : ''}</div>` : ''}</div>`;
+    ${p.consumo_ml != null || p.custo != null ? `<div class="s">${p.consumo_ml != null ? 'Ouro: ' + ml(p.consumo_ml) : ''}${p.consumo_ml != null && p.custo != null ? ' · ' : ''}${p.custo != null ? 'Custo: <b>' + brl(p.custo) + '</b>' : ''}</div>` : ''}${btnDel(p)}</div>`;
   const conf = p => `<div class="peca"><b>${p.posicao} · ${GNOME[p.grupo]}</b>
     ${p.obs_loja ? `<div class="s">Obs. da loja: <b>${esc(p.obs_loja)}</b></div>` : ''}
     <div class="field"><label for="d${p.id}">Descrição${p.descricao_ia && (!p.descricao || p.descricao === p.descricao_ia) ? ' (sugerida pela IA, pode editar)' : ''}</label><textarea id="d${p.id}" rows="4">${esc(p.descricao || p.descricao_ia)}</textarea></div>
     ${p.descricao_ia && p.descricao && p.descricao_ia !== p.descricao ? `<div class="s">Texto original da IA: ${esc(p.descricao_ia)}</div>` : ''}
     <div class="field" style="max-width:220px"><label for="m${p.id}">Medida</label><input id="m${p.id}" value="${esc(p.medida)}" placeholder="${PH[p.grupo]}"></div>
-    <div class="field"><span class="lbl">Serviço previsto</span><div class="seg">${SERV.map(([s, n]) => `<label><input type="radio" name="s${p.id}" value="${s}" ${(p.servico_previsto || 'limpeza') === s ? 'checked' : ''}>${n}</label>`).join('')}</div></div></div>`;
+    <div class="field"><span class="lbl">Serviço previsto</span><div class="seg">${SERV.map(([s, n]) => `<label><input type="radio" name="s${p.id}" value="${s}" ${(p.servico_previsto || 'limpeza') === s ? 'checked' : ''}>${n}</label>`).join('')}</div></div>${btnDel(p)}</div>`;
   const totalCusto = pecas.reduce((s, p) => s + Number(p.custo || 0), 0);
   const totalOuro = pecas.reduce((s, p) => s + Number(p.consumo_ml || 0), 0);
   const podeCusto = fab && ['na_fabrica','devolvida'].includes(r.status) && pecas.some(p => ['retornou','devolvida'].includes(p.status));
@@ -870,6 +874,21 @@ R.req = async id => {
     const {error} = await sb.rpc('cons_devolver', {p_req: r.id, p_pecas: ids});
     if (error) { b.disabled = false; return toast(erroMsg(error), true); }
     toast('Devolução registrada.'); ir('req', r.id);
+  };
+  ACT.delPeca = async b => {
+    const p = pecas.find(x => x.id === +b.dataset.id); if (!p) return;
+    if (!confirma(b)) return;
+    b.disabled = true;
+    try {
+      const {error} = await sb.from('cons_pecas').delete().eq('id', p.id);
+      if (error) throw error;
+      // renumera as peças seguintes para não ficar buraco (1, 2, 3…)
+      for (const q of pecas.filter(q => q.posicao > p.posicao).sort((x, y) => x.posicao - y.posicao)) {
+        const {error: e2} = await sb.from('cons_pecas').update({posicao: q.posicao - 1}).eq('id', q.id);
+        if (e2) throw e2;
+      }
+      toast(`Peça ${p.posicao} · ${GNOME[p.grupo]} excluída da ${reqNome(r)}.`); ir('req', r.id);
+    } catch (e) { b.disabled = false; toast(erroMsg(e), true); }
   };
   ACT.excluir = async b => {
     if (!confirma(b)) return;
