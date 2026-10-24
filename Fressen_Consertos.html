@@ -43,6 +43,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--rose);border-col
 .btn.small{min-height:40px;font-size:14px;border-radius:10px}
 .btn:disabled{opacity:.45;cursor:default}
 .btn:focus-visible,.row:focus-visible,.chipbtn:focus-visible{outline:3px solid var(--terra);outline-offset:2px}
+.iaFill{background:var(--rose-soft)!important}
 .link{background:none;border:none;color:var(--terra);font-size:14px;font-weight:700;padding:6px 0;cursor:pointer;text-align:left}
 .row{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;color:inherit;cursor:pointer}
 .row .t{font-weight:700}
@@ -157,7 +158,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
 const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
 let RECUPERANDO = /type=recovery/.test(location.hash);
-const VERSAO = 'Entrega 15';
+const VERSAO = 'Entrega 16';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -554,6 +555,7 @@ R.nova = async () => {
     <div class="card stack">
       <h2 style="margin:0">1. Foto das peças</h2>
       <div class="dica"><b>Padrão da foto</b><ol>
+        <li>Comanda <b>aberta</b> no topo, com o número e a consultora visíveis. A IA preenche os dados sozinha.</li>
         <li>Régua esticada na parte de baixo.</li>
         <li>De cima para baixo: correntes (esticadas), anéis e pingentes, pulseiras, brincos.</li>
         <li>Brinco: um em pé, cravado no tapete, e o par deitado ao lado.</li>
@@ -572,6 +574,7 @@ R.nova = async () => {
     </div>
     <div class="card stack">
       <h2 style="margin:0">3. Dados da requisição</h2>
+      <div id="rCmd"></div>
       ${S.perfil !== 'executiva' ? `<div class="field"><label for="rExec">Loja</label><select id="rExec"><option value="">${execs.length ? 'Escolha a loja' : 'Nenhuma loja cadastrada'}</option>${execs.map(x => `<option value="${x.id}">${esc(x.nome)}</option>`).join('')}</select></div>` : ''}
       <div class="grid2">
         <div class="field"><label for="rNum">Nº da requisição *</label><input id="rNum" inputmode="numeric" required placeholder="ex.: 069733"></div>
@@ -616,6 +619,22 @@ R.nova = async () => {
         </div></div>`).join('');
     renderIA();
   };
+  // Dados lidos da comanda pela IA: entram nos campos, que continuam editáveis.
+  // Campo que a pessoa já alterou à mão não é sobrescrito se a IA rodar de novo.
+  const MANUAL = new Set();
+  ['rNum', 'rCons', 'rRec', 'rProm'].forEach(id => $('#' + id).addEventListener('input', () => { MANUAL.add(id); $('#' + id).classList.remove('iaFill'); }));
+  function preencherComanda(c) {
+    const box = $('#rCmd');
+    if (!c || !c.encontrada) { box.innerHTML = '<div class="card alerta" style="padding:10px 12px"><span class="s">A IA não conseguiu ler a comanda na foto. Preencha o número e a consultora.</span></div>'; return; }
+    const pos = (id, v) => { if (!v || MANUAL.has(id)) return false; $('#' + id).value = v; $('#' + id).classList.add('iaFill'); return true; };
+    const lidos = [];
+    if (pos('rNum', c.numero)) lidos.push('número');
+    if (pos('rCons', c.consultora)) lidos.push('consultora');
+    if (pos('rRec', c.data_recebimento)) { lidos.push('recebimento'); if (!c.data_previsao && !MANUAL.has('rProm')) $('#rProm').value = addDias(c.data_recebimento, 30); }
+    if (pos('rProm', c.data_previsao)) lidos.push('previsão');
+    box.innerHTML = (lidos.length ? `<div class="result" style="font-size:14px">A IA leu da comanda: ${lidos.join(', ')}. Confira e corrija no próprio campo se precisar.</div>` : '')
+      + (c.numero_repetido ? `<div class="card alerta" style="padding:10px 12px"><b>Atenção: o Nº ${esc(c.numero)} já está cadastrado no app.</b> <span class="s">Confira se esta comanda já não foi lançada.</span></div>` : '');
+  }
   const mudou = () => { if (IA.estado === 'ok' && IA.modo === 'conferido') IA.modo = 'ajustando'; };
   renderFotos(); renderPecas();
 
@@ -628,6 +647,7 @@ R.nova = async () => {
       const d = await ia({acao: 'analisar', fotos: imgs});
       pecas = d.pecas.map(p => ({k: ++seq, grupo: p.grupo, medida: p.medida_estimada ? '≈ ' + p.medida_estimada : '', descricao: p.descricao, descricao_ia: p.descricao, ia: true}));
       Object.assign(IA, {estado: 'ok', total: d.total_na_foto, modo: 'pergunta', exemplos: d.exemplos || 0});
+      preencherComanda(d.comanda);
     } catch (e) { IA.estado = 'erro'; toast(erroMsg(e), true); }
     renderFotos(); renderPecas();
   }
