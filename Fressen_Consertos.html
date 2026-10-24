@@ -157,7 +157,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
 const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
 let RECUPERANDO = /type=recovery/.test(location.hash);
-const VERSAO = 'Entrega 14.4';
+const VERSAO = 'Entrega 14.5';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -706,12 +706,14 @@ R.req = async id => {
   const podeDelPeca = p => podeAdd && p.status !== 'devolvida' && pecas.some(q => q.id !== p.id && q.status !== 'devolvida');
   const btnDel = p => podeDelPeca(p) ? `<button type="button" class="link" style="color:#b3261e" data-act="delPeca" data-id="${p.id}">Excluir esta peça (lançada por engano)</button>` : '';
 
-  const linha = p => `<div class="peca"><div class="top2"><b>${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</b><span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span></div>
+  // Fran pode corrigir medida/descrição/serviço depois da conferência, enquanto a peça está na fábrica (antes da manutenção)
+  const podeEditar = p => fab && r.status === 'na_fabrica' && p.status === 'na_fabrica';
+  const linha = p => `<div class="peca" id="pc${p.id}"><div class="top2"><b>${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</b><span class="pill ${ST[p.status][1]}">${ST[p.status][0]}</span></div>
     ${p.descricao ? `<div>${esc(p.descricao)}</div>` : ''}
     ${!p.descricao && p.descricao_ia ? `<div>${esc(p.descricao_ia)}</div>` : ''}
     ${p.obs_loja ? `<div class="s">Obs. da loja: ${esc(p.obs_loja)}</div>` : ''}
     <div class="s">Previsto: ${SNOME[p.servico_previsto] || '—'}${p.servico_feito ? ' · Feito: ' + SNOME[p.servico_feito] : ''}${p.cons_lotes && p.cons_lotes.cor_ordem === 0 ? ' · no lote Preto' : ''}</div>
-    ${p.consumo_ml != null || p.custo != null ? `<div class="s">${p.consumo_ml != null ? 'Ouro: ' + ml(p.consumo_ml) : ''}${p.consumo_ml != null && p.custo != null ? ' · ' : ''}${p.custo != null ? 'Custo: <b>' + brl(p.custo) + '</b>' : ''}</div>` : ''}${btnDel(p)}</div>`;
+    ${p.consumo_ml != null || p.custo != null ? `<div class="s">${p.consumo_ml != null ? 'Ouro: ' + ml(p.consumo_ml) : ''}${p.consumo_ml != null && p.custo != null ? ' · ' : ''}${p.custo != null ? 'Custo: <b>' + brl(p.custo) + '</b>' : ''}</div>` : ''}${podeEditar(p) ? `<button type="button" class="link" data-act="editPeca" data-id="${p.id}">Editar medida, descrição ou serviço</button>` : ''}${btnDel(p)}</div>`;
   const conf = p => `<div class="peca"><b>${p.posicao} · ${GNOME[p.grupo]}</b>
     ${p.obs_loja ? `<div class="s">Obs. da loja: <b>${esc(p.obs_loja)}</b></div>` : ''}
     <div class="field"><label for="d${p.id}">Descrição${p.descricao_ia && (!p.descricao || p.descricao === p.descricao_ia) ? ' (sugerida pela IA, pode editar)' : ''}</label><textarea id="d${p.id}" rows="4">${esc(p.descricao || p.descricao_ia)}</textarea></div>
@@ -792,6 +794,29 @@ R.req = async id => {
     $('#aDesc').oninput = e => A.descricao = e.target.value;
     $('#aMed').oninput = e => A.medida = e.target.value;
   }
+  // Grava o que já foi digitado na conferência (para não perder ao adicionar/excluir peça)
+  async function salvarDigitado() {
+    for (const p of pecas) {
+      const m = document.getElementById('m' + p.id), d = document.getElementById('d' + p.id);
+      if (!m || !d) continue;
+      const sel = document.querySelector(`input[name=s${p.id}]:checked`);
+      const upd = {medida: m.value.trim() || null, descricao: d.value.trim() || null};
+      if (sel) upd.servico_previsto = sel.value;
+      const {error} = await sb.from('cons_pecas').update(upd).eq('id', p.id);
+      if (error) throw error;
+    }
+  }
+  ACT.editPeca = b => {
+    const p = pecas.find(x => x.id === +b.dataset.id); if (!p) return;
+    const el = document.getElementById('pc' + p.id);
+    el.outerHTML = conf(p).replace(/<\/div>$/, `<div class="grid2"><button type="button" class="btn small" data-act="salvarPeca" data-id="${p.id}">Salvar</button><button type="button" class="btn outline small" data-ir="req" data-p="${r.id}">Cancelar</button></div></div>`);
+    const t = document.getElementById('m' + p.id); if (t) t.focus();
+  };
+  ACT.salvarPeca = async b => {
+    b.disabled = true;
+    try { await salvarDigitado(); toast('Peça atualizada.'); ir('req', r.id); }
+    catch (e) { b.disabled = false; toast(erroMsg(e), true); }
+  };
   ACT.addAbrir = b => { b.hidden = true; renderAdd(); $('#addBox').scrollIntoView({behavior: 'smooth'}); };
   ACT.addG = b => { A.grupo = b.dataset.v; renderAdd(); };
   ACT.addPrev = b => { A.prev = b.dataset.v; renderAdd(); };
@@ -800,6 +825,7 @@ R.req = async id => {
   ACT.addSalvar = async b => {
     if (!A.grupo) return toast('Escolha o grupo da peça.', true);
     b.disabled = true;
+    try { await salvarDigitado(); } catch (e) { b.disabled = false; return toast(erroMsg(e), true); }
     const agora = new Date().toISOString();
     const status = r.status === 'na_fabrica' ? A.onde : 'registrada';
     const nova = {requisicao_id: r.id, posicao: Math.max(0, ...pecas.map(p => p.posicao)) + 1, grupo: A.grupo,
@@ -880,6 +906,7 @@ R.req = async id => {
     if (!confirma(b)) return;
     b.disabled = true;
     try {
+      await salvarDigitado();
       const {error} = await sb.from('cons_pecas').delete().eq('id', p.id);
       if (error) throw error;
       // renumera as peças seguintes para não ficar buraco (1, 2, 3…)
