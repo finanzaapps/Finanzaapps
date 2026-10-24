@@ -157,7 +157,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
 const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
 let RECUPERANDO = /type=recovery/.test(location.hash);
-const VERSAO = 'Entrega 14.2';
+const VERSAO = 'Entrega 14.3';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -165,7 +165,7 @@ const GNOME = Object.fromEntries(GRUPOS);
 const ordemG = g => GRUPOS.findIndex(x => x[0] === g);
 const SERV = [['limpeza','Limpeza'],['banho','Banho'],['flash','Flash']];
 const SNOME = Object.fromEntries(SERV);
-const ST = {registrada:['A conferir','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Com Jonatan','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
+const ST = {registrada:['A conferir','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Em manutenção','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
 const PH = {corrente:'ex.: 45 cm', pulseira:'ex.: 19 cm', tornozeleira:'ex.: 24 cm', anel:'ex.: aro 16', brinco:'ex.: Ø 2 cm', pingente:'ex.: 2 cm', outro:''};
 const PERFIL_NOME = {executiva:'Loja', fabrica:'Fábrica', gestao:'Gestão'};
 const S = {user:null, perfil:null, nome:'', cores:{}, nCores:12, consumo:{}};
@@ -366,8 +366,8 @@ async function iniciar() {
 const ETAPAS = {
   loja:       {n: 1, t: 'Na loja',          d: 'Requisições abertas pela loja e ainda não enviadas na remessa.'},
   receber:    {n: 2, t: 'A receber',        d: 'Remessas enviadas pela loja, aguardando a conferência da Fran.'},
-  conferidas: {n: 3, t: 'Conferidas',       d: 'Peças conferidas na fábrica, aguardando ir para o Jonatan.'},
-  jonatan:    {n: 4, t: 'Com o Jonatan',    d: 'Peças em limpeza, conserto, banho ou flash.'},
+  conferidas: {n: 3, t: 'Conferidas',       d: 'Peças conferidas na fábrica, aguardando ir para a manutenção.'},
+  jonatan:    {n: 4, t: 'Em manutenção',    d: 'Peças em limpeza, conserto, banho ou flash.'},
   voltaram:   {n: 5, t: 'Voltaram',         d: 'Peças identificadas no retorno, nos saquinhos, aguardando devolução.'},
   devolvidas: {n: 6, t: 'Devolvidas',       d: 'Requisições entregues à loja nos últimos 7 dias.'}
 };
@@ -401,12 +401,12 @@ R.etapa = async k => {
   for (const l of lotes) {
     const ps = pecas.filter(p => p.lote_id === l.id);
     const desde = k === 'jonatan' ? ps.map(p => p.enviada_em).filter(Boolean).sort()[0] : null;
-    const acao = k === 'conferidas' && S.perfil !== 'executiva' ? `<button class="btn dark small" data-act="enviar" data-lote="${l.id}">Enviar ${ps.length} peça(s) ao Jonatan · pote ${esc(cor(l.cor_ordem).nome.toLowerCase())}</button>`
+    const acao = k === 'conferidas' && S.perfil !== 'executiva' ? `<button class="btn dark small" data-act="enviar" data-lote="${l.id}">Enviar ${ps.length} peça(s) para manutenção · pote ${esc(cor(l.cor_ordem).nome.toLowerCase())}</button>`
       : k === 'jonatan' ? `<button class="btn small" data-ir="retorno" data-p="${l.id}">Registrar retorno deste lote</button>` : '';
     const porReq = {}; ps.forEach(p => (porReq[p.requisicao_id] = porReq[p.requisicao_id] || []).push(p));
     h += `<div class="card stack" style="gap:10px">
       <div class="lotehead">${dot(l.cor_ordem, true)}<div style="flex:1;min-width:0"><b>${esc(loteNome(l))}</b>
-        <div class="s">${ps.length} peça(s)${desde ? ` · com o Jonatan desde ${fmt(desde.slice(0, 10))} (${diasDesde(desde)} dia(s))` : ''}</div></div>
+        <div class="s">${ps.length} peça(s)${desde ? ` · em manutenção desde ${fmt(desde.slice(0, 10))} (${diasDesde(desde)} dia(s))` : ''}</div></div>
         <button class="link" data-ir="lote" data-p="${l.id}">Abrir</button></div>
       ${acao}
       ${Object.values(porReq).map(rs => { const r = rs[0].cons_requisicoes; return `<div class="pecarow">
@@ -419,7 +419,7 @@ R.etapa = async k => {
     b.disabled = true;
     const {error: eu} = await sb.from('cons_pecas').update({status: 'com_jonatan', enviada_em: new Date().toISOString()}).eq('lote_id', +b.dataset.lote).eq('status', 'na_fabrica');
     if (eu) { b.disabled = false; return toast(erroMsg(eu), true); }
-    toast('Peças enviadas ao Jonatan. Elas aparecem na etapa 4.'); ir('etapa', 'jonatan');
+    toast('Peças enviadas para manutenção. Elas aparecem na etapa 4.'); ir('etapa', 'jonatan');
   };
 };
 
@@ -512,7 +512,7 @@ R.home = async () => {
   const c = {
     loja: {main: lojaArr.length, sub: `requisições · ${pec(lojaArr)} peças`},
     receber: {main: aRec.length, sub: `requisições · ${pec(aRec)} peças`},
-    conferidas: {main: soma('na_fabrica'), sub: 'peças a enviar ao Jonatan'},
+    conferidas: {main: soma('na_fabrica'), sub: 'peças a enviar para manutenção'},
     jonatan: {main: soma('com_jonatan'), sub: `peças em ${nJon} lote(s)`},
     voltaram: {main: soma('retornou'), sub: `peças · ${prontas.length} requisição(ões) pronta(s)`},
     devolvidas: {main: qd.count || 0, sub: 'requisições em 7 dias'}
@@ -523,7 +523,7 @@ R.home = async () => {
     <h2>Onde estão as peças</h2>
     ${trilha(c)}
     <p class="sub">${abertas} peça(s) em aberto na fábrica${atras ? ` · <span class="flag">${atras} lote(s) acima de 12 dias úteis</span>` : ''}</p>
-    <button class="btn dark" data-ir="retorno">Retorno do Jonatan · limpeza, banho, flash</button>
+    <button class="btn dark" data-ir="retorno">Retorno da manutenção · limpeza, banho, flash</button>
     ${lotes.length ? `<div class="lotesmini">${lotes.map(l => `<button class="lchip" data-ir="lote" data-p="${l.id}">${dot(l.cor_ordem)}${n3(l.id)} <span class="s">${l.total - l.devolvida} pç</span></button>`).join('')}</div>` : ''}
     <input id="busca" type="search" placeholder="Buscar nº do formulário ou consultora" aria-label="Buscar requisição">
     <h2>A receber na fábrica (${aRec.length})</h2>${naLoja ? `<p class="sub">${naLoja} requisição(ões) ainda na loja, sem remessa finalizada.</p>` : ''}${lista(aRec, 'Nada a receber.')}
@@ -782,7 +782,7 @@ R.req = async id => {
       <div class="field"><label for="aDesc">Descrição</label><textarea id="aDesc" rows="3">${esc(A.descricao)}</textarea></div>
       <div class="field" style="max-width:220px"><label for="aMed">Medida</label><input id="aMed" value="${esc(A.medida)}" placeholder="${A.grupo ? PH[A.grupo] : ''}"></div>
       <div class="field"><span class="lbl">Serviço previsto</span>${seg('addPrev', SERV, A.prev)}</div>
-      ${r.status === 'na_fabrica' ? `<div class="field"><span class="lbl">Onde a peça está agora?</span>${seg('addOnde', [['na_fabrica','Na fábrica'],['com_jonatan','Com o Jonatan'],['retornou','Já voltou']], A.onde)}</div>
+      ${r.status === 'na_fabrica' ? `<div class="field"><span class="lbl">Onde a peça está agora?</span>${seg('addOnde', [['na_fabrica','Na fábrica'],['com_jonatan','Em manutenção'],['retornou','Já voltou']], A.onde)}</div>
         ${A.onde === 'retornou' ? `<div class="field"><span class="lbl">Serviço feito</span>${seg('addFeito', SERV, A.feito)}</div>` : ''}` : ''}
       <button type="button" class="btn" data-act="addSalvar">Salvar peça</button></div>`;
     $('#aDesc').oninput = e => A.descricao = e.target.value;
@@ -888,7 +888,7 @@ function cardLote(l) {
     <div style="display:flex;gap:12px;align-items:flex-start;min-width:0;flex:1">${dot(l.cor_ordem, true)}
     <div class="stack" style="gap:4px;min-width:0;flex:1"><div class="t">${esc(loteNome(l))}</div>
     <div class="s">Entrada ${fmt(l.data_entrada)}${l.promessa ? ' · entregar até ' + fmt(l.promessa) : ''}${du ? ` · <span class="${du > 12 ? 'flag' : ''}">dia ${du} de 12</span>` : ''}</div>
-    <div class="s">Fábrica ${l.na_fabrica} · Jonatan ${l.com_jonatan} · Voltaram ${l.retornou} · Devolvidas ${l.devolvida}/${l.total}</div>
+    <div class="s">Fábrica ${l.na_fabrica} · Manutenção ${l.com_jonatan} · Voltaram ${l.retornou} · Devolvidas ${l.devolvida}/${l.total}</div>
     <div class="bar"><i style="width:${l.total ? Math.round(100 * l.devolvida / l.total) : 0}%"></i></div></div></div>
     <span class="pill ${l.status === 'aberto' ? (pend ? 'info' : 'ok') : 'ok'}">${l.status === 'aberto' ? pend + ' em aberto' : 'Fechado'}</span></button>`;
 }
@@ -928,7 +928,7 @@ R.lote = async id => {
     const aberto = l.status === 'aberto';
     const acoes = !fab || !aberto ? '' : [
       c('com_jonatan') + c('na_fabrica') ? `<button class="btn" data-ir="retorno" data-p="${l.id}">Identificar retorno com a IA</button>` : '',
-      c('na_fabrica') ? `<button class="btn dark" data-act="enviar">Enviar ${c('na_fabrica')} peça(s) ao Jonatan · pote ${esc(cor(l.cor_ordem).nome.toLowerCase())}</button>` : '',
+      c('na_fabrica') ? `<button class="btn dark" data-act="enviar">Enviar ${c('na_fabrica')} peça(s) para manutenção · pote ${esc(cor(l.cor_ordem).nome.toLowerCase())}</button>` : '',
       l.cor_ordem > 0 && pend ? `<button class="btn outline" data-act="transferir">Transferir ${pend} pendência(s) para o Preto</button>` : '',
       !pend && pecas.length ? `<button class="btn" data-act="fechar">Fechar lote</button>` : ''
     ].join('');
@@ -951,7 +951,7 @@ R.lote = async id => {
         <div class="top2"><div style="display:flex;gap:10px;align-items:center">${dot(l.cor_ordem, true)}<h1>${esc(loteNome(l))}</h1></div><span class="pill ${aberto ? 'info' : 'ok'}">${aberto ? 'Aberto' : 'Fechado'}</span></div>
         <p class="sub">Entrada ${fmtA(l.data_entrada)}${l.promessa ? ' · entregar até ' + fmt(l.promessa) : ''}${du ? ` · <span class="${du > 12 ? 'flag' : ''}">dia útil ${du} de 12</span>` : ''}</p>
         <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center">
-          <div><b>${c('na_fabrica')}</b><div class="s">Conferidas</div></div><div><b>${c('com_jonatan')}</b><div class="s">Jonatan</div></div>
+          <div><b>${c('na_fabrica')}</b><div class="s">Conferidas</div></div><div><b>${c('com_jonatan')}</b><div class="s">Manutenção</div></div>
           <div><b>${c('retornou')}</b><div class="s">Voltaram</div></div><div><b>${c('devolvida')}</b><div class="s">Devolvidas</div></div></div>
       </div>
       ${acoes}
@@ -982,7 +982,7 @@ R.lote = async id => {
     const {error} = await sb.from('cons_pecas').update({status: 'com_jonatan', enviada_em: agora}).eq('lote_id', l.id).eq('status', 'na_fabrica');
     if (error) { b.disabled = false; return toast(erroMsg(error), true); }
     pecas.forEach(p => { if (p.status === 'na_fabrica') { p.status = 'com_jonatan'; p.enviada_em = agora; } });
-    toast('Peças enviadas ao Jonatan.'); render();
+    toast('Peças enviadas para manutenção.'); render();
   };
   ACT.transferir = async b => {
     if (!confirma(b)) return; b.disabled = true;
@@ -1042,7 +1042,7 @@ R.retorno = async loteId => {
     const grupos = {}; E.pend.forEach(p => grupos[p.grupo] = (grupos[p.grupo] || 0) + 1);
     const doGrupo = E.pend.filter(p => p.grupo === E.grupo);
     const esc1 = E.escolha && peca(E.escolha);
-    let h = `<div><h1>Retorno do Jonatan</h1><p class="sub">Peças que voltaram da limpeza, do banho ou do flash. Fotografe uma peça por vez e a IA indica de qual requisição ela é.</p></div>
+    let h = `<div><h1>Retorno da manutenção</h1><p class="sub">Peças que voltaram da limpeza, do banho ou do flash. Fotografe uma peça por vez e a IA indica de qual requisição ela é.</p></div>
       ${tot ? `<div class="card s">Acerto da IA até agora: em 1º lugar <b>${t1} de ${tot}</b> · entre as 3 sugestões <b>${t3} de ${tot}</b></div>` : ''}
       <h2>1. Lote (cor do pote)</h2>
       ${lotes.length ? `<div class="grupos">${lotes.map(l => `<button class="chipbtn ${E.lote && E.lote.id === l.id ? 'on' : ''}" data-act="lote" data-v="${l.id}" style="display:inline-flex;align-items:center;gap:6px">${dot(l.cor_ordem)}${esc(cor(l.cor_ordem).nome)} · ${n3(l.id)} <span class="s">${l.na_fabrica + l.com_jonatan}</span></button>`).join('')}</div>` : '<p class="vazio">Nenhum lote com peças aguardando retorno.</p>'}`;
@@ -1310,7 +1310,7 @@ R.painel = async () => {
     <div class="card stack">${barras(d.consultoras, x => x.consultora, x => x.requisicoes, 'req.')}</div>
     <h2>Grupos de peças com mais consertos</h2>
     <div class="card stack">${barras(d.grupos, x => GNOME[x.grupo] || x.grupo, x => x.pecas, 'pç')}</div>
-    <h2>Serviços realizados</h2><p class="sub">Peças que voltaram do Jonatan no período.</p>
+    <h2>Serviços realizados</h2><p class="sub">Peças que voltaram da manutenção no período.</p>
     <div class="card stack">${barras(d.servicos, x => SNOME[x.servico] || x.servico, x => x.pecas, 'pç')}</div>` : ''}`;
   ACT.atalho = b => {
     const h = new Date(), v = b.dataset.v;
