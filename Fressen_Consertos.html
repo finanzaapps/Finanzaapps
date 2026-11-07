@@ -158,7 +158,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
 const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
 let RECUPERANDO = /type=recovery/.test(location.hash);
-const VERSAO = 'Entrega 16';
+const VERSAO = 'Entrega 17';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -172,7 +172,7 @@ const feitoTxt = p => p.nao_fressen ? NF : (SNOME[p.servico_feito] || '');
 const ST = {registrada:['A conferir','warn'], na_fabrica:['Na fábrica','neutro'], com_jonatan:['Em manutenção','info'], retornou:['Voltou','ok'], devolvida:['Devolvida','ok']};
 const PH = {corrente:'ex.: 45 cm', pulseira:'ex.: 19 cm', tornozeleira:'ex.: 24 cm', anel:'ex.: aro 16', brinco:'ex.: Ø 2 cm', pingente:'ex.: 2 cm', outro:''};
 const PERFIL_NOME = {executiva:'Loja', fabrica:'Fábrica', gestao:'Gestão'};
-const S = {user:null, perfil:null, nome:'', cores:{}, nCores:12, consumo:{}};
+const S = {user:null, perfil:null, nome:'', cores:{}, nCores:12, consumo:{}, fila:[]};
 const brl = v => Number(v || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
 const ml = v => (Math.round(Number(v || 0) * 100) / 100).toLocaleString('pt-BR') + ' ml';
 const lerValor = v => { const n = parseFloat(String(v || '').replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')); return isNaN(n) ? null : Math.round(n * 100) / 100; };
@@ -452,13 +452,14 @@ const lista = (arr, vazio) => arr.length ? arr.map(cardReq).join('') : `<p class
 function infoHoje(ult, abertos) {
   const hoje = hojeISO();
   if (ult && ult.data_entrada === hoje) return {cor: ult.cor_ordem, texto: `Lote de hoje: ${loteNome(ult)}. Separe no pote ${cor(ult.cor_ordem).nome.toLowerCase()}.`};
-  const prox = ult ? (ult.cor_ordem % S.nCores) + 1 : 1;
+  const prox = S.fila.length ? S.fila[0] : (ult ? (ult.cor_ordem % S.nCores) + 1 : 1);
   const ocup = abertos.find(l => l.cor_ordem === prox);
   if (ocup) return {cor: prox, alerta: true, ocupId: ocup.id, texto: `A próxima cor é ${cor(prox).nome}, mas o ${loteNome(ocup)} ainda tem peças. Feche esse lote ou transfira as pendências para o Preto antes de receber.`};
   return {cor: prox, texto: `Próximo lote: ${cor(prox).nome}. Ele é criado no primeiro recebimento de hoje.`};
 }
 
 R.home = async () => {
+  try { const {data} = await sb.from('cons_config').select('fila_cores').eq('id', 1).maybeSingle(); S.fila = (data && data.fila_cores) || []; } catch (_) { S.fila = []; }
   if (S.perfil === 'executiva') {
     const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,entregue_em,cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').order('id', {ascending: false}).limit(150);
     if (error) throw error;
