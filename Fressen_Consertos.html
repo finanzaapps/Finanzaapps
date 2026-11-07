@@ -158,7 +158,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
 const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
 let RECUPERANDO = /type=recovery/.test(location.hash);
-const VERSAO = 'Entrega 18';
+const VERSAO = 'Entrega 19';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -449,6 +449,26 @@ function cardReq(r) {
   return `<button class="row" data-ir="req" data-p="${r.id}" data-busca="${esc(busca)}"><div><div class="t">${lt}${esc(reqNome(r))} · ${esc(r.consultora)}</div><div class="s">${ex}recebida ${fmt(r.data_recebimento)} · entregar até ${fmt(r.data_promessa)}</div>${difQtd ? `<div class="flag" style="font-size:13px">Foto com ${r.ia_qtd_foto} peças, ${r.cons_pecas.length} lançadas</div>` : ''}</div>${pillReq(r)}</button>`;
 }
 const lista = (arr, vazio) => arr.length ? arr.map(cardReq).join('') : `<p class="vazio">${vazio}</p>`;
+// Lançamento retroativo: fecha o lote de hoje para novas remessas e abre a próxima cor
+function cardRetro(ult) {
+  if (!ult || ult.data_entrada !== hojeISO() || !['executiva','gestao'].includes(S.perfil)) return '';
+  ACT.proxLote = proxLote;   // ACT é limpo a cada tela: registra aqui
+  return `<div class="card stack" style="gap:6px"><span class="s">Lançando remessas de dias anteriores? Depois de finalizar a remessa de um dia no ${esc(loteNome(ult))}, abra o próximo lote para o dia seguinte ir para a próxima cor.</span>
+    <button type="button" class="btn outline small" data-act="proxLote">Abrir próximo lote (lançamento retroativo)</button></div>`;
+}
+const proxLote = async b => {
+  if (!confirma(b)) return;
+  b.disabled = true;
+  const {data: id, error} = await sb.rpc('cons_abrir_proximo_lote');
+  if (error) {
+    b.disabled = false;
+    const k = erroMsg(error).match(/COR_OCUPADA:(\d+)/);
+    return toast(k ? `A próxima cor ainda está em uso no lote ${n3(k[1])}. Feche esse lote ou transfira as pendências para o Preto.` : erroMsg(error), true);
+  }
+  const {data: l} = await sb.from('cons_lotes').select('id,cor_ordem').eq('id', id).single();
+  toast(`Próximo lote aberto: ${l ? loteNome(l) : 'Lote ' + n3(id)}. As próximas remessas vão para ele.`);
+  ir('home');
+};
 function infoHoje(ult, abertos) {
   const hoje = hojeISO();
   if (ult && ult.data_entrada === hoje) return {cor: ult.cor_ordem, texto: `Lote de hoje: ${loteNome(ult)}. Separe no pote ${cor(ult.cor_ordem).nome.toLowerCase()}.`};
@@ -467,6 +487,8 @@ R.home = async () => {
     const aEntregar = data.filter(r => r.status === 'devolvida' && !r.entregue_em);
     const outras = data.filter(r => r.status !== 'registrada' && !(r.status === 'devolvida' && !r.entregue_em)).slice(0, 60);
     const nPec = naLoja.reduce((s, r) => s + (r.cons_pecas || []).length, 0);
+    const {data: ultL} = await sb.from('cons_lotes').select('id,cor_ordem,data_entrada,status').gt('cor_ordem', 0).order('id', {ascending: false}).limit(1);
+    const ultLoja = (ultL || [])[0];
     const conta = f => data.filter(f).length;
     const mini = [['Na loja', conta(r => r.status === 'registrada')], ['Enviadas', conta(r => r.status === 'enviada')],
       ['Na fábrica', conta(r => r.status === 'na_fabrica' && !pronta(r))], ['Prontas na fábrica', conta(r => r.status === 'na_fabrica' && pronta(r))], ['A entregar à consultora', aEntregar.length], ['Entregues', conta(r => !!r.entregue_em)]];
@@ -479,6 +501,8 @@ R.home = async () => {
       <h2>Na loja, ainda não enviadas (${naLoja.length})</h2>
       ${naLoja.length ? `<div class="card stack"><p class="sub">Ao final do dia, finalize a remessa. Todas estas requisições vão para a fábrica no lote/cor de hoje.</p>
         <button class="btn dark" data-act="finalizar">Finalizar remessa do dia · ${naLoja.length} requisição(ões) · ${nPec} peça(s)</button></div>` : ''}
+      ${ultLoja && ultLoja.data_entrada === hojeISO() ? `<p class="sub">${dot(ultLoja.cor_ordem)} Lote de hoje: <b>${esc(loteNome(ultLoja))}</b>. A próxima remessa finalizada vai para ele.</p>` : ''}
+      ${cardRetro(ultLoja)}
       ${lista(naLoja, 'Nenhuma requisição na loja.')}
       <h2>Enviadas, em conserto e entregues</h2>${lista(outras, 'Nada enviado ainda.')}`;
     ACT.finalizar = async b => {
@@ -525,6 +549,7 @@ R.home = async () => {
   $('#main').innerHTML = `
     <div><h1>Olá, ${esc(primeiro(S.nome))}</h1><p class="sub">${new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'})}</p></div>
     <div class="card ${h.alerta ? 'alerta' : ''}" style="display:flex;gap:10px;align-items:flex-start">${dot(h.cor, true)}<div class="stack" style="gap:4px"><span>${esc(h.texto)}</span>${h.ocupId ? `<button class="link" data-ir="lote" data-p="${h.ocupId}">Abrir o lote ${n3(h.ocupId)}</button>` : ''}</div></div>
+    ${cardRetro(ult)}
     <h2>Onde estão as peças</h2>
     ${trilha(c)}
     <p class="sub">${abertas} peça(s) em aberto na fábrica${atras ? ` · <span class="flag">${atras} lote(s) acima de 12 dias úteis</span>` : ''}</p>
