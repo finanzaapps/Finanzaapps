@@ -47,6 +47,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--rose);border-col
 .link{background:none;border:none;color:var(--terra);font-size:14px;font-weight:700;padding:6px 0;cursor:pointer;text-align:left}
 .row{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;color:inherit;cursor:pointer}
 .row .t{font-weight:700}
+.pill.urg{background:#b3261e;color:#fff;letter-spacing:.04em}
+.urgbox{border:2px solid #b3261e}
+.urgtog{display:flex;align-items:center;gap:10px;padding:12px 14px;border:2px solid #b3261e;border-radius:12px;color:#b3261e;font-weight:700;cursor:pointer}
+.urgtog input{width:22px;height:22px;accent-color:#b3261e}
 .pill{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;white-space:nowrap}
 .pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}
 .pill.info{background:var(--info-soft);color:var(--info)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
@@ -158,7 +162,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FUNCAO_IA = 'swift-endpoint'; // endereço da função da IA no Supabase (Edge Functions)
 const FUNCAO_USUARIOS = 'hyper-handler'; // endereço da função de usuários no Supabase (Edge Functions)
 let RECUPERANDO = /type=recovery/.test(location.hash);
-const VERSAO = 'Entrega 19';
+const VERSAO = 'Entrega 20';
 
 // ====== Constantes ======
 const GRUPOS = [['corrente','Corrente / colar'],['anel','Anel'],['pingente','Pingente'],['pulseira','Pulseira'],['tornozeleira','Tornozeleira'],['brinco','Brinco (par)'],['outro','Outro']];
@@ -387,7 +391,7 @@ R.etapa = async k => {
   let h = `<button class="link" data-ir="home">‹ Início</button>
     <div class="stack" style="gap:4px"><span class="pill neutro" style="align-self:flex-start">Etapa ${e.n} de 6</span><h1>${e.t}</h1><p class="sub">${e.d}</p></div>`;
   if (['loja','receber','devolvidas'].includes(k)) {
-    let q = sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)');
+    let q = sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,urgente,ia_qtd_foto,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)');
     q = k === 'loja' ? q.eq('status', 'registrada') : k === 'receber' ? q.in('status', ['enviada','registrada']) : q.eq('status', 'devolvida').gte('devolvida_em', iso7());
     const {data, error} = await q.order('id', {ascending: false}).limit(500);
     if (error) throw error;
@@ -396,7 +400,7 @@ R.etapa = async k => {
     $('#main').innerHTML = h; return;
   }
   const st = {conferidas: 'na_fabrica', jonatan: 'com_jonatan', voltaram: 'retornou'}[k];
-  const {data: pecas, error} = await sb.from('cons_pecas').select('id,posicao,grupo,medida,status,nao_fressen,enviada_em,retornou_em,servico_previsto,servico_feito,lote_id,requisicao_id,cons_requisicoes(id,numero_formulario,consultora,data_promessa)').eq('status', st).order('lote_id').order('requisicao_id').order('posicao').limit(1000);
+  const {data: pecas, error} = await sb.from('cons_pecas').select('id,posicao,grupo,medida,status,nao_fressen,enviada_em,retornou_em,servico_previsto,servico_feito,lote_id,requisicao_id,cons_requisicoes(id,numero_formulario,consultora,data_promessa,urgente)').eq('status', st).order('lote_id').order('requisicao_id').order('posicao').limit(1000);
   if (error) throw error;
   const ids = [...new Set(pecas.map(p => p.lote_id).filter(Boolean))];
   let lotes = [];
@@ -414,7 +418,7 @@ R.etapa = async k => {
         <button class="link" data-ir="lote" data-p="${l.id}">Abrir</button></div>
       ${acao}
       ${Object.values(porReq).map(rs => { const r = rs[0].cons_requisicoes; return `<div class="pecarow">
-        <button class="link" data-ir="req" data-p="${r.id}" style="padding:0">${esc(reqNome(r))} · ${esc(r.consultora)}</button>
+        <button class="link" data-ir="req" data-p="${r.id}" style="padding:0">${esc(reqNome(r))} · ${esc(r.consultora)}</button>${URG(r)}
         ${rs.map(p => `<span class="s">${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''} · ${k === 'voltaram' ? 'feito: ' + (feitoTxt(p) || '—') : 'previsto: ' + (SNOME[p.servico_previsto] || '—')}</span>`).join('')}</div>`; }).join('')}
     </div>`;
   }
@@ -441,14 +445,16 @@ function pillReq(r) {
   const st = {registrada:['Na loja','warn'], enviada:['Enviada','info'], devolvida:[S.perfil === 'executiva' ? 'A entregar' : 'Devolvida', S.perfil === 'executiva' ? 'warn' : 'ok']}[r.status] || ['?','neutro'];
   return `<span class="pill ${st[1]}">${st[0]}</span>`;
 }
+const URG = r => r && r.urgente ? ' <span class="pill urg">URGENTE</span>' : '';
+const urgPrimeiro = arr => arr.slice().sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0));
 function cardReq(r) {
   const busca = `${r.numero_formulario || ''} r-${r.id} ${r.consultora}`.toLowerCase();
   const ex = r.fab_perfis ? esc(r.fab_perfis.nome) + ' · ' : '';
   const lt = r.cons_lotes ? dot(r.cons_lotes.cor_ordem) + ' ' : '';
   const difQtd = r.ia_qtd_foto && r.cons_pecas && r.ia_qtd_foto > r.cons_pecas.length;
-  return `<button class="row" data-ir="req" data-p="${r.id}" data-busca="${esc(busca)}"><div><div class="t">${lt}${esc(reqNome(r))} · ${esc(r.consultora)}</div><div class="s">${ex}recebida ${fmt(r.data_recebimento)} · entregar até ${fmt(r.data_promessa)}</div>${difQtd ? `<div class="flag" style="font-size:13px">Foto com ${r.ia_qtd_foto} peças, ${r.cons_pecas.length} lançadas</div>` : ''}</div>${pillReq(r)}</button>`;
+  return `<button class="row" data-ir="req" data-p="${r.id}" data-busca="${esc(busca)}"><div><div class="t">${lt}${esc(reqNome(r))} · ${esc(r.consultora)}${URG(r)}</div><div class="s">${ex}recebida ${fmt(r.data_recebimento)} · entregar até ${fmt(r.data_promessa)}</div>${difQtd ? `<div class="flag" style="font-size:13px">Foto com ${r.ia_qtd_foto} peças, ${r.cons_pecas.length} lançadas</div>` : ''}</div>${pillReq(r)}</button>`;
 }
-const lista = (arr, vazio) => arr.length ? arr.map(cardReq).join('') : `<p class="vazio">${vazio}</p>`;
+const lista = (arr, vazio) => arr.length ? urgPrimeiro(arr).map(cardReq).join('') : `<p class="vazio">${vazio}</p>`;
 // Lançamento retroativo: fecha o lote de hoje para novas remessas e abre a próxima cor
 function cardRetro(ult) {
   if (!ult || ult.data_entrada !== hojeISO() || !['executiva','gestao'].includes(S.perfil)) return '';
@@ -481,7 +487,7 @@ function infoHoje(ult, abertos) {
 R.home = async () => {
   try { const {data} = await sb.from('cons_config').select('fila_cores').eq('id', 1).maybeSingle(); S.fila = (data && data.fila_cores) || []; } catch (_) { S.fila = []; }
   if (S.perfil === 'executiva') {
-    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,entregue_em,cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').order('id', {ascending: false}).limit(150);
+    const {data, error} = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,urgente,ia_qtd_foto,entregue_em,cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').order('id', {ascending: false}).limit(150);
     if (error) throw error;
     const naLoja = data.filter(r => r.status === 'registrada');
     const aEntregar = data.filter(r => r.status === 'devolvida' && !r.entregue_em);
@@ -521,7 +527,7 @@ R.home = async () => {
     return;
   }
   const [q1, q2, q3] = await Promise.all([
-    sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,ia_qtd_foto,modo_devolucao,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').in('status', ['registrada','enviada','na_fabrica']).order('id'),
+    sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,urgente,ia_qtd_foto,modo_devolucao,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').in('status', ['registrada','enviada','na_fabrica']).order('id'),
     sb.from('cons_lotes_resumo').select('*').eq('status', 'aberto').order('id'),
     sb.from('cons_lotes').select('id,cor_ordem,data_entrada,status').gt('cor_ordem', 0).order('id', {ascending: false}).limit(1)
   ]);
@@ -534,6 +540,8 @@ R.home = async () => {
   const atras = lotes.filter(l => l.cor_ordem > 0 && diaUtil(l.data_entrada) > 12).length;
   const h = infoHoje(ult, lotes);
   const qd = await sb.from('cons_requisicoes').select('id', {count: 'exact', head: true}).eq('status', 'devolvida').gte('devolvida_em', iso7());
+  const qu = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,data_recebimento,data_promessa,status,urgente,ia_qtd_foto,executiva_id,criado_por,fab_perfis!cons_requisicoes_executiva_id_fkey(nome),cons_lotes!cons_requisicoes_lote_id_fkey(id,cor_ordem),cons_pecas(status)').eq('urgente', true).neq('status', 'devolvida').order('data_recebimento');
+  const urg = qu.data || [];
   const soma = c => lotes.reduce((s, l) => s + (l[c] || 0), 0);
   const pec = arr => arr.reduce((s, r) => s + (r.cons_pecas || []).length, 0);
   const lojaArr = reqs.filter(r => r.status === 'registrada' && r.criado_por === r.executiva_id);
@@ -550,6 +558,7 @@ R.home = async () => {
     <div><h1>Olá, ${esc(primeiro(S.nome))}</h1><p class="sub">${new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'})}</p></div>
     <div class="card ${h.alerta ? 'alerta' : ''}" style="display:flex;gap:10px;align-items:flex-start">${dot(h.cor, true)}<div class="stack" style="gap:4px"><span>${esc(h.texto)}</span>${h.ocupId ? `<button class="link" data-ir="lote" data-p="${h.ocupId}">Abrir o lote ${n3(h.ocupId)}</button>` : ''}</div></div>
     ${cardRetro(ult)}
+    ${urg.length ? `<div class="card stack urgbox"><h2 style="margin:0;color:#b3261e">🔴 Urgentes (${urg.length})</h2><p class="sub">Comandas que a loja marcou como urgentes. Passe à frente se precisar.</p>${lista(urg, '')}</div>` : ''}
     <h2>Onde estão as peças</h2>
     ${trilha(c)}
     <p class="sub">${abertas} peça(s) em aberto na fábrica${atras ? ` · <span class="flag">${atras} lote(s) acima de 12 dias úteis</span>` : ''}</p>
@@ -602,6 +611,7 @@ R.nova = async () => {
     <div class="card stack">
       <h2 style="margin:0">3. Dados da requisição</h2>
       <div id="rCmd"></div>
+      <label class="urgtog" id="rUrgBox"><input type="checkbox" id="rUrg"> 🔴 URGENTE <span class="s" style="font-weight:400;color:inherit">· a fábrica vê esta comanda em destaque</span></label>
       ${S.perfil !== 'executiva' ? `<div class="field"><label for="rExec">Loja</label><select id="rExec"><option value="">${execs.length ? 'Escolha a loja' : 'Nenhuma loja cadastrada'}</option>${execs.map(x => `<option value="${x.id}">${esc(x.nome)}</option>`).join('')}</select></div>` : ''}
       <div class="grid2">
         <div class="field"><label for="rNum">Nº da requisição *</label><input id="rNum" inputmode="numeric" required placeholder="ex.: 069733"></div>
@@ -649,6 +659,7 @@ R.nova = async () => {
   // Dados lidos da comanda pela IA: entram nos campos, que continuam editáveis.
   // Campo que a pessoa já alterou à mão não é sobrescrito se a IA rodar de novo.
   const MANUAL = new Set();
+  $('#rUrg').addEventListener('change', () => { MANUAL.add('rUrg'); $('#rUrgBox').classList.remove('iaFill'); });
   ['rNum', 'rCons', 'rRec', 'rProm'].forEach(id => $('#' + id).addEventListener('input', () => { MANUAL.add(id); $('#' + id).classList.remove('iaFill'); }));
   function preencherComanda(c) {
     const box = $('#rCmd');
@@ -659,6 +670,7 @@ R.nova = async () => {
     if (pos('rCons', c.consultora)) lidos.push('consultora');
     if (pos('rRec', c.data_recebimento)) { lidos.push('recebimento'); if (!c.data_previsao && !MANUAL.has('rProm')) $('#rProm').value = addDias(c.data_recebimento, 30); }
     if (pos('rProm', c.data_previsao)) lidos.push('previsão');
+    if (c.urgente && !MANUAL.has('rUrg')) { $('#rUrg').checked = true; $('#rUrgBox').classList.add('iaFill'); lidos.push('URGENTE'); }
     box.innerHTML = (lidos.length ? `<div class="result" style="font-size:14px">A IA leu da comanda: ${lidos.join(', ')}. Confira e corrija no próprio campo se precisar.</div>` : '')
       + (c.numero_repetido ? `<div class="card alerta" style="padding:10px 12px"><b>Atenção: o Nº ${esc(c.numero)} já está cadastrado no app.</b> <span class="s">Confira se esta comanda já não foi lançada.</span></div>` : '');
   }
@@ -707,7 +719,7 @@ R.nova = async () => {
         numero_formulario: $('#rNum').value.trim(), executiva_id: execId, consultora: $('#rCons').value.trim(),
         data_recebimento: $('#rRec').value, data_promessa: $('#rProm').value,
         modo_devolucao: document.querySelector('input[name=rModo]:checked').value, observacao: $('#rObs').value.trim() || null,
-        ia_qtd_foto: IA.estado === 'ok' ? IA.total : null
+        ia_qtd_foto: IA.estado === 'ok' ? IA.total : null, urgente: $('#rUrg').checked
       }).select('id').single();
       if (error) throw error;
       const {error: ep} = await sb.from('cons_pecas').insert(pecas.map((p, i) => ({requisicao_id: r.id, posicao: i + 1, grupo: p.grupo,
@@ -807,7 +819,7 @@ R.req = async id => {
   $('#main').innerHTML = `
     <button class="link" data-ir="home">‹ Início</button>
     <div class="card stack">
-      <div class="top2"><h1>${esc(reqNome(r))}</h1>${pillReq(r)}</div>
+      <div class="top2"><h1>${esc(reqNome(r))}${URG(r)}</h1>${pillReq(r)}</div>
       ${r.cons_lotes ? `<button class="link" data-ir="lote" data-p="${r.cons_lotes.id}">${corChip(r.cons_lotes.cor_ordem, loteNome(r.cons_lotes))}</button>` : ''}
       <dl class="info">
         <div><dt>Consultora</dt><dd>${esc(r.consultora)}</dd></div>
@@ -817,6 +829,7 @@ R.req = async id => {
         <div><dt>Devolução</dt><dd>${r.modo_devolucao === 'parcial' ? 'Parcial' : 'Completa'}</dd></div>
         ${r.observacao ? `<div><dt>Observação</dt><dd>${esc(r.observacao)}</dd></div>` : ''}
       </dl>
+      ${(fab ? r.status !== 'devolvida' : (r.status === 'registrada' && r.executiva_id === S.user.id)) ? `<button type="button" class="link" style="color:#b3261e;align-self:flex-start" data-act="urgente">${r.urgente ? 'Tirar a marcação de urgente' : '🔴 Marcar como URGENTE'}</button>` : ''}
     </div>
     <h2>Fotos</h2>${thumbs(fotos, urls)}
     ${r.ia_qtd_foto && r.ia_qtd_foto > pecas.length ? `<div class="card alerta stack" style="gap:6px"><b>A IA contou ${r.ia_qtd_foto} peças na foto, mas há ${pecas.length} lançadas.</b>
@@ -972,6 +985,12 @@ R.req = async id => {
       toast(`Peça ${p.posicao} · ${GNOME[p.grupo]} excluída da ${reqNome(r)}.`); ir('req', r.id);
     } catch (e) { b.disabled = false; toast(erroMsg(e), true); }
   };
+  ACT.urgente = async b => {
+    b.disabled = true;
+    const {error} = await sb.from('cons_requisicoes').update({urgente: !r.urgente}).eq('id', r.id);
+    if (error) { b.disabled = false; return toast(erroMsg(error), true); }
+    toast(r.urgente ? 'Marcação de urgente retirada.' : 'Comanda marcada como URGENTE.'); ir('req', r.id);
+  };
   ACT.excluir = async b => {
     if (!confirma(b)) return;
     b.disabled = true;
@@ -1008,7 +1027,7 @@ R.lotes = async () => {
 R.lote = async id => {
   const [ql, qp] = await Promise.all([
     sb.from('cons_lotes_resumo').select('*').eq('id', id).single(),
-    sb.from('cons_pecas').select('*,cons_requisicoes(id,numero_formulario,consultora,data_promessa,modo_devolucao)').eq('lote_id', id).order('requisicao_id').order('posicao')
+    sb.from('cons_pecas').select('*,cons_requisicoes(id,numero_formulario,consultora,data_promessa,modo_devolucao,urgente)').eq('lote_id', id).order('requisicao_id').order('posicao')
   ]);
   if (ql.error) throw ql.error; if (qp.error) throw qp.error;
   const l = ql.data, pecas = qp.data, fab = S.perfil !== 'executiva';
@@ -1044,7 +1063,7 @@ R.lote = async id => {
     };
     const bloco = ([rid, ps]) => {
       const r = ps[0].cons_requisicoes, fs = fotos.filter(f => f.requisicao_id == rid);
-      return `<div class="card stack" style="gap:10px"><div class="top2"><button class="link" data-ir="req" data-p="${rid}">${esc(reqNome(r))} · ${esc(r.consultora)}</button><span class="s">até ${fmt(r.data_promessa)}</span></div>
+      return `<div class="card stack" style="gap:10px"><div class="top2"><button class="link" data-ir="req" data-p="${rid}">${esc(reqNome(r))} · ${esc(r.consultora)}</button>${URG(r)}<span class="s">até ${fmt(r.data_promessa)}</span></div>
         ${fs.length ? thumbs(fs, urls) : ''}${ps.map(linhaP).join('')}</div>`;
     };
     $('#main').innerHTML = `
@@ -1059,7 +1078,7 @@ R.lote = async id => {
       ${acoes}
       <div class="tabs">${[['aguardando','Aguardando'],['voltaram','Voltaram'],['todas','Todas']].map(([v, t]) => `<button class="${F.aba === v ? 'on' : ''}" data-act="aba" data-v="${v}">${t}</button>`).join('')}</div>
       ${grupos.length > 1 ? `<div class="grupos"><button class="chipbtn ${!F.grupo ? 'on' : ''}" data-act="grupo" data-v="">Todos</button>${grupos.map(g => `<button class="chipbtn ${F.grupo === g ? 'on' : ''}" data-act="grupo" data-v="${g}">${GNOME[g]}</button>`).join('')}</div>` : ''}
-      ${Object.keys(porReq).length ? Object.entries(porReq).map(bloco).join('') : '<p class="vazio">Nenhuma peça neste filtro.</p>'}`;
+      ${Object.keys(porReq).length ? Object.entries(porReq).sort((a, b) => (b[1][0].cons_requisicoes.urgente ? 1 : 0) - (a[1][0].cons_requisicoes.urgente ? 1 : 0)).map(bloco).join('') : '<p class="vazio">Nenhuma peça neste filtro.</p>'}`;
   }
   render();
 
@@ -1124,7 +1143,7 @@ R.retorno = async loteId => {
       if (ids.length) { const qf = await sb.from('cons_fotos').select('*').in('requisicao_id', ids).eq('tipo', 'chegada').order('id'); if (qf.error) throw qf.error; fotos = qf.data; }
       E.fotosReq = {}; fotos.forEach(f => (E.fotosReq[f.requisicao_id] = E.fotosReq[f.requisicao_id] || []).push(f));
       E.urls = await assinar(fotos.flatMap(f => [f.caminho, f.caminho_ia]).filter(Boolean));
-      const qr = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora').eq('lote_id', l.id).order('id');
+      const qr = await sb.from('cons_requisicoes').select('id,numero_formulario,consultora,urgente').eq('lote_id', l.id).order('id');
       E.reqsLote = qr.data || [];
     } catch (e) { toast(erroMsg(e), true); }
     E.busy = ''; render();
@@ -1134,7 +1153,7 @@ R.retorno = async loteId => {
     const r = p.cons_requisicoes, f = (E.fotosReq[p.requisicao_id] || [])[0];
     const img = f ? `<img src="${esc(E.urls[f.caminho_ia || f.caminho] || '')}" alt="Foto de chegada" data-zoom="${esc(E.urls[f.caminho] || '')}">` : '';
     return `<div class="cand ${E.escolha === p.id ? 'on' : ''}">${img}<button class="cand-b" data-act="escolher" data-id="${p.id}">
-      <span class="t">${esc(reqNome(r))} · ${esc(r.consultora)}</span>
+      <span class="t">${esc(reqNome(r))} · ${esc(r.consultora)}${URG(r)}</span>
       <span>Peça ${p.posicao} · ${GNOME[p.grupo]}${p.medida ? ' · ' + esc(p.medida) : ''}</span>
       ${p.descricao ? `<span class="s">${esc(p.descricao)}</span>` : ''}${extra || ''}</button></div>`;
   }
