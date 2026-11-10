@@ -2498,6 +2498,70 @@ function whatsCliente(id){
 // ═══════════════════════════════════════════════════════════════
 let _finTab = 'pendente';
 
+// ── Saldo por categoria (departamento dos itens da venda) ──
+let _finCat = '';
+const _rotulosCat = {};
+function _normCat(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
+function _temAcento(s){ return /[À-ſ]/.test(s); }
+function _guardarRotulo(k, orig){
+  if (!_rotulosCat[k] || (_temAcento(orig) && !_temAcento(_rotulosCat[k]))) _rotulosCat[k] = orig;
+}
+function _rotuloCat(k){ return k === '__sem' ? 'Sem categoria' : (_rotulosCat[k] || k); }
+function _indiceItens(){
+  const m = {};
+  (S.venda_itens || []).forEach(i => { (m[i.venda_id] = m[i.venda_id] || []).push(i); });
+  return m;
+}
+// Divide o valor da parcela entre as categorias da venda, na proporção do valor dos itens.
+function _partesCategoria(p, ix){
+  const itens = (p.venda_id && ix[p.venda_id]) || [];
+  const vp = Number(p.valor_parcela) || 0;
+  const soma = {}; let tot = 0;
+  itens.forEach(i => {
+    const orig = String(i.depto || '').trim();
+    const k = _normCat(orig) || '__sem';
+    if (k !== '__sem') _guardarRotulo(k, orig);
+    const v = Number(i.preco_total) || 0;
+    soma[k] = (soma[k] || 0) + v; tot += v;
+  });
+  const ks = Object.keys(soma);
+  if (!ks.length || tot <= 0) return [{ key:'__sem', valor:vp }];
+  let acum = 0;
+  return ks.map((k, idx) => {
+    const v = idx === ks.length - 1 ? Math.round((vp - acum) * 100) / 100 : Math.round(vp * soma[k] / tot * 100) / 100;
+    acum += v;
+    return { key:k, valor:v };
+  });
+}
+function _resumoCategorias(parcs, ix){
+  const mapa = {};
+  parcs.forEach(p => _partesCategoria(p, ix).forEach(x => {
+    if (!mapa[x.key]) mapa[x.key] = { key:x.key, valor:0, parcelas:0 };
+    mapa[x.key].valor += x.valor; mapa[x.key].parcelas++;
+  }));
+  return { mapa, lista: Object.values(mapa).sort((a,b) => b.valor - a.valor) };
+}
+function _htmlChipsCategoria(c){
+  if (!c || !c.lista.length || (c.lista.length === 1 && c.lista[0].key === '__sem')) return '';
+  return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">Saldo por categoria <span style="font-weight:400">(toque para ver só as parcelas dela)</span></div>
+    ${c.lista.map(x => {
+      const ativo = _finCat === x.key;
+      return `<button type="button" data-k="${esc(x.key)}" onclick="finCat(this.dataset.k)" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:6px;padding:9px 12px;border-radius:10px;cursor:pointer;font-family:inherit;color:var(--text);text-align:left;background:${ativo?'rgba(45,127,249,0.15)':'var(--surface2)'};border:1px solid ${ativo?'var(--blue)':'var(--border)'}">
+        <span><span style="font-size:13px;font-weight:700">${esc(_rotuloCat(x.key))}</span> <span style="font-size:11px;color:var(--text2)">· ${x.parcelas} parcela${x.parcelas>1?'s':''}</span></span>
+        <span style="font-size:14px;font-weight:800;color:var(--danger)">${fmtBRL(x.valor)}</span>
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+function _htmlCatParcela(p, ix){
+  const partes = _partesCategoria(p, ix);
+  if (partes.length === 1 && partes[0].key === '__sem') return '';
+  const txt = partes.map(x => esc(_rotuloCat(x.key)) + (partes.length > 1 ? ' ' + fmtBRL(x.valor) : '')).join(' · ');
+  return `<div style="font-size:11px;color:var(--text3);margin-top:2px">${txt}</div>`;
+}
+function finCat(k){ _finCat = (_finCat === k) ? '' : k; renderFinanceiro(); }
+
 function finTab(tab, el) {
   _finTab = tab;
   // Remove active de todos os chips do financeiro
@@ -2516,6 +2580,13 @@ function renderFinanceiro() {
   const finDe  = document.getElementById('fin-de')?.value  || '';
   const finAte = document.getElementById('fin-ate')?.value || '';
   const finCli = (document.getElementById('fin-cli-filtro')?.value || '').toLowerCase().trim();
+  // Categorias do cliente filtrado (usadas no resumo e no filtro da lista)
+  const _ixItens = _indiceItens();
+  let _catsCli = null;
+  if (finCli) {
+    _catsCli = _resumoCategorias(S.areceber.filter(p => p.status === 'Pendente' && (p.cliente_nome||'').toLowerCase().includes(finCli)), _ixItens);
+    if (_finCat && !_catsCli.mapa[_finCat]) _finCat = '';
+  } else _finCat = '';
 
   // Atualiza flag de atrasado
   S.areceber.forEach(p => {
@@ -2537,6 +2608,7 @@ function renderFinanceiro() {
   if (_finTab === 'baixado')  lista = lista.filter(p => p.status === 'Baixado');
 
   lista.sort((a,b) => a.data_vencimento.localeCompare(b.data_vencimento));
+  if (_finCat && finCli) lista = lista.filter(p => _partesCategoria(p, _ixItens).some(x => x.key === _finCat));
 
   // ── Resumo ──
   const base = S.areceber;
@@ -2594,7 +2666,7 @@ function renderFinanceiro() {
     resumoCliCont.innerHTML = `
       <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">👤 Resumo do cliente filtrado</div>
       <div class="flex-between mb-6"><span class="text-muted">Parcelas pendentes</span><span class="fw-700">${parcsCliente.length}</span></div>
-      <div class="flex-between"><span class="text-muted">Saldo devedor total</span><span class="fw-700 text-danger">${fmtBRL(totalCli)}</span></div>`;
+      <div class="flex-between"><span class="text-muted">Saldo devedor total</span><span class="fw-700 text-danger">${fmtBRL(totalCli)}</span></div>` + _htmlChipsCategoria(_catsCli);
     resumoCliEl.style.display = 'block';
   } else if (resumoCliEl) resumoCliEl.style.display = 'none';
 
@@ -2661,7 +2733,7 @@ function renderFinanceiro() {
       <div class="flex-between" style="gap:10px">
         <div style="flex:1;min-width:0">
           <div style="font-size:15px;font-weight:700">${esc(p.cliente_nome || '—')}</div>
-          <div class="list-sub">Parcela ${p.num_parcela}/${p.total_parcelas} · Vence ${fmtData(p.data_vencimento)}</div>
+          <div class="list-sub">Parcela ${p.num_parcela}/${p.total_parcelas} · Vence ${fmtData(p.data_vencimento)}</div>${_htmlCatParcela(p, _ixItens)}
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:17px;font-weight:800;color:${atras?'var(--danger)':pago?'var(--green)':'var(--text)'}">${fmtBRL(p.valor_parcela)}</div>
