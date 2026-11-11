@@ -1082,17 +1082,18 @@ async function carregarTudo(silent) {
   if (!silent) setSyncStatus('loading');
   try {
     const uid = S.user.id;
-    const [produtos, clientes, vendas, vitens, areceber, promocoes, metas, lembretes, despesas] = await Promise.all([
+    let [produtos, clientes, vendas, vitens, areceber, promocoes, metas, lembretes, despesas] = await Promise.all([
       dbGet('finanza_autonomo_produtos',   `select=*&user_id=eq.${uid}&status=eq.Ativo&order=nome.asc`),
       dbGet('finanza_autonomo_clientes',   `select=*&user_id=eq.${uid}&order=nome.asc`),
       dbGet('finanza_autonomo_vendas',     `select=*&user_id=eq.${uid}&status=eq.Concluida&order=created_at.desc`),
-      dbGet('finanza_autonomo_venda_itens',`select=*&user_id=eq.${uid}&order=created_at.asc`),
+      dbGet('finanza_autonomo_venda_itens',`select=*&user_id=eq.${uid}`),
       dbGet('finanza_autonomo_areceber',   `select=*&user_id=eq.${uid}&order=data_vencimento.asc`),
       dbGet('finanza_autonomo_promocoes',  `select=*&user_id=eq.${uid}&order=data_inicio.desc`),
       dbGet('finanza_autonomo_metas',      `select=*&user_id=eq.${uid}&ativa=eq.true`),
       dbGet('finanza_autonomo_lembretes',  `select=*&user_id=eq.${uid}&order=data.asc`),
       dbGet('finanza_autonomo_despesas',   `select=*&user_id=eq.${uid}&order=created_at.desc`),
     ]);
+    if (!vitens.length && vendas.length) vitens = await _dbGetItensFin(uid);
     S.produtos = produtos; S.clientes = clientes; S.vendas = vendas;
     S.venda_itens = vitens; S.areceber = areceber; S.promocoes = promocoes;
     S.metas = metas; S.lembretes = lembretes; S.despesas = despesas || [];
@@ -2547,7 +2548,7 @@ function _htmlChipsCategoria(c){
   if (c.lista.length === 1 && c.lista[0].key === '__sem') {
     return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text2);line-height:1.5">
       <strong>Saldo por categoria:</strong> as vendas desta cliente não têm departamento nos itens, então não há como separar.
-      <span style="color:var(--text3)">(${(S.venda_itens||[]).length} itens carregados)</span></div>`;
+      <span style="color:var(--text3)">(${(S.venda_itens||[]).length} itens carregados${window._finItensErro ? ' · erro: ' + esc(window._finItensErro) : ''})</span></div>`;
   }
   return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
     <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">Saldo por categoria <span style="font-weight:400">(toque para ver só as parcelas dela)</span></div>
@@ -2565,6 +2566,17 @@ function _htmlCatParcela(p, ix){
   if (partes.length === 1 && partes[0].key === '__sem') return '';
   const txt = partes.map(x => esc(_rotuloCat(x.key)) + (partes.length > 1 ? ' ' + fmtBRL(x.valor) : '')).join(' · ');
   return `<div style="font-size:11px;color:var(--text3);margin-top:2px">${txt}</div>`;
+}
+// Busca os itens das vendas sem depender de ordenação e guarda o motivo se falhar
+async function _dbGetItensFin(uid) {
+  try {
+    const h = { ...HDR, 'Authorization': 'Bearer ' + tok(), 'Range-Unit': 'items', 'Range': '0-4999' };
+    const r = await fetch(SB_URL + `/rest/v1/finanza_autonomo_venda_itens?select=*&user_id=eq.${uid}`, { method: 'GET', headers: h });
+    const d = await r.json().catch(() => null);
+    if (!r.ok) { window._finItensErro = (d && (d.message || d.hint)) || ('HTTP ' + r.status); return []; }
+    window._finItensErro = '';
+    return Array.isArray(d) ? d : [];
+  } catch (e) { window._finItensErro = 'sem conexão'; return []; }
 }
 function finCat(k){ _finCat = (_finCat === k) ? '' : k; renderFinanceiro(); }
 
@@ -2591,8 +2603,9 @@ function renderFinanceiro() {
     window._finItensTentou = true;
     (async () => {
       try {
-        const r = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${S.user.id}&order=created_at.asc`);
-        if (r && r.length) { S.venda_itens = r; renderFinanceiro(); }
+        const r = await _dbGetItensFin(S.user.id);
+        if (r && r.length) S.venda_itens = r;
+        renderFinanceiro();
       } catch(e) {}
     })();
   }
@@ -2943,7 +2956,7 @@ async function renderHistorico() {
   // Garante venda_itens carregado
   if (S.venda_itens.length === 0 && S.vendas.length > 0) {
     const uid = S.user.id;
-    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`) || [];
+    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}`) || [];
   }
   // Preenche select de clientes
   const sel = document.getElementById('hist-cli-sel');
@@ -3138,7 +3151,7 @@ async function exportarHistPDF() {
   if (S.venda_itens.length === 0 && S.vendas.length > 0) {
     toast('⏳ Carregando itens...', 'warning');
     const uid = S.user.id;
-    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`) || [];
+    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}`) || [];
   }
 
   const { jsPDF } = window.jspdf;
@@ -3265,7 +3278,7 @@ async function exportarHistExcel() {
   if (S.venda_itens.length === 0 && S.vendas.length > 0) {
     toast('⏳ Carregando itens...', 'warning');
     const uid = S.user.id;
-    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`) || [];
+    S.venda_itens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}`) || [];
   }
   const lista = _getListaHistorico().slice().sort((a,b) => parseISO(a.created_at)-parseISO(b.created_at));
   if (!lista.length) { toast('Nenhuma venda para exportar','warning'); return; }
@@ -3846,7 +3859,7 @@ async function renderDashboard() {
 
   // Sempre recarrega itens para garantir dados completos
   const uid = S.user.id;
-  const vitens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}&order=created_at.asc`);
+  const vitens = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${uid}`);
   if (vitens && vitens.length > 0) S.venda_itens = vitens;
 
   const vendas = _getVendasDash();
