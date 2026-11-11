@@ -2521,11 +2521,12 @@ function _partesCategoria(p, ix){
     const orig = String(i.depto || '').trim();
     const k = _normCat(orig) || '__sem';
     if (k !== '__sem') _guardarRotulo(k, orig);
-    const v = Number(i.preco_total) || 0;
+    const v = Number(i.preco_total) || ((Number(i.preco_unit) || 0) * (Number(i.qtd) || 1));
     soma[k] = (soma[k] || 0) + v; tot += v;
   });
   const ks = Object.keys(soma);
-  if (!ks.length || tot <= 0) return [{ key:'__sem', valor:vp }];
+  if (!ks.length) return [{ key:'__sem', valor:vp }];
+  if (tot <= 0) { ks.forEach(k => { soma[k] = 1; }); tot = ks.length; }
   let acum = 0;
   return ks.map((k, idx) => {
     const v = idx === ks.length - 1 ? Math.round((vp - acum) * 100) / 100 : Math.round(vp * soma[k] / tot * 100) / 100;
@@ -2542,7 +2543,12 @@ function _resumoCategorias(parcs, ix){
   return { mapa, lista: Object.values(mapa).sort((a,b) => b.valor - a.valor) };
 }
 function _htmlChipsCategoria(c){
-  if (!c || !c.lista.length || (c.lista.length === 1 && c.lista[0].key === '__sem')) return '';
+  if (!c || !c.lista.length) return '';
+  if (c.lista.length === 1 && c.lista[0].key === '__sem') {
+    return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text2);line-height:1.5">
+      <strong>Saldo por categoria:</strong> as vendas desta cliente não têm departamento nos itens, então não há como separar.
+      <span style="color:var(--text3)">(${(S.venda_itens||[]).length} itens carregados)</span></div>`;
+  }
   return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
     <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">Saldo por categoria <span style="font-weight:400">(toque para ver só as parcelas dela)</span></div>
     ${c.lista.map(x => {
@@ -2580,6 +2586,16 @@ function renderFinanceiro() {
   const finDe  = document.getElementById('fin-de')?.value  || '';
   const finAte = document.getElementById('fin-ate')?.value || '';
   const finCli = (document.getElementById('fin-cli-filtro')?.value || '').toLowerCase().trim();
+  // Se os itens das vendas não chegaram no carregamento inicial, busca de novo (uma vez)
+  if (!window._finItensTentou && S.areceber.length && !(S.venda_itens || []).length) {
+    window._finItensTentou = true;
+    (async () => {
+      try {
+        const r = await dbGet('finanza_autonomo_venda_itens', `select=*&user_id=eq.${S.user.id}&order=created_at.asc`);
+        if (r && r.length) { S.venda_itens = r; renderFinanceiro(); }
+      } catch(e) {}
+    })();
+  }
   // Categorias do cliente filtrado (usadas no resumo e no filtro da lista)
   const _ixItens = _indiceItens();
   let _catsCli = null;
